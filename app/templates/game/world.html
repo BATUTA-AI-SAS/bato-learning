@@ -67,27 +67,44 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background:radial-gradie
 .room-title{font:700 16px var(--ff-title);color:var(--cream);flex:1}
 .room-pct{font:700 13px var(--ff-code);color:var(--gold)}
 
-/* Room scene */
-.room-scene{position:relative;width:100%;max-width:680px;margin:20px auto 0;aspect-ratio:5/3;border-radius:var(--r-lg);overflow:hidden;border:1px solid rgba(180,160,100,.08)}
-.room-floor{position:absolute;inset:0;opacity:.15}
-.room-grid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:8px;padding:12px}
-.room-obj{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:var(--r-md);border:1px solid transparent;background:rgba(0,0,0,.2);cursor:pointer;transition:all .3s var(--ease);position:relative;padding:8px 4px}
-.room-obj:hover{transform:scale(1.06);background:rgba(0,0,0,.35)}
-.room-obj.active{border-color:var(--gold);box-shadow:0 0 18px var(--gold-g);animation:objPulse 2.5s ease-in-out infinite}
-.room-obj.complete{border-color:var(--jade-d);background:rgba(61,170,109,.08)}
-.room-obj.locked{opacity:.35;cursor:not-allowed}
-.room-obj.boss{border-color:var(--ruby);background:rgba(192,64,64,.06)}
-.room-obj.boss.locked{border-color:transparent}
-.room-obj.npc{border-color:var(--azure);background:rgba(68,136,204,.06)}
-.room-obj.door{border-style:dashed}
-.obj-icon{font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
-.obj-label{font:600 10px var(--ff-body);color:var(--cream-d);text-align:center;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Room scene — 2D top-down room with free positioning */
+.room-scene{position:relative;width:100%;max-width:680px;margin:20px auto 0;aspect-ratio:16/10;border-radius:var(--r-lg);overflow:hidden;border:1px solid rgba(180,160,100,.12);background:#111}
+.room-floor{position:absolute;inset:0}
+.room-walls{position:absolute;inset:0;border:18px solid;border-image:linear-gradient(135deg,rgba(60,50,35,.9),rgba(40,30,20,.9)) 1;box-shadow:inset 0 0 40px rgba(0,0,0,.5);pointer-events:none;z-index:2}
+.room-ambient{position:absolute;inset:0;pointer-events:none;z-index:1}
+.room-objects{position:absolute;inset:20px;z-index:3}
+
+/* Interactive objects — positioned freely in the room */
+.room-obj{position:absolute;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:all .25s var(--ease);z-index:4;transform:translate(-50%,-50%)}
+.room-obj:hover{transform:translate(-50%,-50%) scale(1.15);z-index:10}
+.room-obj:hover .obj-label{opacity:1;transform:translateY(0)}
+.room-obj.active{filter:drop-shadow(0 0 10px rgba(200,168,76,.5));animation:objGlow 2s ease-in-out infinite}
+.room-obj.complete{filter:drop-shadow(0 0 6px rgba(61,170,109,.4))}
+.room-obj.locked{opacity:.3;cursor:default;filter:grayscale(.8)}
+.room-obj.locked:hover{transform:translate(-50%,-50%) scale(1)}
+.obj-sprite{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;background:rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.08);transition:all .2s;position:relative}
+.room-obj.active .obj-sprite{border-color:var(--gold);background:rgba(200,168,76,.12)}
+.room-obj.complete .obj-sprite{border-color:var(--jade-d);background:rgba(61,170,109,.1)}
+.room-obj.boss .obj-sprite{border-color:var(--ruby);background:rgba(192,64,64,.1);width:48px;height:48px;font-size:28px}
+.room-obj.npc .obj-sprite{border-radius:50%;border-color:var(--azure);background:rgba(68,136,204,.12);width:44px;height:44px}
+.room-obj.door .obj-sprite{border-style:dashed;border-color:var(--gold-d)}
+.obj-label{font:600 10px var(--ff-body);color:var(--cream);text-align:center;line-height:1.2;max-width:80px;opacity:0;transform:translateY(4px);transition:all .2s;text-shadow:0 1px 4px rgba(0,0,0,.8)}
 .obj-progress{font:700 9px var(--ff-code);color:var(--gold)}
-.obj-badge{position:absolute;top:-4px;right:-4px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid var(--void)}
-.obj-badge.quest{background:var(--gold);color:var(--void)}
+.obj-badge{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:2px solid rgba(0,0,0,.6);z-index:5}
+.obj-badge.quest{background:var(--gold);color:var(--void);animation:badgeBounce 1s ease-in-out infinite}
 .obj-badge.done{background:var(--jade);color:#fff}
-.obj-badge.lock{background:var(--lock);color:#888}
-@keyframes objPulse{0%,100%{box-shadow:0 0 12px var(--gold-g)}50%{box-shadow:0 0 24px var(--gold-g),0 0 48px rgba(200,168,76,.06)}}
+.obj-badge.lock{background:#444;color:#888}
+@keyframes objGlow{0%,100%{filter:drop-shadow(0 0 8px rgba(200,168,76,.4))}50%{filter:drop-shadow(0 0 18px rgba(200,168,76,.6))}}
+@keyframes badgeBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+
+/* Player character */
+.player{position:absolute;z-index:20;transform:translate(-50%,-50%);transition:left .4s var(--ease),top .4s var(--ease);pointer-events:none}
+.player-sprite{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--gold-b),var(--gold));border:3px solid var(--void);box-shadow:0 0 12px var(--gold-g),0 2px 8px rgba(0,0,0,.5);position:relative}
+.player-sprite::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:20px;height:4px;background:rgba(0,0,0,.3);border-radius:50%;filter:blur(2px)}
+.player-name-tag{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font:700 8px var(--ff-code);color:var(--gold);white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.interact-prompt{position:absolute;top:-28px;left:50%;transform:translateX(-50%);font:700 10px var(--ff-body);color:var(--gold-b);background:rgba(0,0,0,.7);padding:2px 8px;border-radius:4px;white-space:nowrap;animation:promptFloat 1.5s ease-in-out infinite;display:none}
+.interact-prompt.visible{display:block}
+@keyframes promptFloat{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-4px)}}
 
 /* NPC panel */
 .npc-strip{max-width:680px;margin:16px auto 0;padding:0 16px}
@@ -252,9 +269,17 @@ body::after{content:'';position:fixed;inset:0;z-index:0;background:radial-gradie
     </div>
     <div class="room-scene" id="room-scene">
       <div class="room-floor" id="room-floor"></div>
-      <div class="room-grid" id="room-grid"></div>
+      <div class="room-walls" id="room-walls"></div>
+      <div class="room-ambient" id="room-ambient"></div>
+      <div class="room-objects" id="room-objects">
+        <div class="player" id="player">
+          <div class="interact-prompt" id="interact-prompt">Toca para interactuar</div>
+          <div class="player-sprite"></div>
+          <div class="player-name-tag" id="player-tag"></div>
+        </div>
+      </div>
     </div>
-    <div class="npc-strip" id="npc-strip"></div>
+    <div id="npc-strip" style="display:none"></div>
   </div>
 </div>
 
@@ -378,6 +403,53 @@ function renderMap() {
 renderMap();
 
 // === ROOM VIEW ===
+// Object position layouts per room — placed naturally in the scene space (% coordinates)
+const ROOM_LAYOUTS = {
+  'la-oficina': [
+    {type:'puzzle_cluster',idx:0, x:15, y:18, icon:'🖥️'},
+    {type:'puzzle_cluster',idx:1, x:78, y:18, icon:'📄'},
+    {type:'puzzle_cluster',idx:2, x:15, y:55, icon:'📁'},
+    {type:'puzzle_cluster',idx:3, x:78, y:55, icon:'⚙️'},
+    {type:'puzzle_cluster',idx:4, x:30, y:78, icon:'🌐'},
+    {type:'npc', x:48, y:38, icon:'👴'},
+    {type:'boss',idx:0, x:48, y:78, icon:'⚔️'},
+    {type:'door', x:50, y:95, icon:'🚪'},
+  ],
+  'el-taller': [
+    {type:'puzzle_cluster',idx:0, x:15, y:15, icon:'🗄️'},
+    {type:'puzzle_cluster',idx:1, x:78, y:15, icon:'🔐'},
+    {type:'puzzle_cluster',idx:2, x:22, y:48, icon:'🧪'},
+    {type:'puzzle_cluster',idx:3, x:72, y:48, icon:'🚀'},
+    {type:'puzzle_cluster',idx:4, x:15, y:78, icon:'📐'},
+    {type:'npc', x:48, y:48, icon:'👴'},
+    {type:'boss',idx:0, x:48, y:78, icon:'⚔️'},
+    {type:'door', x:50, y:95, icon:'🚪'},
+  ],
+  'el-laboratorio': [
+    {type:'puzzle_cluster',idx:0, x:15, y:15, icon:'🤖'},
+    {type:'puzzle_cluster',idx:1, x:78, y:15, icon:'🛡️'},
+    {type:'puzzle_cluster',idx:2, x:28, y:42, icon:'🔌'},
+    {type:'puzzle_cluster',idx:3, x:28, y:75, icon:'🎛️'},
+    {type:'puzzle_cluster',idx:4, x:72, y:75, icon:'🔒'},
+    {type:'npc', x:50, y:50, icon:'👴'},
+    {type:'boss',idx:0, x:50, y:82, icon:'⚔️'},
+    {type:'door', x:50, y:95, icon:'🚪'},
+  ],
+  'la-ciudad': [
+    {type:'puzzle_cluster',idx:0, x:15, y:15, icon:'📡'},
+    {type:'puzzle_cluster',idx:1, x:78, y:15, icon:'💰'},
+    {type:'puzzle_cluster',idx:2, x:18, y:48, icon:'📚'},
+    {type:'puzzle_cluster',idx:3, x:78, y:48, icon:'🏗️'},
+    {type:'npc', x:48, y:50, icon:'👴'},
+    {type:'boss',idx:0, x:50, y:82, icon:'⚔️'},
+    {type:'door', x:50, y:95, icon:'🚪'},
+  ],
+};
+
+let playerX = 50, playerY = 85; // current player position (%)
+let nearObj = null; // object player is near
+let roomObjElements = []; // {el, data, objData, x, y}
+
 function enterRoom(slug) {
   currentRoomSlug = slug;
   document.getElementById('map-view').style.display = 'none';
@@ -390,124 +462,189 @@ function enterRoom(slug) {
 
   document.getElementById('room-title').textContent = room.name;
   document.getElementById('room-pct').textContent = (info.percent||0) + '%';
-  document.getElementById('room-floor').style.background = colors.bg || 'var(--glass)';
-  document.getElementById('room-scene').style.borderColor = (colors.accent||'var(--gold)') + '22';
 
-  // Render objects in grid
-  const grid = document.getElementById('room-grid');
-  grid.innerHTML = '';
+  // Room visuals
+  const floor = document.getElementById('room-floor');
+  floor.style.background = colors.bg || 'var(--glass)';
+  const walls = document.getElementById('room-walls');
+  walls.style.borderImageSource = `linear-gradient(135deg, ${colors.accent || '#444'}44, ${colors.accent || '#444'}22)`;
+  const ambient = document.getElementById('room-ambient');
+  ambient.style.background = `radial-gradient(ellipse 40% 40% at 50% 40%, ${colors.accent || '#c8a44e'}15, transparent)`;
 
-  const puzzleClusters = room.objects.filter(o => o.type === 'puzzle_cluster' || o.type === 'boss');
-  const door = room.objects.find(o => o.type === 'door');
+  // Build objects
+  const objContainer = document.getElementById('room-objects');
+  // Keep player, remove rest
+  const player = document.getElementById('player');
+  objContainer.innerHTML = '';
+  objContainer.appendChild(player);
+
+  const layout = ROOM_LAYOUTS[slug] || [];
+  const puzzleClusters = room.objects.filter(o => o.type === 'puzzle_cluster');
+  const bosses = room.objects.filter(o => o.type === 'boss');
   const npc = room.objects.find(o => o.type === 'npc');
+  const door = room.objects.find(o => o.type === 'door');
 
-  // Determine sequential unlock: cluster N is active only if cluster N-1 is complete
+  // Sequential unlock logic
   let prevComplete = true;
   const clusterStates = puzzleClusters.map(obj => {
     const levels = obj.levels || [];
     const done = levels.filter(s => completedSlugs.has(s)).length;
     const total = levels.length;
     const allDone = done >= total;
-    const isBoss = obj.type === 'boss';
-
-    let state = 'locked';
-    if (isBoss) {
-      const allClustersComplete = puzzleClusters.filter(o => o.type === 'puzzle_cluster').every(o =>
-        (o.levels||[]).every(s => completedSlugs.has(s))
-      );
-      state = allClustersComplete ? (allDone ? 'complete' : 'active') : 'locked';
-    } else if (allDone) {
-      state = 'complete';
-      prevComplete = true;
-    } else if (prevComplete) {
-      state = 'active';
-      prevComplete = false;
-    } else {
-      state = 'locked';
-    }
-    return { obj, done, total, state, isBoss };
+    let state;
+    if (allDone) { state = 'complete'; prevComplete = true; }
+    else if (prevComplete) { state = 'active'; prevComplete = false; }
+    else state = 'locked';
+    return { obj, done, total, state };
   });
 
-  clusterStates.forEach(({ obj, done, total, state, isBoss }) => {
-    const el = document.createElement('div');
-    el.className = `room-obj ${state}${isBoss ? ' boss' : ''}`;
-    const nextLevel = (obj.levels||[]).find(s => !completedSlugs.has(s));
-    const icon = isBoss ? '⚔️' : '📋';
-    el.innerHTML = `
-      <div class="obj-icon">${icon}</div>
-      <div class="obj-label">${obj.label || 'Misión'}</div>
-      <div class="obj-progress">${done}/${total}</div>
-      <div class="obj-badge ${state === 'active' ? 'quest' : state === 'complete' ? 'done' : 'lock'}">
-        ${state === 'active' ? '!' : state === 'complete' ? '✓' : '🔒'}
-      </div>
-    `;
-    if (state === 'active' && nextLevel) {
-      el.onclick = () => {
-        if (obj.intro_dialogue) {
-          showDialogue(obj.intro_dialogue.speaker, obj.intro_dialogue.lines, () => openPuzzle(slug, nextLevel));
-        } else {
-          openPuzzle(slug, nextLevel);
-        }
-      };
-    }
-    grid.appendChild(el);
+  const bossStates = bosses.map(obj => {
+    const levels = obj.levels || [];
+    const done = levels.filter(s => completedSlugs.has(s)).length;
+    const total = levels.length;
+    const allDone = done >= total;
+    const allClustersComplete = puzzleClusters.every(o => (o.levels||[]).every(s => completedSlugs.has(s)));
+    return { obj, done, total, state: allClustersComplete ? (allDone ? 'complete' : 'active') : 'locked' };
   });
 
-  // Door
-  if (door) {
-    const doorUnlocked = (info.percent || 0) >= (door.requires_percent || 70);
+  roomObjElements = [];
+  let puzzleIdx = 0, bossIdx = 0;
+
+  for (const pos of layout) {
+    let objData, state, done = 0, total = 0, isBoss = false;
+
+    if (pos.type === 'puzzle_cluster') {
+      const cs = clusterStates[pos.idx ?? puzzleIdx++];
+      if (!cs) continue;
+      objData = cs.obj; state = cs.state; done = cs.done; total = cs.total;
+    } else if (pos.type === 'boss') {
+      const bs = bossStates[pos.idx ?? bossIdx++];
+      if (!bs) continue;
+      objData = bs.obj; state = bs.state; done = bs.done; total = bs.total; isBoss = true;
+    } else if (pos.type === 'npc' && npc) {
+      objData = npc; state = 'npc';
+    } else if (pos.type === 'door' && door) {
+      const doorUnlocked = (info.percent || 0) >= (door.requires_percent || 70);
+      objData = door; state = doorUnlocked ? 'active' : 'locked';
+    } else continue;
+
     const el = document.createElement('div');
-    el.className = `room-obj door ${doorUnlocked ? 'active' : 'locked'}`;
+    const cls = pos.type === 'npc' ? 'npc' : pos.type === 'door' ? 'door' : isBoss ? 'boss' : '';
+    el.className = `room-obj ${state} ${cls}`.trim();
+    el.style.left = pos.x + '%';
+    el.style.top = pos.y + '%';
+
+    const badgeClass = state === 'active' ? 'quest' : state === 'complete' ? 'done' : 'lock';
+    const badgeText = state === 'active' ? '!' : state === 'complete' ? '✓' : state === 'npc' ? '💬' : '🔒';
+
     el.innerHTML = `
-      <div class="obj-icon">🚪</div>
-      <div class="obj-label">${doorUnlocked ? 'Siguiente sala' : 'Bloqueada'}</div>
-      <div class="obj-badge ${doorUnlocked ? 'quest' : 'lock'}">${doorUnlocked ? '→' : '🔒'}</div>
+      <div class="obj-sprite">${pos.icon}<div class="obj-badge ${badgeClass}">${badgeText}</div></div>
+      <div class="obj-label">${objData.label || ''}</div>
+      ${total > 0 ? `<div class="obj-progress">${done}/${total}</div>` : ''}
     `;
-    if (doorUnlocked && door.target_room) {
-      el.onclick = () => {
-        const dlg = door.unlocked_dialogue || { speaker: 'NARRADOR', lines: ['La puerta se abre.'] };
-        showDialogue(dlg.speaker, dlg.lines, () => {
-          GS.rooms[door.target_room] = GS.rooms[door.target_room] || { unlocked: true, levels_passed: [], percent: 0 };
-          GS.rooms[door.target_room].unlocked = true;
-          enterRoom(door.target_room);
-        });
-      };
-    } else if (!doorUnlocked) {
-      el.style.cursor = 'pointer'; el.style.pointerEvents = 'auto'; el.style.opacity = '.6';
-      el.onclick = () => {
-        const dlg = door.locked_dialogue || { speaker: 'NARRADOR', lines: ['La puerta está cerrada.'] };
-        showDialogue(dlg.speaker, dlg.lines, () => {});
-      };
-    }
-    grid.appendChild(el);
+
+    // Click on object → walk to it, then interact
+    el.onclick = () => walkToAndInteract(pos.x, pos.y, pos.type, objData, state, slug, info);
+    objContainer.appendChild(el);
+    roomObjElements.push({ el, x: pos.x, y: pos.y, type: pos.type, objData, state });
   }
 
-  // NPC
-  const npcStrip = document.getElementById('npc-strip');
-  npcStrip.innerHTML = '';
-  if (npc) {
-    const pct = info.percent || 0;
-    let dlgData = npc.dialogues?.progress_0;
-    if (pct >= 100 && npc.dialogues?.progress_100) dlgData = npc.dialogues.progress_100;
-    else if (pct >= 50 && npc.dialogues?.progress_50) dlgData = npc.dialogues.progress_50;
-    const preview = (dlgData?.lines?.[0] || '').slice(0, 60) + '...';
-
-    const card = document.createElement('div');
-    card.className = 'npc-card';
-    card.innerHTML = `
-      <div class="npc-face">👴</div>
-      <div class="npc-info"><h4>${npc.label || 'Don Ramón'}</h4><p>${preview}</p></div>
-      <div class="npc-chat-icon">💬</div>
-    `;
-    card.onclick = () => {
-      showDialogue(dlgData?.speaker || 'DON RAMÓN', dlgData?.lines || ['...'], () => {
-        openMentor();
-      });
-    };
-    npcStrip.appendChild(card);
-  }
+  // Position player
+  playerX = 50; playerY = 85;
+  player.style.left = playerX + '%';
+  player.style.top = playerY + '%';
+  document.getElementById('player-tag').textContent = GS.player_name || '';
+  document.getElementById('interact-prompt').classList.remove('visible');
 
   document.getElementById('app').scrollTo(0, 0);
+}
+
+// Walk-to-and-interact: player moves to object, then triggers action
+function walkToAndInteract(tx, ty, type, objData, state, slug, info) {
+  const player = document.getElementById('player');
+  const prompt = document.getElementById('interact-prompt');
+
+  // Move player near the object
+  playerX = tx;
+  playerY = Math.min(ty + 8, 90); // stand slightly below
+  player.style.left = playerX + '%';
+  player.style.top = playerY + '%';
+
+  // Wait for movement transition, then interact
+  setTimeout(() => {
+    if (type === 'puzzle_cluster' || type === 'boss') {
+      if (state !== 'active') {
+        if (state === 'locked') showDialogue('NARRADOR', ['Esta estación aún está bloqueada. Completa la anterior primero.'], () => {});
+        else if (state === 'complete') showDialogue('NARRADOR', ['Ya completaste todos los desafíos de esta estación.'], () => {});
+        return;
+      }
+      const nextLevel = (objData.levels||[]).find(s => !completedSlugs.has(s));
+      if (!nextLevel) return;
+      if (objData.intro_dialogue) {
+        showDialogue(objData.intro_dialogue.speaker, objData.intro_dialogue.lines, () => openPuzzle(slug, nextLevel));
+      } else {
+        openPuzzle(slug, nextLevel);
+      }
+    } else if (type === 'npc') {
+      const pct = info?.percent || 0;
+      let dlgData = objData.dialogues?.progress_0;
+      if (pct >= 100 && objData.dialogues?.progress_100) dlgData = objData.dialogues.progress_100;
+      else if (pct >= 50 && objData.dialogues?.progress_50) dlgData = objData.dialogues.progress_50;
+      showDialogue(dlgData?.speaker || 'DON RAMÓN', dlgData?.lines || ['...'], () => openMentor());
+    } else if (type === 'door') {
+      if (state === 'active' && objData.target_room) {
+        const dlg = objData.unlocked_dialogue || { speaker: 'NARRADOR', lines: ['La puerta se abre.'] };
+        showDialogue(dlg.speaker, dlg.lines, () => {
+          GS.rooms[objData.target_room] = GS.rooms[objData.target_room] || { unlocked: true, levels_passed: [], percent: 0 };
+          GS.rooms[objData.target_room].unlocked = true;
+          enterRoom(objData.target_room);
+        });
+      } else {
+        const dlg = objData.locked_dialogue || { speaker: 'NARRADOR', lines: ['La puerta está cerrada.'] };
+        showDialogue(dlg.speaker, dlg.lines, () => {});
+      }
+    }
+  }, 450);
+}
+
+// WASD/Arrow movement on desktop
+document.addEventListener('keydown', e => {
+  if (puzzleOverlay.classList.contains('active') || dlgOverlay.classList.contains('active')) return;
+  if (!document.getElementById('room-view').classList.contains('active')) return;
+  const step = 6;
+  if (e.key === 'ArrowUp' || e.key === 'w') { playerY = Math.max(8, playerY - step); }
+  else if (e.key === 'ArrowDown' || e.key === 's') { playerY = Math.min(92, playerY + step); }
+  else if (e.key === 'ArrowLeft' || e.key === 'a') { playerX = Math.max(5, playerX - step); }
+  else if (e.key === 'ArrowRight' || e.key === 'd') { playerX = Math.min(95, playerX + step); }
+  else if (e.key === 'Enter' || e.key === 'e') { interactWithNearest(); return; }
+  else return;
+  e.preventDefault();
+  const player = document.getElementById('player');
+  player.style.left = playerX + '%';
+  player.style.top = playerY + '%';
+  checkProximity();
+});
+
+function checkProximity() {
+  const prompt = document.getElementById('interact-prompt');
+  nearObj = null;
+  for (const o of roomObjElements) {
+    const dist = Math.sqrt((o.x - playerX) ** 2 + (o.y - playerY) ** 2);
+    if (dist < 14) { nearObj = o; break; }
+  }
+  if (nearObj) {
+    prompt.textContent = nearObj.type === 'npc' ? 'E · Hablar' : nearObj.type === 'door' ? 'E · Puerta' : 'E · Interactuar';
+    prompt.classList.add('visible');
+  } else {
+    prompt.classList.remove('visible');
+  }
+}
+
+function interactWithNearest() {
+  if (!nearObj) return;
+  const o = nearObj;
+  const info = GS.rooms[currentRoomSlug] || {};
+  walkToAndInteract(o.x, o.y, o.type, o.objData, o.state, currentRoomSlug, info);
 }
 
 document.getElementById('room-back').onclick = () => {
