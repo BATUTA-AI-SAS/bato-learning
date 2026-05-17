@@ -4,1190 +4,718 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>bato-learning</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Fira+Code:wght@400;600&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js" async></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --void:#05060a;--deep:#0b0c14;--surface:rgba(12,13,22,.88);--glass:rgba(16,17,28,.72);
-  --glass-h:rgba(22,24,40,.85);--glass-b:1px solid rgba(180,160,100,.12);
-  --gold:#c9a84c;--gold-b:#e8c44a;--gold-d:#7a6228;--gold-g:rgba(200,168,76,.25);
-  --ember:#d4874a;--ember-g:rgba(212,135,74,.3);
-  --jade:#3daa6d;--jade-d:#266e44;--jade-g:rgba(61,170,109,.25);
-  --ruby:#c04040;--ruby-g:rgba(192,64,64,.2);
-  --azure:#4488cc;--azure-g:rgba(68,136,204,.25);
-  --cream:#ede4d0;--cream-d:#a89878;--dim:#585040;--lock:#3a3a48;
-  --r-sm:6px;--r-md:12px;--r-lg:18px;
-  --ff-title:'Cinzel',Georgia,serif;--ff-body:'Source Sans 3',system-ui,sans-serif;--ff-code:'Fira Code',monospace;
-  --ease:cubic-bezier(.16,1,.3,1);
+--void:#07080d;--ink:#0d0e16;--parchment:rgba(15,16,24,.92);
+--gold:#c49b2a;--gold-l:#e4be4a;--gold-d:#785e18;--gold-g:rgba(196,155,42,.2);
+--jade:#2d9b62;--jade-g:rgba(45,155,98,.15);
+--ruby:#b83c3c;--ruby-g:rgba(184,60,60,.15);
+--cream:#e6dbc6;--cream-d:#a09480;--dim:#54504a;
+--serif:'Cormorant Garamond',Georgia,serif;
+--sans:'DM Sans',system-ui,sans-serif;
+--mono:'JetBrains Mono',monospace;
+--ease:cubic-bezier(.22,1,.36,1);
 }
-html,body{height:100%;overflow:hidden;background:var(--void);color:var(--cream);font-family:var(--ff-body);-webkit-font-smoothing:antialiased}
-body::before{content:'';position:fixed;inset:0;z-index:0;opacity:.025;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");pointer-events:none}
-body::after{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 70% 60% at 50% 40%,transparent,var(--void));pointer-events:none}
+html,body{height:100%;background:var(--void);color:var(--cream);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow:hidden}
 
-/* === HUD === */
-.hud{position:fixed;top:0;left:0;right:0;height:52px;z-index:200;display:flex;align-items:center;gap:12px;padding:0 14px;background:linear-gradient(180deg,rgba(5,6,10,.96),rgba(5,6,10,.75));border-bottom:1px solid rgba(180,160,100,.08);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
-.hud-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-d));display:flex;align-items:center;justify-content:center;font:700 13px var(--ff-title);color:var(--void);flex-shrink:0;box-shadow:0 0 0 2px var(--void),0 0 0 3px var(--gold-d)}
-.hud-name{font:600 14px var(--ff-title);color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hud-xp{display:flex;align-items:center;gap:8px;margin-left:auto}
-.xp-bar{width:120px;height:6px;background:rgba(200,168,76,.1);border-radius:3px;overflow:hidden}
-.xp-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold-d),var(--gold-b));transition:width .8s var(--ease)}
-.xp-num{font:700 12px var(--ff-code);color:var(--gold-b);white-space:nowrap}
+/* ═══ CHAPTER SELECT ═══ */
+#chapters{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 60px}
+.ch-header{text-align:center;padding:48px 20px 12px}
+.ch-header h1{font:700 28px/1.1 var(--serif);color:var(--cream);letter-spacing:.04em}
+.ch-header p{font:400 13px var(--sans);color:var(--dim);margin-top:6px}
+.ch-list{max-width:480px;margin:24px auto 0;padding:0 16px;display:flex;flex-direction:column;gap:2px}
 
-/* === MAIN === */
-.app{position:relative;z-index:1;height:100%;padding-top:52px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.ch-item{position:relative;border-radius:12px;overflow:hidden;transition:all .3s var(--ease)}
+.ch-item.locked{opacity:.35;pointer-events:none}
 
-/* === MAP VIEW === */
-.map-view{padding:24px 16px 40px;max-width:600px;margin:0 auto;display:flex;flex-direction:column;align-items:center}
-.map-heading{font:700 11px var(--ff-title);color:var(--dim);letter-spacing:.25em;text-transform:uppercase;margin-bottom:20px}
-.map-path{position:relative;display:flex;flex-direction:column;gap:0;width:100%;max-width:380px}
-.map-connector{width:2px;height:28px;background:linear-gradient(180deg,var(--gold-d),rgba(200,168,76,.15));margin:0 auto;transition:background .3s}
-.map-connector.locked{background:linear-gradient(180deg,var(--lock),rgba(58,58,72,.1))}
-.map-node{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--r-md);border:1px solid rgba(180,160,100,.1);background:var(--glass);cursor:pointer;transition:all .3s var(--ease);position:relative}
-.map-node:hover{background:var(--glass-h);border-color:rgba(180,160,100,.25);transform:translateX(4px)}
-.map-node.active{border-color:var(--gold);box-shadow:0 0 20px var(--gold-g),inset 0 0 20px rgba(200,168,76,.05);animation:activePulse 3s ease-in-out infinite}
-.map-node.complete{border-color:var(--jade-d);background:rgba(61,170,109,.06)}
-.map-node.locked{opacity:.4;cursor:not-allowed;pointer-events:none}
-.map-icon{width:44px;height:44px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.map-info{flex:1;min-width:0}
-.map-info h3{font:700 15px var(--ff-title);color:var(--cream);margin-bottom:2px}
-.map-info p{font-size:12px;color:var(--cream-d)}
-.map-pct{font:700 12px var(--ff-code);color:var(--gold)}
-.map-bar{width:100%;height:4px;background:rgba(255,255,255,.06);border-radius:2px;margin-top:4px;overflow:hidden}
-.map-bar-fill{height:100%;border-radius:2px;transition:width .6s var(--ease)}
-.map-lock{position:absolute;top:8px;right:12px;font-size:14px;color:var(--lock)}
-@keyframes activePulse{0%,100%{box-shadow:0 0 16px var(--gold-g)}50%{box-shadow:0 0 30px var(--gold-g),0 0 60px rgba(200,168,76,.08)}}
+.ch-scene{height:180px;position:relative;display:flex;align-items:flex-end;padding:16px;cursor:pointer;transition:all .3s}
+.ch-scene:hover{filter:brightness(1.08)}
+.ch-scene::after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,rgba(7,8,13,.88) 0%,rgba(7,8,13,.2) 60%,transparent)}
+.ch-scene-bg{position:absolute;inset:0;z-index:0}
+.ch-meta{position:relative;z-index:2;width:100%}
+.ch-num{font:600 10px var(--mono);color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px}
+.ch-name{font:700 22px var(--serif);color:var(--cream);margin-bottom:4px}
+.ch-desc{font:400 13px/1.5 var(--sans);color:var(--cream-d);margin-bottom:10px}
+.ch-bar{height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.ch-bar-fill{height:100%;border-radius:2px;transition:width .6s var(--ease)}
+.ch-pct{font:600 11px var(--mono);color:var(--gold-l);margin-top:6px}
+.ch-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 20px;background:var(--gold);color:var(--void);font:700 13px var(--sans);border:none;border-radius:8px;cursor:pointer;margin-top:10px;transition:all .2s}
+.ch-btn:hover{background:var(--gold-l);transform:translateY(-1px)}
+.ch-lock-badge{position:absolute;top:12px;right:14px;z-index:3;font:700 11px var(--mono);color:var(--dim);background:rgba(0,0,0,.5);padding:3px 10px;border-radius:6px}
+.ch-complete-badge{position:absolute;top:12px;right:14px;z-index:3;font:700 11px var(--mono);color:var(--jade);background:rgba(45,155,98,.12);padding:3px 10px;border-radius:6px}
 
-/* === ROOM VIEW === */
-.room-view{display:none;padding:0 0 40px}
-.room-view.active{display:block}
-.room-header{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(180,160,100,.08);background:rgba(5,6,10,.6);backdrop-filter:blur(8px);position:sticky;top:0;z-index:50}
-.room-back{background:none;border:none;color:var(--cream-d);font:600 13px var(--ff-body);cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--r-sm);transition:all .2s}
-.room-back:hover{background:rgba(255,255,255,.06);color:var(--cream)}
-.room-title{font:700 16px var(--ff-title);color:var(--cream);flex:1}
-.room-pct{font:700 13px var(--ff-code);color:var(--gold)}
+/* ═══ STORY VIEW ═══ */
+#story{display:none;height:100%;flex-direction:column;overflow:hidden}
+#story.active{display:flex}
 
-/* Room scene — 2D top-down room with free positioning */
-.room-scene{position:relative;width:100%;max-width:680px;margin:20px auto 0;aspect-ratio:16/10;border-radius:var(--r-lg);overflow:hidden;border:1px solid rgba(180,160,100,.12);background:#111}
-.room-floor{position:absolute;inset:0}
-.room-walls{position:absolute;inset:0;border:18px solid;border-image:linear-gradient(135deg,rgba(60,50,35,.9),rgba(40,30,20,.9)) 1;box-shadow:inset 0 0 40px rgba(0,0,0,.5);pointer-events:none;z-index:2}
-.room-ambient{position:absolute;inset:0;pointer-events:none;z-index:1}
-.room-objects{position:absolute;inset:20px;z-index:3}
+.story-hud{display:flex;align-items:center;gap:10px;padding:8px 14px;background:rgba(7,8,13,.85);border-bottom:1px solid rgba(255,255,255,.04);backdrop-filter:blur(10px);flex-shrink:0;z-index:20}
+.story-back{background:none;border:none;color:var(--cream-d);font:500 13px var(--sans);cursor:pointer;display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;transition:all .15s}
+.story-back:hover{background:rgba(255,255,255,.05);color:var(--cream)}
+.story-room{font:600 14px var(--serif);color:var(--cream);flex:1;text-align:center}
+.story-progress{font:600 11px var(--mono);color:var(--gold)}
 
-/* Interactive objects — positioned freely in the room */
-.room-obj{position:absolute;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:all .25s var(--ease);z-index:4;transform:translate(-50%,-50%)}
-.room-obj:hover{transform:translate(-50%,-50%) scale(1.15);z-index:10}
-.room-obj:hover .obj-label{opacity:1;transform:translateY(0)}
-.room-obj.active{filter:drop-shadow(0 0 10px rgba(200,168,76,.5));animation:objGlow 2s ease-in-out infinite}
-.room-obj.complete{filter:drop-shadow(0 0 6px rgba(61,170,109,.4))}
-.room-obj.locked{opacity:.3;cursor:default;filter:grayscale(.8)}
-.room-obj.locked:hover{transform:translate(-50%,-50%) scale(1)}
-.obj-sprite{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;background:rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.08);transition:all .2s;position:relative}
-.room-obj.active .obj-sprite{border-color:var(--gold);background:rgba(200,168,76,.12)}
-.room-obj.complete .obj-sprite{border-color:var(--jade-d);background:rgba(61,170,109,.1)}
-.room-obj.boss .obj-sprite{border-color:var(--ruby);background:rgba(192,64,64,.1);width:48px;height:48px;font-size:28px}
-.room-obj.npc .obj-sprite{border-radius:50%;border-color:var(--azure);background:rgba(68,136,204,.12);width:44px;height:44px}
-.room-obj.door .obj-sprite{border-style:dashed;border-color:var(--gold-d)}
-.obj-label{font:600 10px var(--ff-body);color:var(--cream);text-align:center;line-height:1.2;max-width:80px;opacity:0;transform:translateY(4px);transition:all .2s;text-shadow:0 1px 4px rgba(0,0,0,.8)}
-.obj-progress{font:700 9px var(--ff-code);color:var(--gold)}
-.obj-badge{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:2px solid rgba(0,0,0,.6);z-index:5}
-.obj-badge.quest{background:var(--gold);color:var(--void);animation:badgeBounce 1s ease-in-out infinite}
-.obj-badge.done{background:var(--jade);color:#fff}
-.obj-badge.lock{background:#444;color:#888}
-@keyframes objGlow{0%,100%{filter:drop-shadow(0 0 8px rgba(200,168,76,.4))}50%{filter:drop-shadow(0 0 18px rgba(200,168,76,.6))}}
-@keyframes badgeBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+.story-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.story-content{max-width:600px;margin:0 auto;padding:0 16px 80px}
 
-/* Player character */
-.player{position:absolute;z-index:20;transform:translate(-50%,-50%);transition:left .4s var(--ease),top .4s var(--ease);pointer-events:none}
-.player-sprite{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--gold-b),var(--gold));border:3px solid var(--void);box-shadow:0 0 12px var(--gold-g),0 2px 8px rgba(0,0,0,.5);position:relative}
-.player-sprite::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:20px;height:4px;background:rgba(0,0,0,.3);border-radius:50%;filter:blur(2px)}
-.player-name-tag{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font:700 8px var(--ff-code);color:var(--gold);white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.8)}
-.interact-prompt{position:absolute;top:-28px;left:50%;transform:translateX(-50%);font:700 10px var(--ff-body);color:var(--gold-b);background:rgba(0,0,0,.7);padding:2px 8px;border-radius:4px;white-space:nowrap;animation:promptFloat 1.5s ease-in-out infinite;display:none}
-.interact-prompt.visible{display:block}
-@keyframes promptFloat{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-4px)}}
+/* Scene — atmospheric header per room */
+.scene-stage{position:relative;width:calc(100% + 32px);margin:0 -16px;height:220px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.scene-bg{position:absolute;inset:0}
+.scene-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,var(--void) 0%,transparent 60%)}
+.scene-portrait{position:relative;z-index:2;margin-bottom:-30px;transition:all .5s var(--ease)}
+.portrait-ring{width:100px;height:100px;border-radius:50%;border:3px solid var(--gold-d);background:var(--ink);display:flex;align-items:center;justify-content:center;font-size:52px;box-shadow:0 0 30px var(--gold-g),0 4px 20px rgba(0,0,0,.5);position:relative;overflow:hidden}
+.portrait-ring::before{content:'';position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(var(--gold),var(--gold-d),var(--gold),var(--gold-d),var(--gold));z-index:-1;animation:portraitSpin 8s linear infinite}
+@keyframes portraitSpin{to{transform:rotate(360deg)}}
+.portrait-mood{position:absolute;bottom:2px;right:2px;font-size:16px;background:var(--ink);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:2px solid var(--gold-d)}
 
-/* NPC panel */
-.npc-strip{max-width:680px;margin:16px auto 0;padding:0 16px}
-.npc-card{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r-md);border:1px solid rgba(68,136,204,.15);background:rgba(68,136,204,.04);cursor:pointer;transition:all .2s}
-.npc-card:hover{background:rgba(68,136,204,.08);border-color:rgba(68,136,204,.3)}
-.npc-face{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--azure),#336699);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-.npc-info{flex:1;min-width:0}
-.npc-info h4{font:700 13px var(--ff-title);color:var(--cream);margin-bottom:2px}
-.npc-info p{font:400 12px var(--ff-body);color:var(--cream-d);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.npc-chat-icon{font-size:18px;color:var(--azure);flex-shrink:0}
-
-/* === DIALOGUE OVERLAY === */
-.dialogue-overlay{display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;padding:0 12px 16px}
-.dialogue-overlay.active{display:block;animation:slideUp .25s var(--ease)}
-.dialogue-box{max-width:640px;margin:0 auto;background:rgba(8,9,16,.96);border:1px solid var(--gold-d);border-radius:var(--r-md);padding:16px 20px;backdrop-filter:blur(20px);box-shadow:0 -8px 40px rgba(0,0,0,.5)}
-.dialogue-speaker{font:700 11px var(--ff-title);color:var(--gold);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
-.dialogue-text{font:400 14px var(--ff-body);color:var(--cream);line-height:1.65;min-height:36px}
-.dialogue-text.typing::after{content:'▊';animation:blink .6s infinite;color:var(--gold)}
-.dialogue-hint{font:400 11px var(--ff-body);color:var(--dim);margin-top:8px;text-align:right}
-@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+/* Dialogue */
+.dialogue{margin-top:40px;padding:18px 20px;border-left:3px solid var(--gold-d);background:var(--parchment);border-radius:0 10px 10px 0;position:relative;min-height:60px}
+.dialogue-name{font:700 11px var(--mono);color:var(--gold);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.dialogue-body{font:400 15px/1.7 var(--serif);color:var(--cream);min-height:24px}
+.dialogue-body.typing::after{content:'▎';color:var(--gold);animation:blink .5s infinite}
+.dialogue-tap{font:400 11px var(--sans);color:var(--dim);text-align:right;margin-top:6px;opacity:0;transition:opacity .3s}
+.dialogue-tap.show{opacity:1}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
-/* === PUZZLE OVERLAY === */
-.puzzle-overlay{display:none;position:fixed;inset:0;z-index:400;background:rgba(5,6,10,.92);backdrop-filter:blur(8px);overflow-y:auto;-webkit-overflow-scrolling:touch}
-.puzzle-overlay.active{display:flex;flex-direction:column;animation:fadeIn .3s var(--ease)}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.puzzle-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(180,160,100,.08);background:rgba(5,6,10,.7);backdrop-filter:blur(12px);flex-shrink:0}
-.puzzle-close{background:none;border:1px solid rgba(255,255,255,.1);color:var(--cream-d);width:34px;height:34px;border-radius:var(--r-sm);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .2s}
-.puzzle-close:hover{background:rgba(255,255,255,.06);color:var(--cream);border-color:rgba(255,255,255,.2)}
-.puzzle-title{font:700 15px var(--ff-title);color:var(--cream);flex:1}
-.puzzle-xp{font:700 12px var(--ff-code);color:var(--gold);background:rgba(200,168,76,.1);padding:3px 10px;border-radius:var(--r-sm)}
-.puzzle-body{flex:1;padding:20px 16px 40px;max-width:700px;margin:0 auto;width:100%}
-.puzzle-scenario{font:400 14px var(--ff-body);color:var(--cream-d);line-height:1.7;margin-bottom:20px;padding:14px 16px;border-left:3px solid var(--gold-d);background:rgba(200,168,76,.04);border-radius:0 var(--r-sm) var(--r-sm) 0}
-.puzzle-widget{background:var(--surface);border:1px solid rgba(180,160,100,.08);border-radius:var(--r-md);padding:20px}
+/* Narration text (between puzzles) */
+.narration{margin-top:24px;font:400 14px/1.8 var(--serif);color:var(--cream-d);font-style:italic;text-align:center;padding:0 12px}
 
-/* Puzzle widgets */
-.pw-instruction{font:600 12px var(--ff-body);color:var(--gold);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px}
-.pw-list{list-style:none;display:flex;flex-direction:column;gap:8px}
-.pw-step{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:var(--r-sm);cursor:grab;user-select:none;transition:all .15s;font:400 13px var(--ff-body);color:var(--cream)}
-.pw-step:active{cursor:grabbing}
-.pw-step.dragging{opacity:.5;transform:scale(.97)}
-.pw-step.drag-over{border-color:var(--gold);background:rgba(200,168,76,.06)}
-.pw-step-num{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font:700 10px var(--ff-code);color:var(--dim);flex-shrink:0}
-.pw-step-handle{color:var(--dim);cursor:grab;flex-shrink:0}
+/* ═══ PUZZLE AREA (inline) ═══ */
+.puzzle-area{margin-top:28px;animation:puzzleReveal .5s var(--ease) both}
+@keyframes puzzleReveal{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.puzzle-label{font:700 11px var(--mono);color:var(--gold);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.puzzle-label::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--gold);animation:dotPulse 2s ease-in-out infinite}
+@keyframes dotPulse{0%,100%{opacity:.5;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+.puzzle-scenario{font:400 14px/1.65 var(--sans);color:var(--cream-d);margin-bottom:16px;padding:12px 14px;background:rgba(196,155,42,.04);border-radius:8px;border:1px solid rgba(196,155,42,.08)}
+.puzzle-widget{padding:16px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:10px}
 
-.pw-choice{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:rgba(255,255,255,.02);border:2px solid rgba(255,255,255,.06);border-radius:var(--r-sm);cursor:pointer;transition:all .2s;width:100%;text-align:left;color:var(--cream);font:400 13px var(--ff-body)}
-.pw-choice:hover{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.04)}
-.pw-choice.selected{border-color:var(--gold);background:rgba(200,168,76,.06)}
-.pw-choice.correct{border-color:var(--jade)!important;background:rgba(61,170,109,.08)!important}
-.pw-choice.wrong{border-color:var(--ruby)!important;background:rgba(192,64,64,.06)!important}
-.pw-choice-letter{width:24px;height:24px;border-radius:4px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font:700 11px var(--ff-code);color:var(--dim);flex-shrink:0}
-.pw-choice.selected .pw-choice-letter{background:var(--gold);color:var(--void)}
+/* Widget elements */
+.w-list{list-style:none;display:flex;flex-direction:column;gap:6px}
+.w-step{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:8px;cursor:grab;user-select:none;font:400 13px var(--sans);color:var(--cream);transition:all .15s}
+.w-step:active{cursor:grabbing;background:rgba(255,255,255,.04)}
+.w-step.dragging{opacity:.4}
+.w-step.drag-over{border-color:var(--gold);background:rgba(196,155,42,.06)}
+.w-step-n{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font:700 10px var(--mono);color:var(--dim);flex-shrink:0}
+.w-step-grip{color:var(--dim);flex-shrink:0;font-size:12px}
 
-.pw-code{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:var(--r-sm);padding:14px 16px;font:400 13px/1.6 var(--ff-code);color:var(--cream-d);white-space:pre-wrap;overflow-x:auto;margin-bottom:14px}
-.pw-input{width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:var(--r-sm);color:var(--cream);font:400 13px var(--ff-code);padding:10px 12px;resize:vertical;outline:none;transition:border-color .2s}
-.pw-input:focus{border-color:var(--gold)}
-.pw-blank{display:inline-block;background:rgba(0,0,0,.4);border-bottom:2px solid var(--gold);color:var(--cream);font:400 13px var(--ff-code);padding:1px 6px;min-width:80px;outline:none;vertical-align:baseline;border-top:none;border-left:none;border-right:none}
-.pw-blank:focus{border-bottom-color:var(--gold-b)}
-.pw-blank.correct{border-bottom-color:var(--jade)}
-.pw-blank.wrong{border-bottom-color:var(--ruby)}
+.w-choice{display:flex;align-items:flex-start;gap:12px;padding:12px;background:rgba(255,255,255,.02);border:2px solid rgba(255,255,255,.05);border-radius:8px;cursor:pointer;transition:all .2s;width:100%;text-align:left;font:400 13px var(--sans);color:var(--cream)}
+.w-choice:hover{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.03)}
+.w-choice.sel{border-color:var(--gold);background:var(--gold-g)}
+.w-choice.ok{border-color:var(--jade)!important;background:var(--jade-g)!important}
+.w-choice.no{border-color:var(--ruby)!important;background:var(--ruby-g)!important}
+.w-letter{width:22px;height:22px;border-radius:4px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font:700 11px var(--mono);color:var(--dim);flex-shrink:0}
+.w-choice.sel .w-letter{background:var(--gold);color:var(--void)}
 
-.pw-tf-row{display:flex;gap:12px;margin-top:8px}
-.pw-tf{flex:1;padding:16px;font:700 16px var(--ff-body);border-radius:var(--r-md);border:2px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);color:var(--cream);cursor:pointer;transition:all .2s}
-.pw-tf:hover{background:rgba(255,255,255,.05)}
-.pw-tf.selected{border-color:var(--gold);background:var(--gold-g);color:var(--gold)}
-.pw-tf.correct{border-color:var(--jade)!important;background:var(--jade-g)!important;color:var(--jade)!important}
-.pw-tf.wrong{border-color:var(--ruby)!important;background:var(--ruby-g)!important;color:var(--ruby)!important}
+.w-code{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:14px;font:400 13px/1.6 var(--mono);color:var(--cream-d);white-space:pre-wrap;overflow-x:auto;margin-bottom:12px}
+.w-input{width:100%;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:var(--cream);font:400 13px var(--mono);padding:10px 12px;resize:vertical;outline:none}
+.w-input:focus{border-color:var(--gold)}
+.w-blank{display:inline-block;background:rgba(0,0,0,.35);border:none;border-bottom:2px solid var(--gold);color:var(--cream);font:400 13px var(--mono);padding:1px 6px;min-width:70px;outline:none;vertical-align:baseline}
+.w-blank:focus{border-bottom-color:var(--gold-l)}
+.w-blank.ok{border-bottom-color:var(--jade)}
+.w-blank.no{border-bottom-color:var(--ruby)}
 
-.pw-editor{width:100%;background:rgba(0,0,0,.35);color:var(--cream);font:400 13px/1.55 var(--ff-code);padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:var(--r-sm);resize:vertical;min-height:140px;outline:none;tab-size:4}
-.pw-editor:focus{border-color:var(--gold)}
-.pw-output{margin-top:10px;background:rgba(0,0,0,.3);border-left:3px solid var(--azure);border-radius:var(--r-sm);padding:10px 14px;font:400 12px var(--ff-code);color:var(--cream-d);white-space:pre-wrap;display:none}
-.pw-output.visible{display:block}
-.pw-output.error{border-left-color:var(--ruby);color:var(--ruby)}
+.w-tf{display:flex;gap:10px;margin-top:6px}
+.w-tf button{flex:1;padding:14px;font:700 15px var(--sans);border-radius:10px;border:2px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);color:var(--cream);cursor:pointer;transition:all .2s}
+.w-tf button:hover{background:rgba(255,255,255,.04)}
+.w-tf button.sel{border-color:var(--gold);background:var(--gold-g);color:var(--gold)}
+.w-tf button.ok{border-color:var(--jade)!important;background:var(--jade-g)!important;color:var(--jade)!important}
+.w-tf button.no{border-color:var(--ruby)!important;background:var(--ruby-g)!important;color:var(--ruby)!important}
 
-.btn-verify{display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:10px 24px;background:linear-gradient(135deg,var(--gold),var(--gold-b));color:var(--void);font:700 14px var(--ff-body);border:none;border-radius:var(--r-md);cursor:pointer;transition:all .2s}
-.btn-verify:hover{opacity:.9;transform:translateY(-1px)}
-.btn-verify:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.w-editor{width:100%;background:rgba(0,0,0,.3);color:var(--cream);font:400 13px/1.55 var(--mono);padding:14px;border:1px solid rgba(255,255,255,.06);border-radius:8px;resize:vertical;min-height:120px;outline:none;tab-size:4}
+.w-editor:focus{border-color:var(--gold)}
+.w-output{margin-top:8px;background:rgba(0,0,0,.25);border-left:3px solid var(--gold-d);border-radius:0 8px 8px 0;padding:8px 12px;font:400 12px var(--mono);color:var(--cream-d);white-space:pre-wrap;display:none}
+.w-output.vis{display:block}
+.w-output.err{border-left-color:var(--ruby);color:var(--ruby)}
 
-.pw-feedback{margin-top:12px;padding:10px 14px;border-radius:var(--r-sm);font:400 13px var(--ff-body);display:none}
-.pw-feedback.visible{display:block}
-.pw-feedback.success{background:var(--jade-g);color:var(--jade);border-left:3px solid var(--jade)}
-.pw-feedback.fail{background:var(--ruby-g);color:var(--ruby);border-left:3px solid var(--ruby)}
+.btn-v{display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:10px 22px;background:var(--gold);color:var(--void);font:700 13px var(--sans);border:none;border-radius:8px;cursor:pointer;transition:all .2s}
+.btn-v:hover{background:var(--gold-l);transform:translateY(-1px)}
+.btn-v:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.btn-hint{background:none;border:1px solid rgba(255,255,255,.06);color:var(--cream-d);font:400 12px var(--sans);padding:5px 12px;border-radius:6px;cursor:pointer;margin-top:10px;margin-left:8px;transition:all .2s}
+.btn-hint:hover{color:var(--cream);border-color:var(--gold)}
+.hint-box{margin-top:8px;background:rgba(196,155,42,.04);border-left:3px solid var(--gold-d);padding:10px 14px;border-radius:0 8px 8px 0;font:400 13px var(--sans);color:var(--cream-d);display:none}
+.hint-box.vis{display:block}
 
-.pw-hint-btn{background:none;border:1px solid rgba(255,255,255,.08);color:var(--cream-d);font:400 12px var(--ff-body);padding:5px 12px;border-radius:var(--r-sm);cursor:pointer;margin-top:12px;transition:all .2s}
-.pw-hint-btn:hover{color:var(--cream);border-color:var(--gold)}
-.pw-hint{margin-top:8px;background:rgba(200,168,76,.04);border-left:3px solid var(--gold-d);padding:10px 14px;border-radius:0 var(--r-sm) var(--r-sm) 0;font:400 13px var(--ff-body);color:var(--cream-d);display:none}
-.pw-hint.visible{display:block}
+.pw-fb{margin-top:10px;padding:10px 14px;border-radius:8px;font:400 13px var(--sans);display:none}
+.pw-fb.vis{display:block}
+.pw-fb.ok{background:var(--jade-g);color:var(--jade);border-left:3px solid var(--jade)}
+.pw-fb.fail{background:var(--ruby-g);color:var(--ruby);border-left:3px solid var(--ruby)}
 
-/* === CONCEPT POPUP === */
-.concept-overlay{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px}
-.concept-overlay.active{display:flex}
-.concept-card{background:var(--surface);border:1px solid var(--gold-d);border-radius:var(--r-lg);padding:28px 24px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:conceptPop .3s var(--ease)}
-.concept-tag{display:inline-block;font:700 10px var(--ff-title);color:var(--gold);background:var(--gold-g);border:1px solid rgba(200,168,76,.2);border-radius:99px;padding:3px 12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
-.concept-card h2{font:700 20px var(--ff-title);color:var(--cream);margin-bottom:10px}
-.concept-analogy{font:400 14px var(--ff-body);color:var(--cream-d);line-height:1.65;margin-bottom:14px}
-.concept-example{background:rgba(0,0,0,.3);border-radius:var(--r-sm);padding:12px 14px;font:400 13px var(--ff-code);color:var(--cream-d);white-space:pre-wrap;margin-bottom:16px}
-.concept-count{font:400 12px var(--ff-body);color:var(--dim);text-align:right;margin-bottom:12px}
-@keyframes conceptPop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
-
-/* === SUCCESS CELEBRATION === */
-.success-overlay{display:none;position:fixed;inset:0;z-index:600;background:rgba(5,6,10,.9);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px}
-.success-overlay.active{display:flex}
-.success-card{text-align:center;animation:successPop .4s var(--ease)}
-.success-xp{font:900 52px var(--ff-title);color:var(--gold-b);text-shadow:0 0 30px var(--gold-g);margin-bottom:8px}
-.success-msg{font:400 16px var(--ff-body);color:var(--jade);margin-bottom:24px}
-.success-btn{display:inline-flex;padding:12px 28px;background:linear-gradient(135deg,var(--jade),var(--jade-d));color:#fff;font:700 14px var(--ff-body);border:none;border-radius:var(--r-md);cursor:pointer;transition:all .2s}
-.success-btn:hover{opacity:.9;transform:translateY(-1px)}
-@keyframes successPop{from{transform:scale(.8);opacity:0}60%{transform:scale(1.05)}to{transform:scale(1);opacity:1}}
+/* ═══ SUCCESS STATE ═══ */
+.success-inline{margin-top:20px;text-align:center;padding:24px 16px;border-radius:12px;background:var(--jade-g);border:1px solid rgba(45,155,98,.2);animation:successPop .4s var(--ease)}
+.success-xp{font:900 36px var(--serif);color:var(--gold-l);text-shadow:0 0 20px var(--gold-g)}
+.success-msg{font:400 14px var(--sans);color:var(--jade);margin:6px 0 16px}
+.success-next{display:inline-flex;align-items:center;gap:6px;padding:10px 24px;background:var(--jade);color:#fff;font:700 13px var(--sans);border:none;border-radius:8px;cursor:pointer;transition:all .2s}
+.success-next:hover{opacity:.9;transform:translateY(-1px)}
+@keyframes successPop{from{transform:scale(.9);opacity:0}60%{transform:scale(1.02)}to{transform:scale(1);opacity:1}}
 
 /* XP toast */
-.xp-toast{position:fixed;top:60px;right:16px;z-index:700;padding:8px 16px;background:rgba(200,168,76,.15);border:1px solid var(--gold-d);border-radius:var(--r-sm);font:700 14px var(--ff-code);color:var(--gold-b);animation:toastIn .3s var(--ease),toastOut .3s .8s forwards;pointer-events:none}
-@keyframes toastIn{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
-@keyframes toastOut{to{transform:translateY(-10px);opacity:0}}
+.xp-toast{position:fixed;top:56px;right:16px;z-index:99;padding:6px 14px;background:var(--gold-g);border:1px solid var(--gold-d);border-radius:6px;font:700 14px var(--mono);color:var(--gold-l);animation:toastIn .2s var(--ease),toastOut .3s .7s forwards;pointer-events:none}
+@keyframes toastIn{from{transform:translateY(-16px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes toastOut{to{transform:translateY(-8px);opacity:0}}
 
-/* === MENTOR CHAT PANEL === */
-.mentor-panel{display:none;position:fixed;bottom:0;right:0;width:340px;max-height:60vh;z-index:350;border-radius:var(--r-lg) var(--r-lg) 0 0;border:1px solid rgba(68,136,204,.15);background:var(--surface);backdrop-filter:blur(16px);flex-direction:column;overflow:hidden}
-.mentor-panel.active{display:flex;animation:slideUp .3s var(--ease)}
-.mentor-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid rgba(68,136,204,.1);font:700 12px var(--ff-title);color:var(--azure);text-transform:uppercase;letter-spacing:.04em}
-.mentor-head .close-mentor{margin-left:auto;background:none;border:none;color:var(--cream-d);cursor:pointer;font-size:16px}
-.mentor-msgs{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:120px;max-height:300px}
-.mentor-msg{font:400 13px var(--ff-body);padding:8px 12px;border-radius:var(--r-sm);line-height:1.5}
-.mentor-msg.assistant{background:rgba(68,136,204,.06);color:var(--cream-d);border-left:2px solid var(--azure)}
-.mentor-msg.user{background:rgba(255,255,255,.04);color:var(--cream-d);text-align:right;border-right:2px solid rgba(255,255,255,.1)}
-.mentor-input-row{display:flex;gap:6px;padding:8px 10px;border-top:1px solid rgba(68,136,204,.08)}
-.mentor-input{flex:1;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);color:var(--cream);font:400 13px var(--ff-body);padding:7px 10px;border-radius:var(--r-sm);resize:none;outline:none;min-height:34px}
-.mentor-input:focus{border-color:var(--azure)}
-.mentor-send{padding:7px 12px;background:var(--azure);color:#fff;font:700 12px var(--ff-body);border:none;border-radius:var(--r-sm);cursor:pointer}
+/* ═══ CONCEPT MODAL ═══ */
+.concept-modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.78);backdrop-filter:blur(5px);align-items:center;justify-content:center;padding:20px}
+.concept-modal.active{display:flex}
+.concept-card{background:var(--ink);border:1px solid var(--gold-d);border-radius:14px;padding:24px 20px;max-width:440px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.5);animation:conceptIn .3s var(--ease)}
+@keyframes conceptIn{from{transform:translateY(16px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+.concept-tag{display:inline-block;font:700 9px var(--mono);color:var(--gold);background:var(--gold-g);border-radius:99px;padding:3px 10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+.concept-card h2{font:700 18px var(--serif);color:var(--cream);margin-bottom:8px}
+.concept-analogy{font:400 14px/1.6 var(--sans);color:var(--cream-d);margin-bottom:12px}
+.concept-example{background:rgba(0,0,0,.3);border-radius:8px;padding:10px 12px;font:400 12px var(--mono);color:var(--cream-d);white-space:pre-wrap;margin-bottom:14px}
+.concept-count{font:400 11px var(--sans);color:var(--dim);text-align:right;margin-bottom:10px}
 
-/* Responsive */
-@media(max-width:600px){
-  .room-scene{aspect-ratio:4/3}
-  .puzzle-body{padding:14px 12px 30px}
-  .mentor-panel{width:100%;right:0;left:0;max-height:50vh;border-radius:var(--r-lg) var(--r-lg) 0 0}
-}
+/* ═══ MENTOR CHAT ═══ */
+.mentor-modal{display:none;position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;padding:0}
+.mentor-modal.active{display:flex}
+.mentor-box{width:100%;max-width:500px;max-height:60vh;background:var(--ink);border-radius:14px 14px 0 0;border:1px solid rgba(255,255,255,.05);border-bottom:none;display:flex;flex-direction:column;animation:slideUp .25s var(--ease)}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mentor-head{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);font:700 12px var(--mono);color:var(--gold);letter-spacing:.04em}
+.mentor-head button{margin-left:auto;background:none;border:none;color:var(--cream-d);cursor:pointer;font-size:16px}
+.mentor-msgs{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:100px;max-height:280px}
+.m-msg{font:400 13px var(--sans);padding:8px 12px;border-radius:8px;line-height:1.5}
+.m-msg.a{background:rgba(196,155,42,.06);color:var(--cream-d);border-left:2px solid var(--gold-d)}
+.m-msg.u{background:rgba(255,255,255,.03);color:var(--cream-d);text-align:right}
+.mentor-foot{display:flex;gap:6px;padding:8px 10px;border-top:1px solid rgba(255,255,255,.04)}
+.mentor-foot textarea{flex:1;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);color:var(--cream);font:400 13px var(--sans);padding:7px 10px;border-radius:6px;resize:none;outline:none;min-height:34px}
+.mentor-foot textarea:focus{border-color:var(--gold)}
+.mentor-foot button{padding:7px 14px;background:var(--gold);color:var(--void);font:700 12px var(--sans);border:none;border-radius:6px;cursor:pointer}
+.ask-mentor{background:none;border:none;color:var(--gold-d);font:400 12px var(--sans);cursor:pointer;margin-top:8px;text-decoration:underline;text-underline-offset:2px}
+.ask-mentor:hover{color:var(--gold)}
+
+/* ═══ CHAPTER COMPLETE ═══ */
+.ch-complete{display:none;position:fixed;inset:0;z-index:80;background:rgba(7,8,13,.94);align-items:center;justify-content:center;text-align:center;padding:20px}
+.ch-complete.active{display:flex;animation:fadeIn .5s var(--ease)}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.ch-complete h2{font:700 28px var(--serif);color:var(--cream);margin-bottom:8px}
+.ch-complete p{font:400 15px var(--sans);color:var(--jade);margin-bottom:24px}
 </style>
 </head>
 <body>
 
-<!-- HUD -->
-<div class="hud">
-  <div class="hud-avatar" id="hud-avatar"></div>
-  <div class="hud-name" id="hud-name"></div>
-  <div class="hud-xp">
-    <div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div>
-    <div class="xp-num" id="xp-num"></div>
+<!-- CHAPTER SELECT -->
+<div id="chapters">
+  <div class="ch-header">
+    <h1>bato · learning</h1>
+    <p>De Excel a vender agentes IA</p>
+  </div>
+  <div class="ch-list" id="ch-list"></div>
+</div>
+
+<!-- STORY VIEW -->
+<div id="story">
+  <div class="story-hud">
+    <button class="story-back" id="story-back">◂ Capítulos</button>
+    <div class="story-room" id="story-room"></div>
+    <div class="story-progress" id="story-prog"></div>
+  </div>
+  <div class="story-scroll" id="story-scroll">
+    <div class="story-content" id="story-content"></div>
   </div>
 </div>
 
-<div class="app" id="app">
-  <!-- MAP VIEW -->
-  <div class="map-view" id="map-view">
-    <div class="map-heading">Mapa del Mundo</div>
-    <div class="map-path" id="map-path"></div>
-  </div>
-
-  <!-- ROOM VIEW -->
-  <div class="room-view" id="room-view">
-    <div class="room-header">
-      <button class="room-back" id="room-back">◂ Mapa</button>
-      <div class="room-title" id="room-title"></div>
-      <div class="room-pct" id="room-pct"></div>
-    </div>
-    <div class="room-scene" id="room-scene">
-      <div class="room-floor" id="room-floor"></div>
-      <div class="room-walls" id="room-walls"></div>
-      <div class="room-ambient" id="room-ambient"></div>
-      <div class="room-objects" id="room-objects">
-        <div class="player" id="player">
-          <div class="interact-prompt" id="interact-prompt">Toca para interactuar</div>
-          <div class="player-sprite"></div>
-          <div class="player-name-tag" id="player-tag"></div>
-        </div>
-      </div>
-    </div>
-    <div id="npc-strip" style="display:none"></div>
-  </div>
-</div>
-
-<!-- DIALOGUE -->
-<div class="dialogue-overlay" id="dialogue-overlay">
-  <div class="dialogue-box">
-    <div class="dialogue-speaker" id="dlg-speaker"></div>
-    <div class="dialogue-text" id="dlg-text"></div>
-    <div class="dialogue-hint">toca para continuar</div>
-  </div>
-</div>
-
-<!-- PUZZLE OVERLAY -->
-<div class="puzzle-overlay" id="puzzle-overlay">
-  <div class="puzzle-head">
-    <button class="puzzle-close" id="puzzle-close">✕</button>
-    <div class="puzzle-title" id="puzzle-title"></div>
-    <div class="puzzle-xp" id="puzzle-xp"></div>
-  </div>
-  <div class="puzzle-body" id="puzzle-body"></div>
-</div>
-
-<!-- CONCEPT POPUP -->
-<div class="concept-overlay" id="concept-overlay">
+<!-- CONCEPT MODAL -->
+<div class="concept-modal" id="concept-modal">
   <div class="concept-card">
     <div class="concept-tag">Nuevo concepto</div>
-    <h2 id="concept-title"></h2>
-    <div class="concept-analogy" id="concept-analogy"></div>
-    <pre class="concept-example" id="concept-example"></pre>
-    <div class="concept-count" id="concept-count"></div>
-    <button class="btn-verify" id="concept-btn">Entendido</button>
+    <h2 id="c-title"></h2>
+    <div class="concept-analogy" id="c-analogy"></div>
+    <pre class="concept-example" id="c-example"></pre>
+    <div class="concept-count" id="c-count"></div>
+    <button class="btn-v" id="c-btn">Entendido</button>
   </div>
 </div>
 
-<!-- SUCCESS -->
-<div class="success-overlay" id="success-overlay">
-  <div class="success-card">
-    <div class="success-xp" id="success-xp"></div>
-    <div class="success-msg">¡Misión completada!</div>
-    <button class="success-btn" id="success-btn">Continuar</button>
+<!-- MENTOR CHAT -->
+<div class="mentor-modal" id="mentor-modal">
+  <div class="mentor-box">
+    <div class="mentor-head">DON RAMÓN <button id="mentor-close">✕</button></div>
+    <div class="mentor-msgs" id="mentor-msgs"><div class="m-msg a">¿En qué te puedo ayudar, mijo?</div></div>
+    <div class="mentor-foot">
+      <textarea id="mentor-in" rows="1" placeholder="Pregúntale a Don Ramón..."></textarea>
+      <button id="mentor-send">→</button>
+    </div>
   </div>
 </div>
 
-<!-- MENTOR -->
-<div class="mentor-panel" id="mentor-panel">
-  <div class="mentor-head">Don Ramón <button class="close-mentor" id="close-mentor">✕</button></div>
-  <div class="mentor-msgs" id="mentor-msgs">
-    <div class="mentor-msg assistant">¿En qué puedo ayudarte? Recuerda: no doy respuestas, doy pistas.</div>
-  </div>
-  <div class="mentor-input-row">
-    <textarea class="mentor-input" id="mentor-input" rows="1" placeholder="Pregunta a Don Ramón..."></textarea>
-    <button class="mentor-send" id="mentor-send">→</button>
+<!-- CHAPTER COMPLETE -->
+<div class="ch-complete" id="ch-complete">
+  <div>
+    <h2 id="cc-title"></h2>
+    <p>Capítulo completado</p>
+    <button class="btn-v" id="cc-btn" style="background:var(--jade);color:#fff">Continuar</button>
   </div>
 </div>
 
-<script>window.__BL_GAME_STATE = {{ game_state_json | safe }};</script>
+<script>window.__BL = {{ game_state_json | safe }};</script>
 <script type="module">
-import { ROOMS, ROOM_ORDER, getRoomBySlug } from '/static/js/rpg/rpg-rooms.js';
+import {ROOMS, ROOM_ORDER} from '/static/js/rpg/rpg-rooms.js';
 
-const GS = window.__BL_GAME_STATE;
-const completedSlugs = new Set();
-for (const r of Object.values(GS.rooms)) for (const s of (r.levels_passed||[])) completedSlugs.add(s);
-let totalXp = GS.total_xp || 0;
-let currentRoomSlug = null;
+const GS = window.__BL;
+const done = new Set();
+for (const r of Object.values(GS.rooms)) for (const s of (r.levels_passed||[])) done.add(s);
+let xp = GS.total_xp||0;
+let curRoom = null, curSlug = '', hintUsed = false, puzzleStart = 0, curLevelSlug = '';
 
-// Icons per room
-const ROOM_ICONS = {'la-oficina':'🏢','el-taller':'⚙️','el-laboratorio':'🔬','la-ciudad':'🏙️'};
-const OBJ_ICONS = {puzzle_cluster:'📋',boss:'⚔️',npc:'👤',door:'🚪'};
-const ROOM_COLORS = {
-  'la-oficina':{bg:'linear-gradient(135deg,#2a1f14,#1a1408)',accent:'#d4a054'},
-  'el-taller':{bg:'linear-gradient(135deg,#141a1f,#0a1018)',accent:'#4488cc'},
-  'el-laboratorio':{bg:'linear-gradient(135deg,#0f0f22,#0a0a18)',accent:'#8866cc'},
-  'la-ciudad':{bg:'linear-gradient(135deg,#1a1416,#120e10)',accent:'#cc6644'}
+const ROOM_BG = {
+  'la-oficina':'linear-gradient(160deg,#2a1c0e 0%,#1a1208 40%,#0d0a06 100%)',
+  'el-taller':'linear-gradient(160deg,#0e1a24 0%,#081218 40%,#060a0d 100%)',
+  'el-laboratorio':'linear-gradient(160deg,#14102a 0%,#0c0a1a 40%,#08070d 100%)',
+  'la-ciudad':'linear-gradient(160deg,#1e1210 0%,#140c0a 40%,#0d0806 100%)',
 };
+const ROOM_ACCENT = {'la-oficina':'#c49b2a','el-taller':'#2a8cc4','el-laboratorio':'#8a52c4','la-ciudad':'#c4522a'};
+const CH_DESC = {
+  'la-oficina':'Un despacho con facturas desordenadas y un viejo contador que sabe más de lo que aparenta.',
+  'el-taller':'Cables organizados, monitores verdes. Aquí se construye software de verdad.',
+  'el-laboratorio':'Pantallas holográficas y modelos que piensan. La IA aplicada al mundo real.',
+  'la-ciudad':'Torres de servidores como rascacielos. Tu agente desplegado brilla en la cima.',
+};
+const CH_ICONS = {'la-oficina':'🏢','el-taller':'⚙️','el-laboratorio':'🔬','la-ciudad':'🏙️'};
 
-// === HUD ===
-function updateHud() {
-  const n = GS.player_name || 'Jugador';
-  document.getElementById('hud-avatar').textContent = n[0].toUpperCase();
-  document.getElementById('hud-name').textContent = n;
-  document.getElementById('xp-num').textContent = totalXp + ' XP';
-  document.getElementById('xp-fill').style.width = Math.min(100, (totalXp % 100)) + '%';
+// ═══ HUD helpers ═══
+function recalc() {
+  for (const slug of ROOM_ORDER) {
+    const room = ROOMS[slug]; if (!room) continue;
+    const all = room.objects.filter(o=>o.levels).flatMap(o=>o.levels);
+    const d = all.filter(s=>done.has(s)).length;
+    GS.rooms[slug] = GS.rooms[slug]||{unlocked:false,levels_passed:[],percent:0};
+    GS.rooms[slug].percent = all.length?Math.round(d/all.length*100):0;
+  }
+  for (let i=1;i<ROOM_ORDER.length;i++){const p=GS.rooms[ROOM_ORDER[i-1]];if(p&&p.percent>=70) GS.rooms[ROOM_ORDER[i]].unlocked=true;}
 }
-updateHud();
 
-// === MAP VIEW ===
-function renderMap() {
-  const path = document.getElementById('map-path');
-  path.innerHTML = '';
-  ROOM_ORDER.forEach((slug, i) => {
-    const room = ROOMS[slug];
-    const info = GS.rooms[slug] || {};
-    const pct = info.percent || 0;
+// ═══ CHAPTER SELECT ═══
+function renderChapters() {
+  const list = document.getElementById('ch-list');
+  list.innerHTML = '';
+  ROOM_ORDER.forEach((slug,i)=>{
+    const info = GS.rooms[slug]||{};
+    const pct = info.percent||0;
     const unlocked = info.unlocked;
-    const isComplete = pct >= 100;
-    const isActive = unlocked && !isComplete;
+    const complete = pct>=100;
+    const accent = ROOM_ACCENT[slug];
 
-    if (i > 0) {
-      const conn = document.createElement('div');
-      conn.className = 'map-connector' + (unlocked ? '' : ' locked');
-      path.appendChild(conn);
-    }
-
-    const node = document.createElement('div');
-    node.className = 'map-node' + (isActive ? ' active' : isComplete ? ' complete' : !unlocked ? ' locked' : '');
-    const colors = ROOM_COLORS[slug] || {};
-    node.innerHTML = `
-      <div class="map-icon" style="background:${colors.bg||'var(--glass)'}">${ROOM_ICONS[slug]||'📍'}</div>
-      <div class="map-info">
-        <h3>${room.name}</h3>
-        <p>${room.subtitle}</p>
-        <div class="map-bar"><div class="map-bar-fill" style="width:${pct}%;background:${colors.accent||'var(--gold)'}"></div></div>
+    const item = document.createElement('div');
+    item.className = 'ch-item'+(unlocked?'':' locked');
+    item.innerHTML = `
+      <div class="ch-scene">
+        <div class="ch-scene-bg" style="background:${ROOM_BG[slug]}"></div>
+        <div class="ch-meta">
+          <div class="ch-num">Capítulo ${i+1}</div>
+          <div class="ch-name">${ROOMS[slug].name}</div>
+          ${unlocked?`<div class="ch-desc">${CH_DESC[slug]}</div>`:''}
+          ${unlocked?`<div class="ch-bar"><div class="ch-bar-fill" style="width:${pct}%;background:${accent}"></div></div><div class="ch-pct">${pct}%</div>`:''}
+          ${unlocked && !complete?`<button class="ch-btn" data-slug="${slug}">${pct>0?'Continuar':'Comenzar'} →</button>`:''}
+        </div>
+        ${!unlocked?'<div class="ch-lock-badge">🔒 Bloqueado</div>':''}
+        ${complete?'<div class="ch-complete-badge">✓ Completado</div>':''}
       </div>
-      <div class="map-pct">${pct}%</div>
-      ${!unlocked ? '<div class="map-lock">🔒</div>' : ''}
     `;
-    if (unlocked) node.onclick = () => enterRoom(slug);
-    path.appendChild(node);
+    list.appendChild(item);
+  });
+  list.querySelectorAll('[data-slug]').forEach(btn=>{
+    btn.onclick = e => { e.stopPropagation(); enterStory(btn.dataset.slug); };
   });
 }
-renderMap();
+renderChapters();
 
-// === ROOM VIEW ===
-// Object position layouts per room — placed naturally in the scene space (% coordinates)
-const ROOM_LAYOUTS = {
-  'la-oficina': [
-    {type:'puzzle_cluster',idx:0, x:15, y:18, icon:'🖥️'},
-    {type:'puzzle_cluster',idx:1, x:78, y:18, icon:'📄'},
-    {type:'puzzle_cluster',idx:2, x:15, y:55, icon:'📁'},
-    {type:'puzzle_cluster',idx:3, x:78, y:55, icon:'⚙️'},
-    {type:'puzzle_cluster',idx:4, x:30, y:78, icon:'🌐'},
-    {type:'npc', x:48, y:38, icon:'👴'},
-    {type:'boss',idx:0, x:48, y:78, icon:'⚔️'},
-    {type:'door', x:50, y:95, icon:'🚪'},
-  ],
-  'el-taller': [
-    {type:'puzzle_cluster',idx:0, x:15, y:15, icon:'🗄️'},
-    {type:'puzzle_cluster',idx:1, x:78, y:15, icon:'🔐'},
-    {type:'puzzle_cluster',idx:2, x:22, y:48, icon:'🧪'},
-    {type:'puzzle_cluster',idx:3, x:72, y:48, icon:'🚀'},
-    {type:'puzzle_cluster',idx:4, x:15, y:78, icon:'📐'},
-    {type:'npc', x:48, y:48, icon:'👴'},
-    {type:'boss',idx:0, x:48, y:78, icon:'⚔️'},
-    {type:'door', x:50, y:95, icon:'🚪'},
-  ],
-  'el-laboratorio': [
-    {type:'puzzle_cluster',idx:0, x:15, y:15, icon:'🤖'},
-    {type:'puzzle_cluster',idx:1, x:78, y:15, icon:'🛡️'},
-    {type:'puzzle_cluster',idx:2, x:28, y:42, icon:'🔌'},
-    {type:'puzzle_cluster',idx:3, x:28, y:75, icon:'🎛️'},
-    {type:'puzzle_cluster',idx:4, x:72, y:75, icon:'🔒'},
-    {type:'npc', x:50, y:50, icon:'👴'},
-    {type:'boss',idx:0, x:50, y:82, icon:'⚔️'},
-    {type:'door', x:50, y:95, icon:'🚪'},
-  ],
-  'la-ciudad': [
-    {type:'puzzle_cluster',idx:0, x:15, y:15, icon:'📡'},
-    {type:'puzzle_cluster',idx:1, x:78, y:15, icon:'💰'},
-    {type:'puzzle_cluster',idx:2, x:18, y:48, icon:'📚'},
-    {type:'puzzle_cluster',idx:3, x:78, y:48, icon:'🏗️'},
-    {type:'npc', x:48, y:50, icon:'👴'},
-    {type:'boss',idx:0, x:50, y:82, icon:'⚔️'},
-    {type:'door', x:50, y:95, icon:'🚪'},
-  ],
+// ═══ STORY MODE ═══
+function enterStory(slug) {
+  curRoom = ROOMS[slug]; curSlug = slug;
+  document.getElementById('chapters').style.display = 'none';
+  document.getElementById('story').classList.add('active');
+  document.getElementById('story-room').textContent = curRoom.name;
+  updateStoryProgress();
+  loadNextPuzzle();
+}
+
+document.getElementById('story-back').onclick = ()=>{
+  document.getElementById('story').classList.remove('active');
+  document.getElementById('chapters').style.display = '';
+  recalc(); renderChapters();
 };
 
-let playerX = 50, playerY = 85; // current player position (%)
-let nearObj = null; // object player is near
-let roomObjElements = []; // {el, data, objData, x, y}
+function updateStoryProgress(){
+  const all = curRoom.objects.filter(o=>o.levels).flatMap(o=>o.levels);
+  const d = all.filter(s=>done.has(s)).length;
+  document.getElementById('story-prog').textContent = `${d}/${all.length} · ${xp} XP`;
+}
 
-function enterRoom(slug) {
-  currentRoomSlug = slug;
-  document.getElementById('map-view').style.display = 'none';
-  const rv = document.getElementById('room-view');
-  rv.classList.add('active');
-
-  const room = ROOMS[slug];
-  const info = GS.rooms[slug] || {};
-  const colors = ROOM_COLORS[slug] || {};
-
-  document.getElementById('room-title').textContent = room.name;
-  document.getElementById('room-pct').textContent = (info.percent||0) + '%';
-
-  // Room visuals
-  const floor = document.getElementById('room-floor');
-  floor.style.background = colors.bg || 'var(--glass)';
-  const walls = document.getElementById('room-walls');
-  walls.style.borderImageSource = `linear-gradient(135deg, ${colors.accent || '#444'}44, ${colors.accent || '#444'}22)`;
-  const ambient = document.getElementById('room-ambient');
-  ambient.style.background = `radial-gradient(ellipse 40% 40% at 50% 40%, ${colors.accent || '#c8a44e'}15, transparent)`;
-
-  // Build objects
-  const objContainer = document.getElementById('room-objects');
-  // Keep player, remove rest
-  const player = document.getElementById('player');
-  objContainer.innerHTML = '';
-  objContainer.appendChild(player);
-
-  const layout = ROOM_LAYOUTS[slug] || [];
-  const puzzleClusters = room.objects.filter(o => o.type === 'puzzle_cluster');
-  const bosses = room.objects.filter(o => o.type === 'boss');
-  const npc = room.objects.find(o => o.type === 'npc');
-  const door = room.objects.find(o => o.type === 'door');
-
-  // Sequential unlock logic
-  let prevComplete = true;
-  const clusterStates = puzzleClusters.map(obj => {
-    const levels = obj.levels || [];
-    const done = levels.filter(s => completedSlugs.has(s)).length;
-    const total = levels.length;
-    const allDone = done >= total;
-    let state;
-    if (allDone) { state = 'complete'; prevComplete = true; }
-    else if (prevComplete) { state = 'active'; prevComplete = false; }
-    else state = 'locked';
-    return { obj, done, total, state };
-  });
-
-  const bossStates = bosses.map(obj => {
-    const levels = obj.levels || [];
-    const done = levels.filter(s => completedSlugs.has(s)).length;
-    const total = levels.length;
-    const allDone = done >= total;
-    const allClustersComplete = puzzleClusters.every(o => (o.levels||[]).every(s => completedSlugs.has(s)));
-    return { obj, done, total, state: allClustersComplete ? (allDone ? 'complete' : 'active') : 'locked' };
-  });
-
-  roomObjElements = [];
-  let puzzleIdx = 0, bossIdx = 0;
-
-  for (const pos of layout) {
-    let objData, state, done = 0, total = 0, isBoss = false;
-
-    if (pos.type === 'puzzle_cluster') {
-      const cs = clusterStates[pos.idx ?? puzzleIdx++];
-      if (!cs) continue;
-      objData = cs.obj; state = cs.state; done = cs.done; total = cs.total;
-    } else if (pos.type === 'boss') {
-      const bs = bossStates[pos.idx ?? bossIdx++];
-      if (!bs) continue;
-      objData = bs.obj; state = bs.state; done = bs.done; total = bs.total; isBoss = true;
-    } else if (pos.type === 'npc' && npc) {
-      objData = npc; state = 'npc';
-    } else if (pos.type === 'door' && door) {
-      const doorUnlocked = (info.percent || 0) >= (door.requires_percent || 70);
-      objData = door; state = doorUnlocked ? 'active' : 'locked';
-    } else continue;
-
-    const el = document.createElement('div');
-    const cls = pos.type === 'npc' ? 'npc' : pos.type === 'door' ? 'door' : isBoss ? 'boss' : '';
-    el.className = `room-obj ${state} ${cls}`.trim();
-    el.style.left = pos.x + '%';
-    el.style.top = pos.y + '%';
-
-    const badgeClass = state === 'active' ? 'quest' : state === 'complete' ? 'done' : 'lock';
-    const badgeText = state === 'active' ? '!' : state === 'complete' ? '✓' : state === 'npc' ? '💬' : '🔒';
-
-    el.innerHTML = `
-      <div class="obj-sprite">${pos.icon}<div class="obj-badge ${badgeClass}">${badgeText}</div></div>
-      <div class="obj-label">${objData.label || ''}</div>
-      ${total > 0 ? `<div class="obj-progress">${done}/${total}</div>` : ''}
-    `;
-
-    // Click on object → walk to it, then interact
-    el.onclick = () => walkToAndInteract(pos.x, pos.y, pos.type, objData, state, slug, info);
-    objContainer.appendChild(el);
-    roomObjElements.push({ el, x: pos.x, y: pos.y, type: pos.type, objData, state });
+// Get the flat ordered list of levels for this room
+function getRoomLevels() {
+  const clusters = curRoom.objects.filter(o=>o.type==='puzzle_cluster');
+  const bosses = curRoom.objects.filter(o=>o.type==='boss');
+  const seq = [];
+  for (const c of clusters) {
+    for (const s of (c.levels||[])) seq.push({slug:s, cluster:c});
   }
-
-  // Position player
-  playerX = 50; playerY = 85;
-  player.style.left = playerX + '%';
-  player.style.top = playerY + '%';
-  document.getElementById('player-tag').textContent = GS.player_name || '';
-  document.getElementById('interact-prompt').classList.remove('visible');
-
-  document.getElementById('app').scrollTo(0, 0);
-}
-
-// Walk-to-and-interact: player moves to object, then triggers action
-function walkToAndInteract(tx, ty, type, objData, state, slug, info) {
-  const player = document.getElementById('player');
-  const prompt = document.getElementById('interact-prompt');
-
-  // Move player near the object
-  playerX = tx;
-  playerY = Math.min(ty + 8, 90); // stand slightly below
-  player.style.left = playerX + '%';
-  player.style.top = playerY + '%';
-
-  // Wait for movement transition, then interact
-  setTimeout(() => {
-    if (type === 'puzzle_cluster' || type === 'boss') {
-      if (state !== 'active') {
-        if (state === 'locked') showDialogue('NARRADOR', ['Esta estación aún está bloqueada. Completa la anterior primero.'], () => {});
-        else if (state === 'complete') showDialogue('NARRADOR', ['Ya completaste todos los desafíos de esta estación.'], () => {});
-        return;
-      }
-      const nextLevel = (objData.levels||[]).find(s => !completedSlugs.has(s));
-      if (!nextLevel) return;
-      if (objData.intro_dialogue) {
-        showDialogue(objData.intro_dialogue.speaker, objData.intro_dialogue.lines, () => openPuzzle(slug, nextLevel));
-      } else {
-        openPuzzle(slug, nextLevel);
-      }
-    } else if (type === 'npc') {
-      const pct = info?.percent || 0;
-      let dlgData = objData.dialogues?.progress_0;
-      if (pct >= 100 && objData.dialogues?.progress_100) dlgData = objData.dialogues.progress_100;
-      else if (pct >= 50 && objData.dialogues?.progress_50) dlgData = objData.dialogues.progress_50;
-      showDialogue(dlgData?.speaker || 'DON RAMÓN', dlgData?.lines || ['...'], () => openMentor());
-    } else if (type === 'door') {
-      if (state === 'active' && objData.target_room) {
-        const dlg = objData.unlocked_dialogue || { speaker: 'NARRADOR', lines: ['La puerta se abre.'] };
-        showDialogue(dlg.speaker, dlg.lines, () => {
-          GS.rooms[objData.target_room] = GS.rooms[objData.target_room] || { unlocked: true, levels_passed: [], percent: 0 };
-          GS.rooms[objData.target_room].unlocked = true;
-          enterRoom(objData.target_room);
-        });
-      } else {
-        const dlg = objData.locked_dialogue || { speaker: 'NARRADOR', lines: ['La puerta está cerrada.'] };
-        showDialogue(dlg.speaker, dlg.lines, () => {});
-      }
-    }
-  }, 450);
-}
-
-// WASD/Arrow movement on desktop
-document.addEventListener('keydown', e => {
-  if (puzzleOverlay.classList.contains('active') || dlgOverlay.classList.contains('active')) return;
-  if (!document.getElementById('room-view').classList.contains('active')) return;
-  const step = 6;
-  if (e.key === 'ArrowUp' || e.key === 'w') { playerY = Math.max(8, playerY - step); }
-  else if (e.key === 'ArrowDown' || e.key === 's') { playerY = Math.min(92, playerY + step); }
-  else if (e.key === 'ArrowLeft' || e.key === 'a') { playerX = Math.max(5, playerX - step); }
-  else if (e.key === 'ArrowRight' || e.key === 'd') { playerX = Math.min(95, playerX + step); }
-  else if (e.key === 'Enter' || e.key === 'e') { interactWithNearest(); return; }
-  else return;
-  e.preventDefault();
-  const player = document.getElementById('player');
-  player.style.left = playerX + '%';
-  player.style.top = playerY + '%';
-  checkProximity();
-});
-
-function checkProximity() {
-  const prompt = document.getElementById('interact-prompt');
-  nearObj = null;
-  for (const o of roomObjElements) {
-    const dist = Math.sqrt((o.x - playerX) ** 2 + (o.y - playerY) ** 2);
-    if (dist < 14) { nearObj = o; break; }
+  for (const b of bosses) {
+    for (const s of (b.levels||[])) seq.push({slug:s, cluster:b, isBoss:true});
   }
-  if (nearObj) {
-    prompt.textContent = nearObj.type === 'npc' ? 'E · Hablar' : nearObj.type === 'door' ? 'E · Puerta' : 'E · Interactuar';
-    prompt.classList.add('visible');
-  } else {
-    prompt.classList.remove('visible');
-  }
+  return seq;
 }
 
-function interactWithNearest() {
-  if (!nearObj) return;
-  const o = nearObj;
-  const info = GS.rooms[currentRoomSlug] || {};
-  walkToAndInteract(o.x, o.y, o.type, o.objData, o.state, currentRoomSlug, info);
+function getNextLevel() {
+  const seq = getRoomLevels();
+  return seq.find(l=>!done.has(l.slug));
 }
 
-document.getElementById('room-back').onclick = () => {
-  document.getElementById('room-view').classList.remove('active');
-  document.getElementById('map-view').style.display = 'flex';
-  currentRoomSlug = null;
-  renderMap();
-};
+async function loadNextPuzzle() {
+  const next = getNextLevel();
+  if (!next) { showChapterComplete(); return; }
 
-// === DIALOGUE ===
-let dlgQueue = [], dlgCallback = null, dlgTyping = false, dlgTimer = null;
-const dlgOverlay = document.getElementById('dialogue-overlay');
-const dlgSpeaker = document.getElementById('dlg-speaker');
-const dlgText = document.getElementById('dlg-text');
+  const content = document.getElementById('story-content');
+  content.innerHTML = '';
+  const accent = ROOM_ACCENT[curSlug]||'var(--gold)';
 
-function showDialogue(speaker, lines, onDone) {
-  dlgQueue = [...lines];
-  dlgCallback = onDone;
-  dlgSpeaker.textContent = speaker === 'NARRADOR' ? '' : speaker;
-  dlgSpeaker.style.display = speaker === 'NARRADOR' ? 'none' : '';
-  dlgOverlay.classList.add('active');
-  typeNextLine();
-}
+  // Scene stage
+  const stage = document.createElement('div');
+  stage.className = 'scene-stage';
+  stage.innerHTML = `
+    <div class="scene-bg" style="background:${ROOM_BG[curSlug]}"></div>
+    <div class="scene-portrait" style="animation:portraitIn .6s var(--ease) both">
+      <div class="portrait-ring" style="border-color:${accent}44">👴<div class="portrait-mood">🤔</div></div>
+    </div>
+  `;
+  content.appendChild(stage);
 
-function typeNextLine() {
-  if (dlgQueue.length === 0) { closeDialogue(); return; }
-  const line = dlgQueue.shift();
-  dlgText.textContent = '';
-  dlgText.classList.add('typing');
-  dlgTyping = true;
-  let i = 0;
-  dlgTimer = setInterval(() => {
-    i++;
-    dlgText.textContent = line.slice(0, i);
-    if (i >= line.length) { clearInterval(dlgTimer); dlgTyping = false; dlgText.classList.remove('typing'); }
-  }, 25);
-}
+  // Dialogue
+  const dlgBox = document.createElement('div');
+  dlgBox.className = 'dialogue';
+  dlgBox.style.borderLeftColor = accent;
+  dlgBox.innerHTML = `<div class="dialogue-name" style="color:${accent}">DON RAMÓN</div><div class="dialogue-body" id="dlg-body"></div><div class="dialogue-tap" id="dlg-tap">toca para continuar</div>`;
+  content.appendChild(dlgBox);
 
-function advanceDialogue() {
-  if (dlgTyping) { clearInterval(dlgTimer); dlgText.textContent = dlgQueue.length > 0 ? dlgText.textContent : dlgText.textContent; dlgText.textContent = dlgText.textContent; /* show full */ clearInterval(dlgTimer); dlgTyping = false; dlgText.classList.remove('typing'); const full = dlgText.textContent; /* already showing partial */ return; }
-  typeNextLine();
-}
-
-function closeDialogue() {
-  dlgOverlay.classList.remove('active');
-  clearInterval(dlgTimer);
-  dlgTyping = false;
-  if (dlgCallback) { const cb = dlgCallback; dlgCallback = null; cb(); }
-}
-
-dlgOverlay.onclick = advanceDialogue;
-document.addEventListener('keydown', e => { if (dlgOverlay.classList.contains('active') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); advanceDialogue(); } });
-
-// === PUZZLE OVERLAY ===
-const puzzleOverlay = document.getElementById('puzzle-overlay');
-let puzzleStartTime = 0, puzzleHintUsed = false, currentPuzzleSlug = '';
-
-async function openPuzzle(roomSlug, levelSlug) {
-  currentPuzzleSlug = levelSlug;
-  puzzleHintUsed = false;
-  puzzleStartTime = Date.now();
-
-  const res = await fetch(`/api/game/level/${levelSlug}`);
-  if (!res.ok) { alert('Error cargando nivel'); return; }
+  // Fetch level data first so we can weave concepts into dialogue
+  const res = await fetch(`/api/game/level/${next.slug}`);
+  if (!res.ok) { content.innerHTML += '<p style="color:var(--ruby)">Error cargando nivel</p>'; return; }
   const data = await res.json();
+  curLevelSlug = data.slug;
+  hintUsed = false;
+  puzzleStart = Date.now();
 
-  // Show concept popups first
-  if (data.new_concepts && data.new_concepts.length > 0) {
-    await showConcepts(data.new_concepts);
+  // Build the dialogue: concepts FIRST (Don Ramón teaches), then intro
+  const allLines = [];
+
+  // Teach new concepts inline as Don Ramón explaining
+  if (data.new_concepts?.length) {
+    for (const c of data.new_concepts) {
+      allLines.push(`📘 ${c.title}`);
+      if (c.analogy_md) allLines.push(c.analogy_md.trim());
+      if (c.example_md) allLines.push(`Ejemplo: ${c.example_md.trim()}`);
+      // Mark as seen
+      fetch('/api/game/concept-seen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({concept_slug:c.slug})}).catch(()=>{});
+    }
+    allLines.push('Ahora sí, veamos si entendiste...');
   }
 
-  document.getElementById('puzzle-title').textContent = data.title;
-  document.getElementById('puzzle-xp').textContent = '+' + data.xp + ' XP';
+  // Then the cluster intro
+  const introLines = next.cluster.intro_dialogue?.lines || [];
+  allLines.push(...introLines);
 
-  const body = document.getElementById('puzzle-body');
-  body.innerHTML = '';
+  // If no lines at all, add a default
+  if (allLines.length === 0) allLines.push('Siguiente desafío.');
 
-  // Scenario
-  if (data.scenario_md) {
-    const sc = document.createElement('div');
-    sc.className = 'puzzle-scenario';
-    sc.textContent = data.scenario_md;
-    body.appendChild(sc);
-  }
+  await playDialogue(allLines);
 
-  // Widget
-  const widget = document.createElement('div');
-  widget.className = 'puzzle-widget';
-  body.appendChild(widget);
+  // Puzzle area
+  const area = document.createElement('div');
+  area.className = 'puzzle-area';
+  area.innerHTML = `
+    <div class="puzzle-label">Misión${next.isBoss?' · JEFE':''}</div>
+    <div class="puzzle-scenario">${esc(data.scenario_md||'')}</div>
+    <div class="puzzle-widget" id="pw"></div>
+  `;
+  content.appendChild(area);
 
-  renderPuzzleWidget(widget, data);
+  // Render widget
+  renderWidget(document.getElementById('pw'), data);
 
   // Hint
   if (data.hint_md) {
-    const hintBtn = document.createElement('button');
-    hintBtn.className = 'pw-hint-btn';
-    hintBtn.textContent = 'Ver pista';
-    const hintDiv = document.createElement('div');
-    hintDiv.className = 'pw-hint';
-    hintDiv.textContent = data.hint_md;
-    hintBtn.onclick = () => { hintDiv.classList.toggle('visible'); puzzleHintUsed = true; hintBtn.textContent = hintDiv.classList.contains('visible') ? 'Ocultar pista' : 'Ver pista'; };
-    body.appendChild(hintBtn);
-    body.appendChild(hintDiv);
+    const hBtn = document.createElement('button');
+    hBtn.className = 'btn-hint';
+    hBtn.textContent = 'Ver pista';
+    const hBox = document.createElement('div');
+    hBox.className = 'hint-box';
+    hBox.textContent = data.hint_md;
+    hBtn.onclick = ()=>{ hBox.classList.toggle('vis'); hintUsed=true; hBtn.textContent=hBox.classList.contains('vis')?'Ocultar pista':'Ver pista'; };
+    area.appendChild(hBtn);
+    area.appendChild(hBox);
   }
 
-  puzzleOverlay.classList.add('active');
+  // Ask mentor button
+  const askBtn = document.createElement('button');
+  askBtn.className = 'ask-mentor';
+  askBtn.textContent = '¿Necesitas ayuda? Pregúntale a Don Ramón';
+  askBtn.onclick = ()=> document.getElementById('mentor-modal').classList.add('active');
+  area.appendChild(askBtn);
+
+  // Feedback placeholder
+  const fb = document.createElement('div');
+  fb.className = 'pw-fb';
+  fb.id = 'pw-fb';
+  area.appendChild(fb);
+
+  // Scroll to puzzle
+  setTimeout(()=> area.scrollIntoView({behavior:'smooth',block:'start'}), 100);
 }
 
-document.getElementById('puzzle-close').onclick = () => puzzleOverlay.classList.remove('active');
-
-async function submitAttempt(passed, payload) {
-  const elapsed = Math.round((Date.now() - puzzleStartTime) / 1000);
-  const res = await fetch('/api/game/attempt', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ level_slug: currentPuzzleSlug, passed, hint_used: puzzleHintUsed, payload: payload || {}, duration_seconds: elapsed })
+// ═══ DIALOGUE SYSTEM ═══
+function playDialogue(lines) {
+  return new Promise(resolve => {
+    const body = document.getElementById('dlg-body');
+    const tap = document.getElementById('dlg-tap');
+    if (!body) { resolve(); return; }
+    let idx = 0, typing = false, timer = null;
+    function typeLine() {
+      const line = lines[idx];
+      body.textContent = '';
+      body.classList.add('typing');
+      tap.classList.remove('show');
+      typing = true;
+      let ci = 0;
+      timer = setInterval(()=>{
+        ci++;
+        body.textContent = line.slice(0,ci);
+        if (ci>=line.length){ clearInterval(timer); typing=false; body.classList.remove('typing'); tap.classList.add('show'); }
+      }, 28);
+    }
+    function advance() {
+      if (typing) { clearInterval(timer); body.textContent=lines[idx]; typing=false; body.classList.remove('typing'); tap.classList.add('show'); return; }
+      idx++;
+      if (idx<lines.length) typeLine();
+      else { cleanup(); resolve(); }
+    }
+    function cleanup(){ document.removeEventListener('click', onClick); document.removeEventListener('keydown', onKey); }
+    function onClick(){ advance(); }
+    function onKey(e){ if(e.key==='Enter'||e.key===' '){e.preventDefault();advance();} }
+    document.addEventListener('click', onClick);
+    document.addEventListener('keydown', onKey);
+    typeLine();
   });
+}
+
+// ═══ SUBMIT ═══
+async function submit(passed, payload) {
+  const elapsed = Math.round((Date.now()-puzzleStart)/1000);
+  const res = await fetch('/api/game/attempt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({level_slug:curLevelSlug,passed,hint_used:hintUsed,payload:payload||{},duration_seconds:elapsed})});
   const data = await res.json();
   if (passed) {
-    completedSlugs.add(currentPuzzleSlug);
-    totalXp += data.xp_awarded || 0;
-    updateHud();
-    recalcRoomProgress();
-    puzzleOverlay.classList.remove('active');
-    showSuccess(data.xp_awarded || 0);
+    done.add(curLevelSlug);
+    xp += data.xp_awarded||0;
+    recalc(); updateStoryProgress();
+    showInlineSuccess(data.xp_awarded||0);
+    // XP toast
+    const t = document.createElement('div');
+    t.className='xp-toast';t.textContent=`+${data.xp_awarded||0} XP`;
+    document.body.appendChild(t);setTimeout(()=>t.remove(),1100);
+    // Change portrait mood
+    const mood = document.querySelector('.portrait-mood');
+    if(mood) mood.textContent='😊';
   }
   return data;
 }
 
-function recalcRoomProgress() {
-  for (const slug of ROOM_ORDER) {
-    const room = ROOMS[slug];
-    if (!room) continue;
-    const allLevels = room.objects.filter(o => o.levels).flatMap(o => o.levels);
-    const done = allLevels.filter(s => completedSlugs.has(s)).length;
-    GS.rooms[slug] = GS.rooms[slug] || { unlocked: false, levels_passed: [], percent: 0 };
-    GS.rooms[slug].percent = allLevels.length > 0 ? Math.round(done / allLevels.length * 100) : 0;
-    GS.rooms[slug].levels_passed = allLevels.filter(s => completedSlugs.has(s));
-  }
-  // Unlock next rooms
-  for (let i = 1; i < ROOM_ORDER.length; i++) {
-    const prev = GS.rooms[ROOM_ORDER[i - 1]];
-    if (prev && prev.percent >= 70) GS.rooms[ROOM_ORDER[i]].unlocked = true;
+function showInlineSuccess(xpVal) {
+  const area = document.querySelector('.puzzle-area');
+  if (!area) return;
+  const s = document.createElement('div');
+  s.className = 'success-inline';
+  s.innerHTML = `
+    <div class="success-xp">+${xpVal} XP</div>
+    <div class="success-msg">¡Bien hecho!</div>
+    <div style="font:400 12px var(--sans);color:var(--dim);margin-top:8px">Siguiente desafío en un momento...</div>
+  `;
+  area.appendChild(s);
+  s.scrollIntoView({behavior:'smooth',block:'center'});
+  // Auto-advance after 2 seconds
+  setTimeout(()=> loadNextPuzzle(), 2000);
+}
+
+function showFb(ok,msg) {
+  const fb = document.getElementById('pw-fb');
+  if(!fb) return;
+  fb.textContent=msg; fb.className=`pw-fb vis ${ok?'ok':'fail'}`;
+  if(!ok) setTimeout(()=>fb.classList.remove('vis'),4000);
+}
+
+// ═══ CHAPTER COMPLETE ═══
+function showChapterComplete(){
+  const cc = document.getElementById('ch-complete');
+  document.getElementById('cc-title').textContent = `${curRoom.name} completada`;
+  cc.classList.add('active');
+  document.getElementById('cc-btn').onclick = ()=>{
+    cc.classList.remove('active');
+    document.getElementById('story').classList.remove('active');
+    document.getElementById('chapters').style.display='';
+    recalc(); renderChapters();
+  };
+}
+
+// ═══ PUZZLE RENDERERS ═══
+function renderWidget(c,data){
+  const kind=data.kind, p=data.payload||{};
+  switch(kind){
+    case 'order_steps': rOrder(c,p); break;
+    case 'multi_choice': rChoice(c,p); break;
+    case 'fill_blank': rFill(c,p); break;
+    case 'tf': rTF(c,p); break;
+    case 'predict': rPredict(c,p); break;
+    case 'decision': rDecision(c,p); break;
+    case 'code': rCode(c,p); break;
+    case 'boss': rBoss(c,data); break;
+    default: c.textContent='Tipo: '+kind;
   }
 }
 
-// === PUZZLE RENDERERS ===
-function renderPuzzleWidget(container, data) {
-  const kind = data.kind;
-  const payload = data.payload || {};
-  switch (kind) {
-    case 'order_steps': renderOrderSteps(container, payload); break;
-    case 'multi_choice': renderMultiChoice(container, payload); break;
-    case 'fill_blank': renderFillBlank(container, payload); break;
-    case 'tf': renderTF(container, payload); break;
-    case 'predict': renderPredict(container, payload); break;
-    case 'decision': renderDecision(container, payload); break;
-    case 'code': renderCode(container, payload); break;
-    case 'boss': renderBoss(container, data); break;
-    default: container.innerHTML = `<p style="color:var(--dim)">Tipo de puzzle: ${kind}</p>`;
-  }
-}
-
-function renderOrderSteps(c, p) {
-  const steps = p.steps || [];
-  const correct = p.correct_order || steps.map((_, i) => i);
-  const indices = steps.map((_, i) => i);
-  for (let i = indices.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [indices[i], indices[j]] = [indices[j], indices[i]]; }
-
-  c.innerHTML = '<div class="pw-instruction">Ordena los pasos</div>';
-  const ul = document.createElement('ul');
-  ul.className = 'pw-list';
-  indices.forEach((idx, pos) => {
-    const li = document.createElement('li');
-    li.className = 'pw-step';
-    li.draggable = true;
-    li.dataset.idx = idx;
-    li.innerHTML = `<span class="pw-step-handle">⠿</span><span class="pw-step-num">${pos + 1}</span><span>${esc(steps[idx])}</span>`;
-    ul.appendChild(li);
-  });
+function rOrder(c,p){
+  const steps=p.steps||[], correct=p.correct_order||steps.map((_,i)=>i);
+  const idx=steps.map((_,i)=>i); for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
+  const ul=document.createElement('ul');ul.className='w-list';
+  idx.forEach((oi,pos)=>{const li=document.createElement('li');li.className='w-step';li.draggable=true;li.dataset.i=oi;li.innerHTML=`<span class="w-step-grip">⠿</span><span class="w-step-n">${pos+1}</span><span>${esc(steps[oi])}</span>`;ul.appendChild(li);});
   c.appendChild(ul);
-
-  // Drag
-  let dragSrc = null;
-  ul.addEventListener('dragstart', e => { dragSrc = e.target.closest('.pw-step'); if (dragSrc) dragSrc.classList.add('dragging'); });
-  ul.addEventListener('dragend', () => { ul.querySelectorAll('.pw-step').forEach(el => el.classList.remove('dragging', 'drag-over')); renum(ul); });
-  ul.addEventListener('dragover', e => { e.preventDefault(); const t = e.target.closest('.pw-step'); if (!t || t === dragSrc) return; ul.querySelectorAll('.pw-step.drag-over').forEach(el => el.classList.remove('drag-over')); t.classList.add('drag-over'); const r = t.getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) ul.insertBefore(dragSrc, t); else ul.insertBefore(dragSrc, t.nextSibling); });
-
-  // Touch drag
-  let touchEl = null, touchClone = null;
-  ul.addEventListener('touchstart', e => {
-    const t = e.target.closest('.pw-step'); if (!t) return;
-    touchEl = t; t.classList.add('dragging');
-  }, { passive: true });
-  ul.addEventListener('touchmove', e => {
-    if (!touchEl) return; e.preventDefault();
-    const touch = e.touches[0];
-    const els = [...ul.querySelectorAll('.pw-step')];
-    for (const el of els) {
-      if (el === touchEl) continue;
-      const r = el.getBoundingClientRect();
-      if (touch.clientY > r.top && touch.clientY < r.bottom) {
-        if (touch.clientY < r.top + r.height / 2) ul.insertBefore(touchEl, el);
-        else ul.insertBefore(touchEl, el.nextSibling);
-        break;
-      }
-    }
-  }, { passive: false });
-  ul.addEventListener('touchend', () => { if (touchEl) { touchEl.classList.remove('dragging'); touchEl = null; renum(ul); } });
-
-  const btn = document.createElement('button');
-  btn.className = 'btn-verify';
-  btn.textContent = 'Verificar orden';
-  btn.onclick = () => {
-    const current = [...ul.querySelectorAll('.pw-step')].map(li => parseInt(li.dataset.idx));
-    const ok = current.every((v, i) => v === correct[i]);
-    submitAttempt(ok, { submitted_order: current });
-    if (!ok) showFeedback(c, false, 'Orden incorrecto. Revisa la lógica paso a paso.');
-  };
+  let src=null;
+  ul.addEventListener('dragstart',e=>{src=e.target.closest('.w-step');if(src)src.classList.add('dragging');});
+  ul.addEventListener('dragend',()=>{ul.querySelectorAll('.w-step').forEach(e=>e.classList.remove('dragging','drag-over'));renum(ul);});
+  ul.addEventListener('dragover',e=>{e.preventDefault();const t=e.target.closest('.w-step');if(!t||t===src)return;t.classList.add('drag-over');const r=t.getBoundingClientRect();if(e.clientY<r.top+r.height/2)ul.insertBefore(src,t);else ul.insertBefore(src,t.nextSibling);});
+  ul.addEventListener('dragleave',e=>{const t=e.target.closest('.w-step');if(t)t.classList.remove('drag-over');});
+  let tEl=null;
+  ul.addEventListener('touchstart',e=>{const t=e.target.closest('.w-step');if(t){tEl=t;t.classList.add('dragging');}},{passive:true});
+  ul.addEventListener('touchmove',e=>{if(!tEl)return;e.preventDefault();const touch=e.touches[0];for(const el of ul.querySelectorAll('.w-step')){if(el===tEl)continue;const r=el.getBoundingClientRect();if(touch.clientY>r.top&&touch.clientY<r.bottom){if(touch.clientY<r.top+r.height/2)ul.insertBefore(tEl,el);else ul.insertBefore(tEl,el.nextSibling);break;}}},{passive:false});
+  ul.addEventListener('touchend',()=>{if(tEl){tEl.classList.remove('dragging');tEl=null;renum(ul);}});
+  const btn=document.createElement('button');btn.className='btn-v';btn.textContent='Verificar';
+  btn.onclick=()=>{const cur=[...ul.querySelectorAll('.w-step')].map(l=>+l.dataset.i);const ok=cur.every((v,i)=>v===correct[i]);submit(ok,{submitted_order:cur});if(!ok)showFb(false,'Orden incorrecto. Revisa la lógica.');btn.disabled=ok;};
   c.appendChild(btn);
-  addFeedbackEl(c);
 }
 
-function renderMultiChoice(c, p) {
-  const options = p.options || [];
-  c.innerHTML = '<div class="pw-instruction">Selecciona la respuesta correcta</div>';
-  let selected = null, answered = false;
-  const list = document.createElement('div');
-  list.className = 'pw-list';
-  const letters = 'ABCDE';
-  const cards = options.map((opt, i) => {
-    const d = document.createElement('button');
-    d.className = 'pw-choice';
-    d.innerHTML = `<span class="pw-choice-letter">${letters[i]}</span><span>${esc(opt.text || opt.label || '')}</span>`;
-    d.onclick = () => { if (answered) return; list.querySelectorAll('.pw-choice').forEach(c => c.classList.remove('selected')); d.classList.add('selected'); selected = i; };
-    list.appendChild(d);
-    return d;
-  });
+function rChoice(c,p){
+  const opts=p.options||[];let sel=null,ans=false;const L='ABCDE';
+  const list=document.createElement('div');list.className='w-list';
+  const cards=opts.map((o,i)=>{const d=document.createElement('button');d.className='w-choice';d.innerHTML=`<span class="w-letter">${L[i]}</span><span>${esc(o.text||o.label||'')}</span>`;d.onclick=()=>{if(ans)return;list.querySelectorAll('.w-choice').forEach(c=>c.classList.remove('sel'));d.classList.add('sel');sel=i;};list.appendChild(d);return d;});
   c.appendChild(list);
-  const btn = document.createElement('button');
-  btn.className = 'btn-verify';
-  btn.textContent = 'Verificar';
-  btn.onclick = () => {
-    if (selected === null) { showFeedback(c, false, 'Selecciona una opción.'); return; }
-    if (answered) return;
-    answered = true;
-    const opt = options[selected];
-    const ok = !!(opt.correct || opt.is_correct);
-    cards.forEach((card, i) => { if (options[i].correct || options[i].is_correct) card.classList.add('correct'); });
-    if (!ok) cards[selected].classList.add('wrong');
-    submitAttempt(ok, { selected_index: selected });
-    if (!ok) showFeedback(c, false, opt.feedback || 'Incorrecto.');
-    btn.disabled = true;
-  };
+  const btn=document.createElement('button');btn.className='btn-v';btn.textContent='Verificar';
+  btn.onclick=()=>{if(sel===null){showFb(false,'Selecciona una opción.');return;}if(ans)return;ans=true;const o=opts[sel];const ok=!!(o.correct||o.is_correct);cards.forEach((cd,i)=>{if(opts[i].correct||opts[i].is_correct)cd.classList.add('ok');});if(!ok)cards[sel].classList.add('no');submit(ok,{selected_index:sel});if(!ok)showFb(false,o.feedback||'Incorrecto.');btn.disabled=true;};
   c.appendChild(btn);
-  addFeedbackEl(c);
 }
 
-function renderFillBlank(c, p) {
-  const tmpl = p.code_template || '';
-  const blanks = p.blanks || [];
-  c.innerHTML = '<div class="pw-instruction">Completa los espacios en blanco</div>';
-  const code = document.createElement('div');
-  code.className = 'pw-code';
-  code.style.whiteSpace = 'pre-wrap';
-  let blankIdx = 0;
-  const inputs = [];
-  tmpl.split('___').forEach((part, i) => {
-    code.appendChild(document.createTextNode(part));
-    if (i < tmpl.split('___').length - 1) {
-      const inp = document.createElement('input');
-      inp.type = 'text';
-      inp.className = 'pw-blank';
-      inp.placeholder = blanks[blankIdx]?.label || '...';
-      inp.size = Math.max(8, (blanks[blankIdx]?.label || '').length);
-      inputs.push(inp);
-      code.appendChild(inp);
-      blankIdx++;
-    }
-  });
+function rFill(c,p){
+  const tmpl=p.code_template||'',blanks=p.blanks||[];
+  const code=document.createElement('div');code.className='w-code';code.style.whiteSpace='pre-wrap';
+  const inputs=[];let bi=0;
+  tmpl.split('___').forEach((part,i)=>{code.appendChild(document.createTextNode(part));if(i<tmpl.split('___').length-1){const inp=document.createElement('input');inp.type='text';inp.className='w-blank';inp.placeholder=blanks[bi]?.label||'...';inp.size=Math.max(6,(blanks[bi]?.label||'').length);inputs.push(inp);code.appendChild(inp);bi++;}});
   c.appendChild(code);
-  const btn = document.createElement('button');
-  btn.className = 'btn-verify';
-  btn.textContent = 'Verificar';
-  btn.onclick = () => {
-    let allOk = true;
-    inputs.forEach((inp, i) => {
-      const val = inp.value.trim();
-      const ok = blanks[i]?.correct?.map(c => c.trim()).includes(val);
-      inp.classList.toggle('correct', ok);
-      inp.classList.toggle('wrong', !ok);
-      if (!ok) allOk = false;
-    });
-    submitAttempt(allOk, { answers: inputs.map(i => i.value.trim()) });
-    if (!allOk) showFeedback(c, false, 'Algún espacio no es correcto.');
-  };
+  const btn=document.createElement('button');btn.className='btn-v';btn.textContent='Verificar';
+  btn.onclick=()=>{let ok=true;inputs.forEach((inp,i)=>{const v=inp.value.trim();const m=blanks[i]?.correct?.map(c=>c.trim()).includes(v);inp.classList.toggle('ok',m);inp.classList.toggle('no',!m);if(!m)ok=false;});submit(ok,{answers:inputs.map(i=>i.value.trim())});if(!ok)showFb(false,'Algún espacio no es correcto.');btn.disabled=ok;};
   c.appendChild(btn);
-  addFeedbackEl(c);
 }
 
-function renderTF(c, p) {
-  const stmt = p.statement || '';
-  const correct = p.correct;
-  c.innerHTML = '<div class="pw-instruction">Verdadero o Falso</div>';
-  if (stmt) { const s = document.createElement('p'); s.style.cssText = 'font:400 14px var(--ff-body);color:var(--cream-d);line-height:1.6;margin-bottom:12px;'; s.textContent = stmt; c.appendChild(s); }
-  const row = document.createElement('div');
-  row.className = 'pw-tf-row';
-  let answered = false;
-  ['Verdadero', 'Falso'].forEach((label, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'pw-tf';
-    btn.textContent = label;
-    btn.onclick = () => {
-      if (answered) return;
-      answered = true;
-      const val = i === 0;
-      const ok = val === correct;
-      btn.classList.add(ok ? 'correct' : 'wrong');
-      row.querySelectorAll('.pw-tf').forEach((b, j) => { if ((j === 0) === correct) b.classList.add('correct'); });
-      submitAttempt(ok, { selected: val });
-    };
-    row.appendChild(btn);
-  });
+function rTF(c,p){
+  const stmt=p.statement||'',correct=p.correct;
+  if(stmt){const s=document.createElement('p');s.style.cssText='font:400 14px/1.6 var(--sans);color:var(--cream-d);margin-bottom:10px;';s.textContent=stmt;c.appendChild(s);}
+  const row=document.createElement('div');row.className='w-tf';let ans=false;
+  ['Verdadero','Falso'].forEach((l,i)=>{const b=document.createElement('button');b.textContent=l;b.onclick=()=>{if(ans)return;ans=true;const v=i===0;const ok=v===correct;b.classList.add(ok?'ok':'no');row.querySelectorAll('button').forEach((bb,j)=>{if((j===0)===correct)bb.classList.add('ok');});submit(ok,{selected:v});};row.appendChild(b);});
   c.appendChild(row);
-  addFeedbackEl(c);
 }
 
-function renderPredict(c, p) {
-  const code = p.code || '';
-  const expected = (p.expected_output || '').trim();
-  c.innerHTML = '<div class="pw-instruction">¿Qué imprime este código?</div>';
-  const pre = document.createElement('pre');
-  pre.className = 'pw-code';
-  pre.textContent = code;
-  c.appendChild(pre);
-  const inp = document.createElement('textarea');
-  inp.className = 'pw-input';
-  inp.placeholder = 'Escribe la salida exacta...';
-  inp.rows = 3;
-  c.appendChild(inp);
-  const btn = document.createElement('button');
-  btn.className = 'btn-verify';
-  btn.textContent = 'Verificar';
-  btn.onclick = () => {
-    const ok = inp.value.trim() === expected;
-    submitAttempt(ok, { answer: inp.value.trim() });
-    if (!ok) showFeedback(c, false, `Salida esperada: "${expected}"`);
-    btn.disabled = true;
-  };
+function rPredict(c,p){
+  const code=p.code||'',exp=(p.expected_output||'').trim();
+  const pre=document.createElement('pre');pre.className='w-code';pre.textContent=code;c.appendChild(pre);
+  const inp=document.createElement('textarea');inp.className='w-input';inp.placeholder='Escribe la salida exacta...';inp.rows=3;c.appendChild(inp);
+  const btn=document.createElement('button');btn.className='btn-v';btn.textContent='Verificar';
+  btn.onclick=()=>{const ok=inp.value.trim()===exp;submit(ok,{answer:inp.value.trim()});if(!ok)showFb(false,`Esperado: "${exp}"`);btn.disabled=true;};
   c.appendChild(btn);
-  addFeedbackEl(c);
 }
 
-function renderDecision(c, p) {
-  const options = p.options || [];
-  c.innerHTML = '<div class="pw-instruction">Toma una decisión</div>';
-  if (p.prompt_md) { const pr = document.createElement('div'); pr.className = 'puzzle-scenario'; pr.style.marginBottom = '14px'; pr.textContent = p.prompt_md; c.appendChild(pr); }
-  const list = document.createElement('div');
-  list.className = 'pw-list';
-  options.forEach((opt, i) => {
-    const d = document.createElement('button');
-    d.className = 'pw-choice';
-    d.innerHTML = `<span class="pw-choice-letter">${i + 1}</span><div><strong>${esc(opt.label || '')}</strong><br><span style="font-size:12px;color:var(--cream-d)">${esc(opt.tradeoff_md || opt.tradeoff || '')}</span></div>`;
-    d.onclick = () => { submitAttempt(true, { chosen_index: i }); };
-    list.appendChild(d);
-  });
+function rDecision(c,p){
+  const opts=p.options||[];
+  if(p.prompt_md){const pr=document.createElement('div');pr.className='puzzle-scenario';pr.style.marginBottom='12px';pr.textContent=p.prompt_md;c.appendChild(pr);}
+  const list=document.createElement('div');list.className='w-list';
+  opts.forEach((o,i)=>{const d=document.createElement('button');d.className='w-choice';d.innerHTML=`<span class="w-letter">${i+1}</span><div><strong>${esc(o.label||'')}</strong><br><small style="color:var(--cream-d)">${esc(o.tradeoff_md||o.tradeoff||'')}</small></div>`;d.onclick=()=>{submit(true,{chosen_index:i});};list.appendChild(d);});
   c.appendChild(list);
 }
 
-function renderCode(c, p) {
-  const starter = p.starter || '';
-  const tests = p.tests || '';
-  c.innerHTML = '<div class="pw-instruction">Escribe tu solución</div>';
-  const ta = document.createElement('textarea');
-  ta.className = 'pw-editor';
-  ta.value = starter;
-  ta.spellcheck = false;
-  ta.addEventListener('keydown', e => { if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.value = ta.value.substring(0, s) + '    ' + ta.value.substring(ta.selectionEnd); ta.selectionStart = ta.selectionEnd = s + 4; } });
+function rCode(c,p){
+  const starter=p.starter||'',tests=p.tests||'';
+  const ta=document.createElement('textarea');ta.className='w-editor';ta.value=starter;ta.spellcheck=false;
+  ta.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();const s=ta.selectionStart;ta.value=ta.value.substring(0,s)+'    '+ta.value.substring(ta.selectionEnd);ta.selectionStart=ta.selectionEnd=s+4;}});
   c.appendChild(ta);
-  const out = document.createElement('div');
-  out.className = 'pw-output';
-  c.appendChild(out);
-  const btn = document.createElement('button');
-  btn.className = 'btn-verify';
-  btn.textContent = 'Verificar';
-  btn.onclick = async () => {
-    btn.disabled = true;
-    out.textContent = 'Ejecutando...';
-    out.className = 'pw-output visible';
-    try {
-      if (!window.loadPyodide) throw new Error('Pyodide no disponible');
-      const pyodide = await window.loadPyodide();
-      let output = '';
-      pyodide.setStdout({ batched: s => { output += s + '\n'; } });
-      pyodide.setStderr({ batched: s => { output += s + '\n'; } });
-      const fullCode = ta.value + '\n\n' + tests;
-      await pyodide.runPythonAsync(fullCode);
-      out.textContent = output || '✓ Todos los tests pasan';
-      out.className = 'pw-output visible';
-      submitAttempt(true, { code: ta.value });
-    } catch (err) {
-      out.textContent = err.message;
-      out.className = 'pw-output visible error';
-      showFeedback(c, false, 'El código tiene errores. Corrígelo y vuelve a intentar.');
-      btn.disabled = false;
-    }
+  const out=document.createElement('div');out.className='w-output';c.appendChild(out);
+  const btn=document.createElement('button');btn.className='btn-v';btn.textContent='Verificar';
+  btn.onclick=async()=>{
+    btn.disabled=true;out.textContent='Ejecutando...';out.className='w-output vis';
+    try{
+      if(!window.loadPyodide)throw new Error('Pyodide no disponible');
+      const py=await window.loadPyodide();let output='';
+      py.setStdout({batched:s=>{output+=s+'\n';}});py.setStderr({batched:s=>{output+=s+'\n';}});
+      await py.runPythonAsync(ta.value+'\n\n'+tests);
+      out.textContent=output||'✓ Tests OK';out.className='w-output vis';
+      submit(true,{code:ta.value});
+    }catch(err){out.textContent=err.message;out.className='w-output vis err';showFb(false,'Errores en el código.');btn.disabled=false;}
   };
   c.appendChild(btn);
-  addFeedbackEl(c);
 }
 
-function renderBoss(c, data) {
-  const steps = data.payload?.steps || [];
-  c.innerHTML = '<div class="pw-instruction">⚔️ Nivel Jefe — ' + steps.length + ' desafíos</div>';
-  let currentStep = 0;
-  function showStep(i) {
-    const step = steps[i];
-    const stepC = document.createElement('div');
-    stepC.style.cssText = 'margin-top:12px;padding:14px;border:1px solid rgba(255,255,255,.06);border-radius:var(--r-md);';
-    if (step.title) { const h = document.createElement('h3'); h.style.cssText = 'font:700 14px var(--ff-title);color:var(--cream);margin-bottom:10px;'; h.textContent = `Paso ${i+1}: ${step.title}`; stepC.appendChild(h); }
-    if (step.scenario_md) { const p = document.createElement('p'); p.style.cssText = 'font:400 13px var(--ff-body);color:var(--cream-d);margin-bottom:12px;'; p.textContent = step.scenario_md; stepC.appendChild(p); }
-    const subWidget = document.createElement('div');
-    renderPuzzleWidget(subWidget, { kind: step.kind || 'multi_choice', payload: step, hint_md: step.hint_md });
-    stepC.appendChild(subWidget);
-    c.appendChild(stepC);
+function rBoss(c,data){
+  const steps=data.payload?.steps||[];let ci=0;
+  function showStep(i){
+    c.innerHTML='';
+    const s=steps[i];
+    if(s.title){const h=document.createElement('div');h.style.cssText='font:700 13px var(--serif);color:var(--cream);margin-bottom:8px;';h.textContent=`Paso ${i+1}/${steps.length}: ${s.title}`;c.appendChild(h);}
+    if(s.scenario_md){const p=document.createElement('p');p.style.cssText='font:400 13px var(--sans);color:var(--cream-d);margin-bottom:12px;';p.textContent=s.scenario_md;c.appendChild(p);}
+    const sub=document.createElement('div');
+    renderWidget(sub,{kind:s.kind||'multi_choice',payload:s,hint_md:s.hint_md});
+    c.appendChild(sub);
+    // Override submit for sub-steps
+    const origSubmit = window._bossSubSubmit;
   }
   showStep(0);
-  // Boss simplified: each sub-step submits independently, last one completes the boss
 }
 
-// Helpers
-function addFeedbackEl(c) {
-  const fb = document.createElement('div');
-  fb.className = 'pw-feedback';
-  c.appendChild(fb);
-}
-function showFeedback(c, ok, msg) {
-  const fb = c.querySelector('.pw-feedback');
-  if (!fb) return;
-  fb.textContent = msg;
-  fb.className = `pw-feedback visible ${ok ? 'success' : 'fail'}`;
-  if (!ok) setTimeout(() => fb.classList.remove('visible'), 4000);
-}
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function renum(ul) { ul.querySelectorAll('.pw-step-num').forEach((el, i) => el.textContent = i + 1); }
-
-// === CONCEPT POPUPS ===
-function showConcepts(concepts) {
-  return new Promise(resolve => {
-    let i = 0;
-    const overlay = document.getElementById('concept-overlay');
-    function show(idx) {
-      const c = concepts[idx];
-      document.getElementById('concept-title').textContent = c.title;
-      document.getElementById('concept-analogy').textContent = c.analogy_md || '';
-      const ex = document.getElementById('concept-example');
-      ex.textContent = c.example_md || '';
-      ex.style.display = c.example_md ? '' : 'none';
-      document.getElementById('concept-count').textContent = `${idx + 1} de ${concepts.length}`;
-      document.getElementById('concept-btn').textContent = idx < concepts.length - 1 ? 'Siguiente' : 'Entendido';
-      overlay.classList.add('active');
-      fetch('/api/game/concept-seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ concept_slug: c.slug }) }).catch(() => {});
+// ═══ CONCEPT POPUPS ═══
+function showConcepts(concepts){
+  return new Promise(resolve=>{
+    let i=0;const modal=document.getElementById('concept-modal');
+    function show(idx){
+      const c=concepts[idx];
+      document.getElementById('c-title').textContent=c.title;
+      document.getElementById('c-analogy').textContent=c.analogy_md||'';
+      const ex=document.getElementById('c-example');ex.textContent=c.example_md||'';ex.style.display=c.example_md?'':'none';
+      document.getElementById('c-count').textContent=`${idx+1} de ${concepts.length}`;
+      document.getElementById('c-btn').textContent=idx<concepts.length-1?'Siguiente':'Entendido';
+      modal.classList.add('active');
+      fetch('/api/game/concept-seen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({concept_slug:c.slug})}).catch(()=>{});
     }
-    document.getElementById('concept-btn').onclick = () => {
-      i++;
-      if (i < concepts.length) show(i);
-      else { overlay.classList.remove('active'); resolve(); }
-    };
+    document.getElementById('c-btn').onclick=()=>{i++;if(i<concepts.length)show(i);else{modal.classList.remove('active');resolve();}};
     show(0);
   });
 }
 
-// === SUCCESS ===
-function showSuccess(xp) {
-  const overlay = document.getElementById('success-overlay');
-  document.getElementById('success-xp').textContent = `+${xp} XP`;
-  overlay.classList.add('active');
-  // XP toast
-  const toast = document.createElement('div');
-  toast.className = 'xp-toast';
-  toast.textContent = `+${xp} XP`;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 1200);
-
-  document.getElementById('success-btn').onclick = () => {
-    overlay.classList.remove('active');
-    if (currentRoomSlug) enterRoom(currentRoomSlug);
-    else { document.getElementById('room-view').classList.remove('active'); document.getElementById('map-view').style.display = 'flex'; renderMap(); }
-  };
+// ═══ MENTOR CHAT ═══
+document.getElementById('mentor-close').onclick=()=>document.getElementById('mentor-modal').classList.remove('active');
+document.getElementById('mentor-send').onclick=sendChat;
+document.getElementById('mentor-in').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')sendChat();});
+async function sendChat(){
+  const inp=document.getElementById('mentor-in');const msg=inp.value.trim();if(!msg)return;inp.value='';
+  const msgs=document.getElementById('mentor-msgs');
+  msgs.innerHTML+=`<div class="m-msg u">${esc(msg)}</div>`;
+  const bot=document.createElement('div');bot.className='m-msg a';bot.textContent='...';msgs.appendChild(bot);msgs.scrollTop=msgs.scrollHeight;
+  try{
+    const res=await fetch('/api/game/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,level_slug:curLevelSlug||null,context:curSlug?`Sala: ${curSlug}`:''})});
+    bot.textContent='';const reader=res.body.getReader();const dec=new TextDecoder();let buf='';
+    while(true){const{done:d,value}=await reader.read();if(d)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();let evt='';
+    for(const line of lines){if(line.startsWith('event: '))evt=line.slice(7).trim();else if(line.startsWith('data: ')){const raw=line.slice(6).trim();if(raw==='[DONE]')break;try{const obj=JSON.parse(raw);if(evt==='delta'&&obj.text)bot.textContent+=obj.text;}catch{}}}
+    msgs.scrollTop=msgs.scrollHeight;}
+  }catch{bot.textContent='Don Ramón no está disponible ahora.';}
 }
 
-// === MENTOR CHAT ===
-function openMentor() {
-  document.getElementById('mentor-panel').classList.add('active');
-}
-document.getElementById('close-mentor').onclick = () => document.getElementById('mentor-panel').classList.remove('active');
-document.getElementById('mentor-send').onclick = sendMentorMsg;
-document.getElementById('mentor-input').addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') sendMentorMsg(); });
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function renum(ul){ul.querySelectorAll('.w-step-n').forEach((e,i)=>e.textContent=i+1);}
 
-async function sendMentorMsg() {
-  const input = document.getElementById('mentor-input');
-  const msg = input.value.trim();
-  if (!msg) return;
-  input.value = '';
-  const msgs = document.getElementById('mentor-msgs');
-  msgs.innerHTML += `<div class="mentor-msg user">${esc(msg)}</div>`;
-  const botMsg = document.createElement('div');
-  botMsg.className = 'mentor-msg assistant';
-  botMsg.textContent = '...';
-  msgs.appendChild(botMsg);
-  msgs.scrollTop = msgs.scrollHeight;
-
-  try {
-    const res = await fetch('/api/game/chat', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, level_slug: currentPuzzleSlug || null, context: currentRoomSlug ? `Sala: ${currentRoomSlug}` : '' })
-    });
-    botMsg.textContent = '';
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const lines = buf.split('\n');
-      buf = lines.pop();
-      let evt = '';
-      for (const line of lines) {
-        if (line.startsWith('event: ')) evt = line.slice(7).trim();
-        else if (line.startsWith('data: ')) {
-          const raw = line.slice(6).trim();
-          if (raw === '[DONE]') break;
-          try { const obj = JSON.parse(raw); if (evt === 'delta' && obj.text) botMsg.textContent += obj.text; } catch {}
-        }
-      }
-      msgs.scrollTop = msgs.scrollHeight;
-    }
-  } catch { botMsg.textContent = 'Don Ramón no está disponible ahora.'; }
-}
-
-// Auto-enter first active room
-const firstActive = ROOM_ORDER.find(s => GS.rooms[s]?.unlocked && (GS.rooms[s]?.percent||0) < 100) || ROOM_ORDER[0];
-if (GS.rooms[firstActive]?.unlocked) enterRoom(firstActive);
+// Auto-enter the first incomplete chapter — zero friction
+const autoSlug = ROOM_ORDER.find(s=>GS.rooms[s]?.unlocked&&(GS.rooms[s]?.percent||0)<100);
+if (autoSlug) enterStory(autoSlug);
 </script>
 </body>
 </html>
