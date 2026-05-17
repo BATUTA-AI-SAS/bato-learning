@@ -380,14 +380,7 @@ async function loadNextPuzzle() {
   `;
   content.appendChild(stage);
 
-  // Dialogue
-  const dlgBox = document.createElement('div');
-  dlgBox.className = 'dialogue';
-  dlgBox.style.borderLeftColor = accent;
-  dlgBox.innerHTML = `<div class="dialogue-name" style="color:${accent}">DON RAMÓN</div><div class="dialogue-body" id="dlg-body"></div><div class="dialogue-tap" id="dlg-tap">toca para continuar</div>`;
-  content.appendChild(dlgBox);
-
-  // Fetch level data first so we can weave concepts into dialogue
+  // Fetch level data
   const res = await fetch(`/api/game/level/${next.slug}`);
   if (!res.ok) { content.innerHTML += '<p style="color:var(--ruby)">Error cargando nivel</p>'; return; }
   const data = await res.json();
@@ -395,29 +388,31 @@ async function loadNextPuzzle() {
   hintUsed = false;
   puzzleStart = Date.now();
 
-  // Build the dialogue: concepts FIRST (Don Ramón teaches), then intro
-  const allLines = [];
-
-  // Teach new concepts inline as Don Ramón explaining
+  // Show concepts as static teaching cards — NO dialogue, NO tapping
   if (data.new_concepts?.length) {
     for (const c of data.new_concepts) {
-      allLines.push(`📘 ${c.title}`);
-      if (c.analogy_md) allLines.push(c.analogy_md.trim());
-      if (c.example_md) allLines.push(`Ejemplo: ${c.example_md.trim()}`);
-      // Mark as seen
+      const card = document.createElement('div');
+      card.style.cssText = 'margin-top:16px;padding:14px 16px;background:rgba(196,155,42,.06);border:1px solid rgba(196,155,42,.12);border-radius:10px;';
+      card.innerHTML = `
+        <div style="font:700 12px var(--mono);color:${accent};letter-spacing:.08em;margin-bottom:6px">📘 NUEVO CONCEPTO</div>
+        <div style="font:700 16px var(--serif);color:var(--cream);margin-bottom:6px">${esc(c.title)}</div>
+        ${c.analogy_md ? `<div style="font:400 14px/1.6 var(--sans);color:var(--cream-d);margin-bottom:8px">${esc(c.analogy_md.trim())}</div>` : ''}
+        ${c.example_md ? `<pre style="background:rgba(0,0,0,.3);border-radius:6px;padding:10px 12px;font:400 12px var(--mono);color:var(--cream-d);white-space:pre-wrap;overflow-x:auto">${esc(c.example_md.trim())}</pre>` : ''}
+      `;
+      content.appendChild(card);
       fetch('/api/game/concept-seen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({concept_slug:c.slug})}).catch(()=>{});
     }
-    allLines.push('Ahora sí, veamos si entendiste...');
   }
 
-  // Then the cluster intro
-  const introLines = next.cluster.intro_dialogue?.lines || [];
-  allLines.push(...introLines);
-
-  // If no lines at all, add a default
-  if (allLines.length === 0) allLines.push('Siguiente desafío.');
-
-  await playDialogue(allLines);
+  // Don Ramón intro — ONE static line, not a dialogue sequence
+  const introLine = next.cluster.intro_dialogue?.lines?.[0] || '';
+  if (introLine) {
+    const dlgBox = document.createElement('div');
+    dlgBox.className = 'dialogue';
+    dlgBox.style.borderLeftColor = accent;
+    dlgBox.innerHTML = `<div class="dialogue-name" style="color:${accent}">DON RAMÓN</div><div class="dialogue-body">${esc(introLine)}</div>`;
+    content.appendChild(dlgBox);
+  }
 
   // Puzzle area
   const area = document.createElement('div');
@@ -462,34 +457,38 @@ async function loadNextPuzzle() {
   setTimeout(()=> area.scrollIntoView({behavior:'smooth',block:'start'}), 100);
 }
 
-// ═══ DIALOGUE SYSTEM ═══
+// ═══ DIALOGUE SYSTEM (for NPC/door interactions only) ═══
+let _dlgCleanup = null;
 function playDialogue(lines) {
+  // Clean up any previous dialogue listeners
+  if (_dlgCleanup) { _dlgCleanup(); _dlgCleanup = null; }
   return new Promise(resolve => {
     const body = document.getElementById('dlg-body');
     const tap = document.getElementById('dlg-tap');
-    if (!body) { resolve(); return; }
+    if (!body || !lines.length) { resolve(); return; }
     let idx = 0, typing = false, timer = null;
     function typeLine() {
       const line = lines[idx];
       body.textContent = '';
       body.classList.add('typing');
-      tap.classList.remove('show');
+      if (tap) tap.classList.remove('show');
       typing = true;
       let ci = 0;
       timer = setInterval(()=>{
         ci++;
         body.textContent = line.slice(0,ci);
-        if (ci>=line.length){ clearInterval(timer); typing=false; body.classList.remove('typing'); tap.classList.add('show'); }
-      }, 28);
+        if (ci>=line.length){ clearInterval(timer); typing=false; body.classList.remove('typing'); if(tap)tap.classList.add('show'); }
+      }, 22);
     }
     function advance() {
-      if (typing) { clearInterval(timer); body.textContent=lines[idx]; typing=false; body.classList.remove('typing'); tap.classList.add('show'); return; }
+      if (typing) { clearInterval(timer); body.textContent=lines[idx]; typing=false; body.classList.remove('typing'); if(tap)tap.classList.add('show'); return; }
       idx++;
       if (idx<lines.length) typeLine();
       else { cleanup(); resolve(); }
     }
-    function cleanup(){ document.removeEventListener('click', onClick); document.removeEventListener('keydown', onKey); }
-    function onClick(){ advance(); }
+    function cleanup(){ document.removeEventListener('click', onClick); document.removeEventListener('keydown', onKey); _dlgCleanup = null; }
+    _dlgCleanup = cleanup;
+    function onClick(e){ e.stopPropagation(); advance(); }
     function onKey(e){ if(e.key==='Enter'||e.key===' '){e.preventDefault();advance();} }
     document.addEventListener('click', onClick);
     document.addEventListener('keydown', onKey);
