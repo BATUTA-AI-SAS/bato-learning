@@ -288,6 +288,42 @@ async def post_attempt(body: AttemptIn, request: Request, session: SessionDep) -
     return {"xp_awarded": xp_awarded, "newly_unlocked_concepts": newly_unlocked_concepts}
 
 
+@router.get("/api/game/level/{level_slug}")
+async def get_level_data(level_slug: str, request: Request, session: SessionDep) -> dict:
+    """Return level data for inline puzzle rendering."""
+    from ..services.auth import require_user
+    user = await require_user(request, session)
+    level = await game_repo.get_level(session, level_slug)
+    if level is None:
+        raise HTTPException(status_code=404, detail="nivel no encontrado")
+
+    # Check which concepts are new to this user
+    seen_concepts = await game_repo.user_seen_concepts(session, user.id)
+    new_concepts = []
+    all_popups = {p.slug: p for p in await game_repo.list_concept_popups(session)}
+    for slug in level.concepts_introduced:
+        if slug not in seen_concepts and slug in all_popups:
+            p = all_popups[slug]
+            new_concepts.append({
+                "slug": p.slug,
+                "title": p.title,
+                "analogy_md": p.analogy_md,
+                "example_md": p.example_md,
+            })
+
+    return {
+        "slug": level.slug,
+        "title": level.title,
+        "kind": level.kind,
+        "scenario_md": level.scenario_md,
+        "payload": level.payload,
+        "hint_md": level.hint_md,
+        "xp": level.xp,
+        "est_seconds": level.est_seconds,
+        "new_concepts": new_concepts,
+    }
+
+
 @router.post("/api/game/concept-seen")
 async def post_concept_seen(
     body: ConceptSeenIn, request: Request, session: SessionDep
