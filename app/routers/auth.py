@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.exc import IntegrityError
 
 from ..db import SessionDep
 from ..services.auth import authenticate, get_current_user, login_user, logout_user, register
@@ -60,6 +61,10 @@ async def register_submit(
         user = await register(session, email=email, password=password, display_name=display_name)
     except HTTPException as exc:
         request.session["flash_error"] = exc.detail
+        return RedirectResponse("/register", status_code=303)
+    except IntegrityError:
+        await session.rollback()
+        request.session["flash_error"] = "Ya existe una cuenta con ese correo."
         return RedirectResponse("/register", status_code=303)
     login_user(request, user)
     request.session["is_new_user"] = True

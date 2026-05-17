@@ -2,30 +2,1390 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>bato-learning</title>
-  <link rel="stylesheet" href="/static/css/rpg.css?v=2">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mapa del Mundo — bato-learning</title>
+  <style>
+    /* ================================================================
+       RESET & FOUNDATIONS
+       ================================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-abyss: #060608;
+      --bg-deep: #0a0a0f;
+      --bg-panel: rgba(14, 14, 22, 0.82);
+      --bg-glass: rgba(18, 18, 30, 0.65);
+      --bg-glass-hover: rgba(24, 24, 40, 0.78);
+
+      --gold: #c8a44e;
+      --gold-bright: #e8c965;
+      --gold-dim: #8a7032;
+      --gold-glow: rgba(200, 164, 78, 0.35);
+
+      --amber: #d4a054;
+      --cream: #f0e6d2;
+      --cream-dim: #b8a88a;
+
+      --green: #4caf7a;
+      --green-dim: #2a6e47;
+      --green-glow: rgba(76, 175, 122, 0.3);
+
+      --red: #c0392b;
+      --red-glow: rgba(192, 57, 43, 0.25);
+
+      --blue: #3a7bd5;
+      --blue-glow: rgba(58, 123, 213, 0.3);
+
+      --locked-fg: #4a4a5a;
+      --locked-bg: rgba(30, 30, 42, 0.5);
+
+      --text-primary: #e8e0d0;
+      --text-secondary: #9a927e;
+      --text-dim: #5c5848;
+
+      --border-subtle: rgba(200, 164, 78, 0.12);
+      --border-gold: rgba(200, 164, 78, 0.3);
+      --border-active: rgba(200, 164, 78, 0.6);
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+
+      --font-display: Georgia, 'Times New Roman', serif;
+      --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --font-mono: 'Courier New', monospace;
+
+      --hud-h: 56px;
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-abyss);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Noise texture overlay for depth */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 256px;
+      pointer-events: none;
+    }
+
+    /* Radial vignette */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: radial-gradient(ellipse at center, transparent 40%, var(--bg-abyss) 100%);
+      pointer-events: none;
+    }
+
+    /* ================================================================
+       HUD BAR
+       ================================================================ */
+    .hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--hud-h);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: linear-gradient(180deg, rgba(6, 6, 8, 0.95) 0%, rgba(6, 6, 8, 0.7) 100%);
+      border-bottom: 1px solid var(--border-subtle);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .hud-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .hud-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--bg-abyss);
+      flex-shrink: 0;
+      box-shadow: 0 0 0 2px var(--bg-abyss), 0 0 0 3px var(--gold-dim);
+    }
+
+    .hud-name {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--cream);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hud-center {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      max-width: 280px;
+      margin: 0 16px;
+    }
+
+    .hud-xp-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .hud-xp-bar {
+      flex: 1;
+      height: 8px;
+      background: rgba(200, 164, 78, 0.12);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hud-xp-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--gold-dim) 0%, var(--gold-bright) 100%);
+      transition: width 0.8s var(--ease-out-expo);
+      position: relative;
+    }
+
+    .hud-xp-fill::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 20px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+      border-radius: 0 4px 4px 0;
+    }
+
+    .hud-xp-num {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gold-bright);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
+
+    .hud-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hud-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-glass);
+      color: var(--text-secondary);
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .hud-btn:hover {
+      background: var(--bg-glass-hover);
+      color: var(--cream);
+      border-color: var(--border-gold);
+    }
+
+    /* ================================================================
+       MAIN LAYOUT
+       ================================================================ */
+    .world-container {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      padding-top: var(--hud-h);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ================================================================
+       WORLD MAP SECTION
+       ================================================================ */
+    .map-section {
+      flex-shrink: 0;
+      padding: 24px 16px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .map-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      margin-bottom: 20px;
+    }
+
+    .map-graph {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      aspect-ratio: 4 / 3.2;
+    }
+
+    /* SVG paths between nodes */
+    .map-paths {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .map-path {
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .map-path--unlocked {
+      stroke: var(--gold-dim);
+      opacity: 0.6;
+    }
+
+    .map-path--locked {
+      stroke: var(--locked-fg);
+      stroke-dasharray: 6, 8;
+      opacity: 0.3;
+    }
+
+    .map-path--animated {
+      animation: pathFlow 2s linear infinite;
+    }
+
+    @keyframes pathFlow {
+      to { stroke-dashoffset: -28; }
+    }
+
+    /* Room nodes */
+    .map-node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      cursor: pointer;
+      transition: transform 0.3s var(--ease-spring), filter 0.3s;
+    }
+
+    .map-node:hover {
+      transform: translate(-50%, -50%) scale(1.06);
+    }
+
+    .map-node--selected {
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    .map-node--selected:hover {
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+
+    .node-card {
+      width: 130px;
+      padding: 14px 10px 12px;
+      border-radius: var(--radius-lg);
+      border: 1.5px solid var(--border-subtle);
+      background: var(--bg-panel);
+      backdrop-filter: blur(8px);
+      text-align: center;
+      transition: all 0.35s var(--ease-out-expo);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Top edge accent line */
+    .node-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 20%;
+      right: 20%;
+      height: 2px;
+      border-radius: 0 0 2px 2px;
+      background: var(--gold-dim);
+      opacity: 0.5;
+      transition: all 0.3s;
+    }
+
+    .map-node--selected .node-card {
+      border-color: var(--border-active);
+      box-shadow: 0 0 30px var(--gold-glow), inset 0 0 30px rgba(200, 164, 78, 0.04);
+    }
+
+    .map-node--selected .node-card::before {
+      left: 10%;
+      right: 10%;
+      opacity: 1;
+      background: var(--gold);
+    }
+
+    /* State variants */
+    .map-node--locked .node-card {
+      background: var(--locked-bg);
+      border-color: rgba(60, 60, 75, 0.3);
+      cursor: default;
+    }
+
+    .map-node--locked .node-card::before {
+      background: var(--locked-fg);
+      opacity: 0.2;
+    }
+
+    .map-node--locked:hover {
+      transform: translate(-50%, -50%) scale(1.0);
+    }
+
+    .map-node--complete .node-card {
+      border-color: rgba(76, 175, 122, 0.35);
+    }
+
+    .map-node--complete .node-card::before {
+      background: var(--green);
+      opacity: 0.7;
+    }
+
+    .map-node--active .node-card {
+      animation: activeGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes activeGlow {
+      0%, 100% { box-shadow: 0 0 15px var(--gold-glow); }
+      50% { box-shadow: 0 0 35px var(--gold-glow), 0 0 60px rgba(200, 164, 78, 0.12); }
+    }
+
+    .node-icon {
+      font-size: 28px;
+      line-height: 1;
+      margin-bottom: 6px;
+      display: block;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    .map-node--locked .node-icon {
+      filter: grayscale(0.8) brightness(0.5);
+    }
+
+    .node-name {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--cream);
+      margin-bottom: 3px;
+      line-height: 1.2;
+    }
+
+    .map-node--locked .node-name {
+      color: var(--locked-fg);
+    }
+
+    .node-pct {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gold);
+      font-family: var(--font-mono);
+    }
+
+    .map-node--locked .node-pct {
+      color: var(--locked-fg);
+    }
+
+    .map-node--complete .node-pct {
+      color: var(--green);
+    }
+
+    .node-lock {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 12px;
+      opacity: 0.6;
+    }
+
+    /* ================================================================
+       ROOM DETAIL PANEL
+       ================================================================ */
+    .detail-section {
+      flex: 1;
+      padding: 8px 16px 32px;
+      max-width: 540px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .detail-panel {
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-panel);
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+      animation: panelIn 0.4s var(--ease-out-expo);
+    }
+
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .detail-header {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
+    }
+
+    /* Subtle gradient accent at top of panel */
+    .detail-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent 0%, var(--room-accent, var(--gold)) 50%, transparent 100%);
+      opacity: 0.6;
+    }
+
+    .detail-room-name {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--cream);
+      margin-bottom: 2px;
+    }
+
+    .detail-room-sub {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-style: italic;
+      margin-bottom: 12px;
+    }
+
+    .detail-progress {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .detail-progress-bar {
+      flex: 1;
+      height: 6px;
+      background: rgba(200, 164, 78, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .detail-progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--room-accent, var(--gold-dim)), var(--room-accent-bright, var(--gold)));
+      transition: width 0.6s var(--ease-out-expo);
+    }
+
+    .detail-progress-pct {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--room-accent, var(--gold));
+      font-family: var(--font-mono);
+      min-width: 38px;
+      text-align: right;
+    }
+
+    /* Mission list */
+    .detail-missions {
+      padding: 8px 0;
+    }
+
+    .mission-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+      position: relative;
+    }
+
+    .mission-item:hover {
+      background: rgba(200, 164, 78, 0.04);
+    }
+
+    .mission-item--active {
+      background: rgba(200, 164, 78, 0.06);
+      border-left-color: var(--gold);
+    }
+
+    .mission-item--active:hover {
+      background: rgba(200, 164, 78, 0.1);
+    }
+
+    .mission-item--complete {
+      border-left-color: var(--green-dim);
+    }
+
+    .mission-item--locked {
+      cursor: default;
+      opacity: 0.45;
+    }
+
+    .mission-item--locked:hover {
+      background: transparent;
+    }
+
+    .mission-item--boss {
+      border-top: 1px solid var(--border-subtle);
+      margin-top: 4px;
+      padding-top: 14px;
+    }
+
+    .mission-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .mission-icon--active {
+      background: rgba(200, 164, 78, 0.12);
+      border: 1px solid var(--border-gold);
+      box-shadow: 0 0 12px var(--gold-glow);
+    }
+
+    .mission-icon--complete {
+      background: rgba(76, 175, 122, 0.12);
+      border: 1px solid rgba(76, 175, 122, 0.3);
+    }
+
+    .mission-icon--locked {
+      background: rgba(40, 40, 55, 0.5);
+      border: 1px solid rgba(60, 60, 75, 0.3);
+    }
+
+    .mission-icon--boss {
+      background: rgba(192, 57, 43, 0.12);
+      border: 1px solid rgba(192, 57, 43, 0.3);
+    }
+
+    .mission-icon--boss.mission-icon--active {
+      box-shadow: 0 0 12px var(--red-glow);
+    }
+
+    .mission-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .mission-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--cream);
+      margin-bottom: 2px;
+      line-height: 1.3;
+    }
+
+    .mission-item--locked .mission-label {
+      color: var(--locked-fg);
+    }
+
+    .mission-progress {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .mission-item--complete .mission-progress {
+      color: var(--green);
+    }
+
+    .mission-arrow {
+      font-size: 14px;
+      color: var(--text-dim);
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .mission-item--active .mission-arrow {
+      color: var(--gold);
+    }
+
+    .mission-item--active:hover .mission-arrow {
+      transform: translateX(3px);
+      color: var(--gold-bright);
+    }
+
+    /* NPC section */
+    .detail-npc {
+      padding: 14px 20px 18px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .detail-npc:hover {
+      background: rgba(200, 164, 78, 0.04);
+    }
+
+    .npc-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6a5a3a 0%, #4a3a2a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      border: 2px solid rgba(200, 164, 78, 0.2);
+    }
+
+    .npc-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .npc-name {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--amber);
+      margin-bottom: 2px;
+    }
+
+    .npc-line {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-style: italic;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .npc-chat-icon {
+      font-size: 16px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    /* ================================================================
+       NPC DIALOGUE MODAL
+       ================================================================ */
+    .dialogue-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeIn 0.25s ease;
+      cursor: pointer;
+    }
+
+    .dialogue-overlay.hidden { display: none; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .dialogue-box {
+      width: 100%;
+      max-width: 520px;
+      background: linear-gradient(180deg, rgba(14, 14, 22, 0.96) 0%, rgba(10, 10, 16, 0.98) 100%);
+      border: 1px solid var(--border-gold);
+      border-radius: var(--radius-xl);
+      padding: 20px 24px 18px;
+      cursor: default;
+      animation: slideUp 0.35s var(--ease-out-expo);
+      position: relative;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .dialogue-speaker-name {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+
+    .dialogue-line {
+      font-size: 15px;
+      color: var(--cream);
+      line-height: 1.6;
+      min-height: 48px;
+    }
+
+    .dialogue-hint {
+      text-align: right;
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+    }
+
+    .dialogue-hint span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    /* ================================================================
+       LOCKED ROOM OVERLAY
+       ================================================================ */
+    .locked-toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      z-index: 200;
+      background: rgba(14, 14, 22, 0.94);
+      border: 1px solid rgba(60, 60, 75, 0.4);
+      border-radius: var(--radius-md);
+      padding: 10px 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      opacity: 0;
+      transition: all 0.3s var(--ease-out-expo);
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+    }
+
+    .locked-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ================================================================
+       RESPONSIVE — TABLET & DESKTOP
+       ================================================================ */
+    @media (min-width: 600px) {
+      .map-section {
+        padding: 32px 24px 12px;
+      }
+
+      .map-graph {
+        max-width: 520px;
+      }
+
+      .node-card {
+        width: 150px;
+        padding: 16px 12px 14px;
+      }
+
+      .node-icon { font-size: 32px; }
+      .node-name { font-size: 14px; }
+      .node-pct { font-size: 12px; }
+
+      .detail-section {
+        padding: 12px 24px 40px;
+      }
+
+      .detail-room-name { font-size: 26px; }
+      .mission-item { padding: 14px 24px; }
+    }
+
+    @media (min-width: 900px) {
+      .world-container {
+        flex-direction: row;
+        overflow: hidden;
+      }
+
+      .map-section {
+        flex: 1;
+        padding: 40px 32px;
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      .map-graph {
+        max-width: 560px;
+        aspect-ratio: 4 / 3;
+      }
+
+      .detail-section {
+        width: 380px;
+        max-width: 380px;
+        flex: none;
+        padding: 12px 16px 32px;
+        overflow-y: auto;
+        border-left: 1px solid var(--border-subtle);
+        background: rgba(6, 6, 8, 0.4);
+      }
+
+      .node-card {
+        width: 160px;
+        padding: 18px 14px 16px;
+      }
+
+      .node-icon { font-size: 36px; }
+      .node-name { font-size: 15px; }
+    }
+
+    @media (min-width: 1200px) {
+      .detail-section {
+        width: 420px;
+        max-width: 420px;
+        padding: 16px 20px 32px;
+      }
+
+      .map-graph {
+        max-width: 640px;
+      }
+    }
+
+    /* ================================================================
+       UTILITY
+       ================================================================ */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
 </head>
-<body class="rpg-body">
-  <canvas id="rpg-canvas"></canvas>
+<body>
 
-  <!-- Dialogue overlay (Zelda-style, bottom of screen) -->
-  <div id="rpg-dialogue" class="rpg-dialogue hidden">
-    <div class="dialogue-speaker"></div>
-    <div class="dialogue-text"></div>
-    <div class="dialogue-advance-hint">Enter &#9654;</div>
+  <!-- ================================================================
+       HUD BAR
+       ================================================================ -->
+  <header class="hud" role="banner">
+    <div class="hud-left">
+      <div class="hud-avatar" id="hud-avatar">J</div>
+      <div class="hud-name" id="hud-name">Jugador</div>
+    </div>
+    <div class="hud-center">
+      <span class="hud-xp-label">XP</span>
+      <div class="hud-xp-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+        <div class="hud-xp-fill" id="hud-xp-fill" style="width:0%"></div>
+      </div>
+      <span class="hud-xp-num" id="hud-xp-num">0</span>
+    </div>
+    <div class="hud-right">
+      <a href="/game" class="hud-btn" title="Inicio" aria-label="Inicio">&#8962;</a>
+    </div>
+  </header>
+
+  <!-- ================================================================
+       MAIN CONTAINER
+       ================================================================ -->
+  <main class="world-container">
+
+    <!-- MAP SECTION -->
+    <section class="map-section">
+      <div class="map-title">Mapa del Mundo</div>
+      <div class="map-graph" id="map-graph">
+        <!-- SVG paths rendered by JS -->
+        <svg class="map-paths" id="map-paths" viewBox="0 0 440 352" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+        <!-- Room nodes rendered by JS -->
+      </div>
+    </section>
+
+    <!-- DETAIL SECTION -->
+    <section class="detail-section" id="detail-section">
+      <!-- Rendered by JS when a room is selected -->
+    </section>
+  </main>
+
+  <!-- DIALOGUE OVERLAY -->
+  <div class="dialogue-overlay hidden" id="dialogue-overlay">
+    <div class="dialogue-box" id="dialogue-box">
+      <div class="dialogue-speaker-name" id="dialogue-speaker"></div>
+      <div class="dialogue-line" id="dialogue-line"></div>
+      <div class="dialogue-hint"><span>Toca para continuar &#9654;</span></div>
+    </div>
   </div>
 
-  <!-- HUD overlay (top bar) -->
-  <div id="rpg-hud" class="rpg-hud">
-    <div class="hud-room"></div>
-    <div class="hud-xp"></div>
-  </div>
+  <!-- LOCKED TOAST -->
+  <div class="locked-toast" id="locked-toast"></div>
 
-  <!-- Game state from server -->
+  <!-- ================================================================
+       GAME STATE
+       ================================================================ -->
   <script>
     window.__BL_GAME_STATE = {{ game_state_json | safe }};
   </script>
-  <script type="module" src="/static/js/rpg/rpg-init.js?v=2"></script>
+
+  <!-- ================================================================
+       APP LOGIC
+       ================================================================ -->
+  <script type="module">
+    import { ROOMS, ROOM_ORDER } from '/static/js/rpg/rpg-rooms.js';
+
+    // ── State ───────────────────────────────────────────────────────
+    const GS = window.__BL_GAME_STATE;
+    let selectedRoom = null;
+    let dialogueQueue = [];
+    let dialogueIdx = 0;
+
+    // ── Room meta for the map ───────────────────────────────────────
+    const ROOM_ICONS = {
+      'la-oficina':     '🏢',
+      'el-taller':      '🔧',
+      'el-laboratorio': '🧪',
+      'la-ciudad':      '🌆',
+    };
+
+    // Node positions (percent of map-graph container)
+    const NODE_POS = {
+      'la-oficina':     { x: 25, y: 25 },
+      'el-taller':      { x: 75, y: 25 },
+      'el-laboratorio': { x: 25, y: 75 },
+      'la-ciudad':      { x: 75, y: 75 },
+    };
+
+    // Connections between rooms (edges)
+    const EDGES = [
+      ['la-oficina', 'el-taller'],
+      ['la-oficina', 'el-laboratorio'],
+      ['el-taller', 'la-ciudad'],
+      ['el-laboratorio', 'la-ciudad'],
+      ['el-taller', 'el-laboratorio'],
+    ];
+
+    // ── HUD ─────────────────────────────────────────────────────────
+    function initHUD() {
+      const name = GS.player_name || 'Jugador';
+      document.getElementById('hud-name').textContent = name;
+      document.getElementById('hud-avatar').textContent = name.charAt(0).toUpperCase();
+
+      const xp = GS.total_xp || 0;
+      // Simple level calc: every 100 XP = 1 level
+      const level = Math.floor(xp / 100);
+      const pctInLevel = xp % 100;
+      document.getElementById('hud-xp-num').textContent = xp;
+      document.getElementById('hud-xp-fill').style.width = pctInLevel + '%';
+    }
+
+    // ── Determine room state ────────────────────────────────────────
+    function roomState(slug) {
+      const rs = GS.rooms[slug];
+      if (!rs) return 'locked';
+      if (!rs.unlocked) return 'locked';
+      if (rs.percent >= 100) return 'complete';
+      return 'active';
+    }
+
+    // Find the first incomplete unlocked room
+    function firstActiveRoom() {
+      for (const slug of ROOM_ORDER) {
+        const s = roomState(slug);
+        if (s === 'active') return slug;
+      }
+      // Fallback: first unlocked
+      for (const slug of ROOM_ORDER) {
+        if (roomState(slug) !== 'locked') return slug;
+      }
+      return ROOM_ORDER[0];
+    }
+
+    // ── Draw SVG paths ──────────────────────────────────────────────
+    function drawPaths() {
+      const svg = document.getElementById('map-paths');
+      svg.innerHTML = '';
+
+      for (const [a, b] of EDGES) {
+        const pa = NODE_POS[a];
+        const pb = NODE_POS[b];
+        // Convert percent to viewBox coords (440 x 352)
+        const x1 = pa.x / 100 * 440;
+        const y1 = pa.y / 100 * 352;
+        const x2 = pb.x / 100 * 440;
+        const y2 = pb.y / 100 * 352;
+
+        const bothUnlocked = roomState(a) !== 'locked' && roomState(b) !== 'locked';
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        path.setAttribute('x1', x1);
+        path.setAttribute('y1', y1);
+        path.setAttribute('x2', x2);
+        path.setAttribute('y2', y2);
+        path.classList.add('map-path');
+
+        if (bothUnlocked) {
+          path.classList.add('map-path--unlocked');
+        } else {
+          path.classList.add('map-path--locked');
+          path.classList.add('map-path--animated');
+        }
+
+        svg.appendChild(path);
+      }
+    }
+
+    // ── Create room nodes ───────────────────────────────────────────
+    function createNodes() {
+      const container = document.getElementById('map-graph');
+
+      for (const slug of ROOM_ORDER) {
+        const room = ROOMS[slug];
+        const rs = GS.rooms[slug];
+        const state = roomState(slug);
+        const pos = NODE_POS[slug];
+
+        const node = document.createElement('div');
+        node.className = 'map-node';
+        node.classList.add('map-node--' + state);
+        node.style.left = pos.x + '%';
+        node.style.top = pos.y + '%';
+        node.dataset.slug = slug;
+
+        const pct = rs ? rs.percent : 0;
+
+        node.innerHTML = `
+          <div class="node-card">
+            ${state === 'locked' ? '<div class="node-lock">&#128274;</div>' : ''}
+            <span class="node-icon">${ROOM_ICONS[slug]}</span>
+            <div class="node-name">${room.name}</div>
+            <div class="node-pct">${pct}%</div>
+          </div>
+        `;
+
+        node.addEventListener('click', () => {
+          if (state === 'locked') {
+            showLockedToast('Completa la sala anterior para desbloquear');
+            return;
+          }
+          selectRoom(slug);
+        });
+
+        container.appendChild(node);
+      }
+    }
+
+    // ── Select room ─────────────────────────────────────────────────
+    function selectRoom(slug) {
+      if (selectedRoom === slug) return;
+      selectedRoom = slug;
+
+      // Update node classes
+      document.querySelectorAll('.map-node').forEach(n => {
+        n.classList.toggle('map-node--selected', n.dataset.slug === slug);
+      });
+
+      renderDetail(slug);
+
+      // On mobile, scroll to detail
+      if (window.innerWidth < 900) {
+        const detailEl = document.getElementById('detail-section');
+        setTimeout(() => detailEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      }
+    }
+
+    // ── Render detail panel ─────────────────────────────────────────
+    function renderDetail(slug) {
+      const room = ROOMS[slug];
+      const rs = GS.rooms[slug] || { unlocked: false, levels_passed: [], percent: 0 };
+      const section = document.getElementById('detail-section');
+
+      // Determine room accent colors
+      const accents = {
+        'la-oficina':     { accent: '#c8a44e', bright: '#e8c965' },
+        'el-taller':      { accent: '#3a7bd5', bright: '#5a9bf5' },
+        'el-laboratorio': { accent: '#8b5cf6', bright: '#a87ff0' },
+        'la-ciudad':      { accent: '#e74c3c', bright: '#f06050' },
+      };
+      const ac = accents[slug] || accents['la-oficina'];
+
+      // Get clusters, NPC, boss
+      const clusters = room.objects.filter(o => o.type === 'puzzle_cluster');
+      const boss = room.objects.find(o => o.type === 'boss');
+      const npc = room.objects.find(o => o.type === 'npc');
+
+      // Determine cluster states sequentially
+      const passedSet = new Set(rs.levels_passed || []);
+      let foundIncomplete = false;
+      const clusterStates = clusters.map(c => {
+        const done = c.levels.filter(l => passedSet.has(l)).length;
+        const total = c.levels.length;
+        const isComplete = done >= total;
+
+        let state;
+        if (isComplete) {
+          state = 'complete';
+        } else if (!foundIncomplete) {
+          state = 'active';
+          foundIncomplete = true;
+        } else {
+          state = 'locked';
+        }
+
+        return { cluster: c, done, total, state };
+      });
+
+      const allClustersComplete = clusterStates.every(cs => cs.state === 'complete');
+
+      // Boss state
+      let bossState = 'locked';
+      let bossDone = 0;
+      if (boss) {
+        bossDone = boss.levels.filter(l => passedSet.has(l)).length;
+        if (bossDone >= boss.levels.length) {
+          bossState = 'complete';
+        } else if (allClustersComplete) {
+          bossState = 'active';
+        }
+      }
+
+      // NPC dialogue key
+      let npcDialogueKey = 'progress_0';
+      if (rs.percent >= 100) npcDialogueKey = 'progress_100';
+      else if (rs.percent >= 50) npcDialogueKey = 'progress_50';
+
+      // Build HTML
+      let html = `
+        <div class="detail-panel" style="--room-accent: ${ac.accent}; --room-accent-bright: ${ac.bright}">
+          <div class="detail-header">
+            <div class="detail-room-name">${room.name}</div>
+            <div class="detail-room-sub">${room.subtitle}</div>
+            <div class="detail-progress">
+              <div class="detail-progress-bar">
+                <div class="detail-progress-fill" style="width: ${rs.percent}%"></div>
+              </div>
+              <div class="detail-progress-pct">${rs.percent}%</div>
+            </div>
+          </div>
+          <div class="detail-missions">
+      `;
+
+      // Clusters
+      for (const cs of clusterStates) {
+        const c = cs.cluster;
+        const iconClass = 'mission-icon--' + cs.state;
+        const itemClass = 'mission-item--' + cs.state;
+
+        let icon;
+        if (cs.state === 'complete') icon = '&#10003;';
+        else if (cs.state === 'active') icon = '&#9654;';
+        else icon = '&#128274;';
+
+        // Find the first incomplete level in this cluster for navigation
+        const firstIncomplete = cs.state === 'active'
+          ? c.levels.find(l => !passedSet.has(l)) || c.levels[0]
+          : null;
+
+        html += `
+          <div class="mission-item ${itemClass}"
+               ${cs.state === 'active' ? `data-navigate="/game/${slug}/${firstIncomplete}?from=world"` : ''}
+               ${cs.state === 'complete' ? `data-navigate="/game/${slug}/${c.levels[0]}?from=world"` : ''}>
+            <div class="mission-icon ${iconClass}">${icon}</div>
+            <div class="mission-info">
+              <div class="mission-label">${c.label}</div>
+              <div class="mission-progress">${cs.done}/${cs.total}</div>
+            </div>
+            ${cs.state !== 'locked' ? '<div class="mission-arrow">&#8250;</div>' : ''}
+          </div>
+        `;
+      }
+
+      // Boss
+      if (boss) {
+        const bossIconClass = bossState === 'complete' ? 'mission-icon--complete'
+          : bossState === 'active' ? 'mission-icon--boss mission-icon--active'
+          : 'mission-icon--boss';
+
+        let bossIcon;
+        if (bossState === 'complete') bossIcon = '&#10003;';
+        else if (bossState === 'active') bossIcon = '&#9876;';
+        else bossIcon = '&#128274;';
+
+        const firstBossLevel = bossState === 'active'
+          ? boss.levels.find(l => !passedSet.has(l)) || boss.levels[0]
+          : null;
+
+        html += `
+          <div class="mission-item mission-item--boss mission-item--${bossState}"
+               ${bossState === 'active' ? `data-navigate="/game/${slug}/${firstBossLevel}?from=world"` : ''}
+               ${bossState === 'complete' ? `data-navigate="/game/${slug}/${boss.levels[0]}?from=world"` : ''}>
+            <div class="mission-icon ${bossIconClass}">${bossIcon}</div>
+            <div class="mission-info">
+              <div class="mission-label">${boss.label}</div>
+              <div class="mission-progress">${bossDone}/${boss.levels.length}</div>
+            </div>
+            ${bossState !== 'locked' ? '<div class="mission-arrow">&#8250;</div>' : ''}
+          </div>
+        `;
+      }
+
+      html += '</div>'; // close detail-missions
+
+      // NPC
+      if (npc) {
+        const dialogue = npc.dialogues[npcDialogueKey] || Object.values(npc.dialogues)[0];
+        const firstLine = dialogue ? dialogue.lines[0] : '';
+
+        html += `
+          <div class="detail-npc" data-npc-slug="${slug}" data-npc-key="${npcDialogueKey}">
+            <div class="npc-avatar">&#128104;</div>
+            <div class="npc-info">
+              <div class="npc-name">${npc.label}</div>
+              <div class="npc-line">${firstLine}</div>
+            </div>
+            <div class="npc-chat-icon">&#128172;</div>
+          </div>
+        `;
+      }
+
+      html += '</div>'; // close detail-panel
+      section.innerHTML = html;
+
+      // Attach click handlers
+      section.querySelectorAll('[data-navigate]').forEach(el => {
+        el.addEventListener('click', () => {
+          const url = el.dataset.navigate;
+          // Brief flash effect
+          el.style.background = 'rgba(200, 164, 78, 0.15)';
+          setTimeout(() => { window.location.href = url; }, 150);
+        });
+      });
+
+      // NPC click
+      const npcEl = section.querySelector('.detail-npc');
+      if (npcEl) {
+        npcEl.addEventListener('click', () => {
+          const npcSlug = npcEl.dataset.npcSlug;
+          const npcKey = npcEl.dataset.npcKey;
+          const roomData = ROOMS[npcSlug];
+          const npcObj = roomData.objects.find(o => o.type === 'npc');
+          if (npcObj) {
+            const d = npcObj.dialogues[npcKey] || Object.values(npcObj.dialogues)[0];
+            if (d) showDialogue(d.speaker, d.lines);
+          }
+        });
+      }
+    }
+
+    // ── Dialogue system ─────────────────────────────────────────────
+    function showDialogue(speaker, lines) {
+      dialogueQueue = lines;
+      dialogueIdx = 0;
+
+      document.getElementById('dialogue-speaker').textContent = speaker;
+      document.getElementById('dialogue-line').textContent = lines[0];
+      document.getElementById('dialogue-overlay').classList.remove('hidden');
+    }
+
+    function advanceDialogue() {
+      dialogueIdx++;
+      if (dialogueIdx < dialogueQueue.length) {
+        document.getElementById('dialogue-line').textContent = dialogueQueue[dialogueIdx];
+      } else {
+        document.getElementById('dialogue-overlay').classList.add('hidden');
+      }
+    }
+
+    document.getElementById('dialogue-overlay').addEventListener('click', (e) => {
+      // Prevent closing when clicking box itself — advance instead
+      advanceDialogue();
+    });
+
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+      if (!document.getElementById('dialogue-overlay').classList.contains('hidden')) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+          e.preventDefault();
+          advanceDialogue();
+        }
+      }
+    });
+
+    // ── Locked toast ────────────────────────────────────────────────
+    let toastTimer = null;
+    function showLockedToast(msg) {
+      const el = document.getElementById('locked-toast');
+      el.textContent = '&#128274; ' + msg;
+      el.innerHTML = '&#128274; ' + msg;
+      el.classList.add('visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('visible'), 2200);
+    }
+
+    // ── Init ────────────────────────────────────────────────────────
+    function init() {
+      initHUD();
+      drawPaths();
+      createNodes();
+
+      // Auto-select the first active room
+      const active = firstActiveRoom();
+      selectRoom(active);
+    }
+
+    init();
+  </script>
 </body>
 </html>
