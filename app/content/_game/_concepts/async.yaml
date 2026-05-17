@@ -1,0 +1,10 @@
+slug: async
+title: "¿Qué es la programación asíncrona?"
+analogy_md: |
+  Es como un mesero que toma varios pedidos sin esperar que la cocina termine el primero.
+  En lugar de bloquear mientras espera la base de datos o la API, Python puede atender otra solicitud.
+example_md: |
+  ```python
+  async def get_factura(id: str) -> Factura:
+      return await db.get(Factura, id)
+  ```

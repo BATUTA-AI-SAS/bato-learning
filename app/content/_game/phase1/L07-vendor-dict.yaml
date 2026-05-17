@@ -1,0 +1,28 @@
+slug: vendor-dict
+title: "Busca el NIT del proveedor"
+kind: fill_blank
+trains_skill: dict
+concepts_introduced: [dict, llaves, acceso, KeyError]
+concepts_reinforced: [lista, variable]
+scenario_md: |
+  María de ACME tiene un diccionario con los NITs de los proveedores
+  aprobados. Necesitas completar el código para buscar un proveedor y
+  devolver "NO REGISTRADO" si no existe en el catálogo.
+payload:
+  code_template: |
+    nits = {"Proveedor ABC": "900123456", "Aceros del Norte": "800987654"}
+    proveedor = "Aceros del Norte"
+    resultado = nits.___(proveedor, ___)
+    print(resultado)
+  blanks:
+    - label: "método del dict que devuelve un valor por defecto si la llave no existe"
+      correct: ["get"]
+    - label: "valor por defecto cuando la llave no existe"
+      correct: ["\"NO REGISTRADO\"", "'NO REGISTRADO'"]
+hint_md: "Los diccionarios tienen un método que busca sin lanzar KeyError. ¿Cuál es?"
+solution_md: |
+  nits.get(proveedor, "NO REGISTRADO")
+  El método get evita KeyError: si la llave existe devuelve su valor,
+  si no, devuelve el segundo argumento (el valor por defecto).
+xp: 15
+est_seconds: 75

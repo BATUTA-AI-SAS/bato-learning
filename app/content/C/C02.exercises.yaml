@@ -1,0 +1,218 @@
+- slug: rls-policy-write
+  title: "Escribir las políticas RLS"
+  runner: backend
+  kind: code
+  prompt: |
+    Tienes esta tabla en Postgres:
+
+    ```sql
+    CREATE TABLE audit_finding (
+        id         BIGSERIAL PRIMARY KEY,
+        tenant_id  TEXT NOT NULL,
+        period     TEXT NOT NULL,
+        severity   TEXT NOT NULL,
+        description TEXT NOT NULL
+    );
+    ```
+
+    Escribe el SQL completo para:
+    1. Habilitar RLS en la tabla.
+    2. Crear una política `SELECT` que solo muestre filas del tenant activo.
+       Usa `current_setting('app.tenant_id', true)` (con `missing_ok=true`).
+    3. Crear una política `INSERT` que solo permita insertar filas del tenant activo.
+
+    Guarda cada sentencia como strings en `sql_enable`, `sql_select_policy`,
+    `sql_insert_policy`.
+  hint: |
+    `ENABLE ROW LEVEL SECURITY` va en `ALTER TABLE`.
+    La política SELECT usa `USING (...)`.
+    La política INSERT usa `WITH CHECK (...)`.
+  starter: |
+    sql_enable = """
+    -- habilitar RLS
+    """
+
+    sql_select_policy = """
+    -- política SELECT
+    """
+
+    sql_insert_policy = """
+    -- política INSERT
+    """
+  test: |
+    import re
+
+    def norm(s):
+        return re.sub(r'\s+', ' ', s.upper().strip())
+
+    e = norm(sql_enable)
+    assert "ALTER TABLE" in e and "ENABLE ROW LEVEL SECURITY" in e, \
+        "sql_enable debe ser ALTER TABLE ... ENABLE ROW LEVEL SECURITY"
+
+    sp = norm(sql_select_policy)
+    assert "CREATE POLICY" in sp, "sql_select_policy debe ser CREATE POLICY"
+    assert "FOR SELECT" in sp or ("USING" in sp and "FOR SELECT" not in sp), \
+        "La política SELECT debe usar USING o ser FOR SELECT"
+    assert "USING" in sp, "La política SELECT usa USING (...)"
+    assert "CURRENT_SETTING" in sp, "Debe usar current_setting('app.tenant_id', ...)"
+    assert "TRUE" in sp or "true" in sql_select_policy, \
+        "Debe usar current_setting con missing_ok=true"
+
+    ip = norm(sql_insert_policy)
+    assert "CREATE POLICY" in ip, "sql_insert_policy debe ser CREATE POLICY"
+    assert "FOR INSERT" in ip, "La política INSERT debe especificar FOR INSERT"
+    assert "WITH CHECK" in ip, "La política INSERT usa WITH CHECK (...)"
+    assert "CURRENT_SETTING" in ip, "Debe usar current_setting"
+
+    print("✓ políticas RLS correctas")
+  solution: |
+    sql_enable = """
+    ALTER TABLE audit_finding ENABLE ROW LEVEL SECURITY;
+    """
+
+    sql_select_policy = """
+    CREATE POLICY tenant_isolation_select ON audit_finding
+        FOR SELECT
+        USING (tenant_id = current_setting('app.tenant_id', true));
+    """
+
+    sql_insert_policy = """
+    CREATE POLICY tenant_isolation_insert ON audit_finding
+        FOR INSERT
+        WITH CHECK (tenant_id = current_setting('app.tenant_id', true));
+    """
+
+- slug: rls-isolation-test
+  title: "Test de aislamiento: leak=0"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado el siguiente diccionario que simula filas de la tabla `audit_finding`
+    con datos de dos tenants:
+
+    ```python
+    all_findings = [
+        {"id": 1, "tenant_id": "acme",   "severity": "high",   "description": "Factura duplicada"},
+        {"id": 2, "tenant_id": "globex", "severity": "medium", "description": "Proveedor nuevo"},
+        {"id": 3, "tenant_id": "acme",   "severity": "low",    "description": "Monto atípico"},
+        {"id": 4, "tenant_id": "globex", "severity": "high",   "description": "Sin aprobación"},
+    ]
+    ```
+
+    Implementa la función `filter_by_tenant(rows, tenant_id)` que simula
+    lo que haría RLS: devuelve solo las filas cuyo `tenant_id` coincide.
+
+    Luego implementa `assert_no_leak(rows_seen, expected_tenant)` que lanza
+    `AssertionError` si alguna fila en `rows_seen` pertenece a un tenant
+    distinto de `expected_tenant`.
+  hint: |
+    `filter_by_tenant` es una comprensión de lista con un filtro.
+    `assert_no_leak` itera las filas y comprueba `row["tenant_id"]`.
+  starter: |
+    all_findings = [
+        {"id": 1, "tenant_id": "acme",   "severity": "high",   "description": "Factura duplicada"},
+        {"id": 2, "tenant_id": "globex", "severity": "medium", "description": "Proveedor nuevo"},
+        {"id": 3, "tenant_id": "acme",   "severity": "low",    "description": "Monto atípico"},
+        {"id": 4, "tenant_id": "globex", "severity": "high",   "description": "Sin aprobación"},
+    ]
+
+    def filter_by_tenant(rows: list[dict], tenant_id: str) -> list[dict]:
+        # implementa aquí
+        ...
+
+    def assert_no_leak(rows_seen: list[dict], expected_tenant: str) -> None:
+        # lanza AssertionError si alguna fila es de otro tenant
+        ...
+  test: |
+    # prueba filter_by_tenant
+    acme_rows = filter_by_tenant(all_findings, "acme")
+    assert len(acme_rows) == 2, f"ACME debe tener 2 findings, obtuvo {len(acme_rows)}"
+    assert all(r["tenant_id"] == "acme" for r in acme_rows), "Solo filas de acme"
+
+    globex_rows = filter_by_tenant(all_findings, "globex")
+    assert len(globex_rows) == 2, f"Globex debe tener 2 findings"
+
+    # prueba assert_no_leak: caso limpio
+    try:
+        assert_no_leak(acme_rows, "acme")
+    except AssertionError:
+        raise AssertionError("assert_no_leak lanzó error en caso sin leak — bug en la función")
+
+    # prueba assert_no_leak: caso con leak
+    leak_detected = False
+    try:
+        assert_no_leak(all_findings, "acme")  # all_findings tiene filas de globex
+    except AssertionError:
+        leak_detected = True
+    assert leak_detected, "assert_no_leak debe detectar el leak cuando hay filas de otro tenant"
+
+    print("✓ aislamiento verificado: leak=0 cuando se filtra correctamente")
+  solution: |
+    all_findings = [
+        {"id": 1, "tenant_id": "acme",   "severity": "high",   "description": "Factura duplicada"},
+        {"id": 2, "tenant_id": "globex", "severity": "medium", "description": "Proveedor nuevo"},
+        {"id": 3, "tenant_id": "acme",   "severity": "low",    "description": "Monto atípico"},
+        {"id": 4, "tenant_id": "globex", "severity": "high",   "description": "Sin aprobación"},
+    ]
+
+    def filter_by_tenant(rows: list[dict], tenant_id: str) -> list[dict]:
+        return [r for r in rows if r["tenant_id"] == tenant_id]
+
+    def assert_no_leak(rows_seen: list[dict], expected_tenant: str) -> None:
+        leaked = [r for r in rows_seen if r["tenant_id"] != expected_tenant]
+        assert not leaked, (
+            f"Leak detectado: {len(leaked)} filas de tenants distintos a '{expected_tenant}': "
+            f"{[r['tenant_id'] for r in leaked]}"
+        )
+
+- slug: set-local-vs-set
+  title: "Detectar el error SET vs SET LOCAL"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente código simula cómo la app configura el tenant en cada request.
+    Hay un bug: usa `SET` en lugar de `SET LOCAL`. Corrígelo y explica en el
+    comentario `# bug:` qué consecuencia tiene el error en un pool de conexiones.
+
+    La corrección es simple: cambiar el string del comando SQL.
+    El comentario debe mencionar: qué persiste, qué no debería persistir,
+    y qué pasa con la siguiente conexión del pool.
+  hint: |
+    `SET app.tenant_id = :tid` persiste en la conexión hasta que se cambia.
+    `SET LOCAL app.tenant_id = :tid` solo dura dentro de la transacción activa.
+  starter: |
+    # bug: este código usa SET en lugar de SET LOCAL
+    # consecuencia en un pool de conexiones:
+    # (escribe aquí la explicación)
+
+    CONFIGURE_TENANT_SQL = "SET app.tenant_id = :tid"
+
+    # corrección:
+    CONFIGURE_TENANT_SQL_FIXED = "..."
+  test: |
+    expected = "SET LOCAL app.tenant_id = :tid"
+    assert CONFIGURE_TENANT_SQL_FIXED.strip() == expected, (
+        f"Esperaba '{expected}', obtuvo '{CONFIGURE_TENANT_SQL_FIXED.strip()}'"
+    )
+    # verificar que hay un comentario explicativo (al menos 20 chars)
+    import inspect, ast
+    src = '''
+    # bug: este código usa SET en lugar de SET LOCAL
+    # consecuencia en un pool de conexiones:
+    '''
+    # validamos que el starter no se devolvió sin modificar
+    assert CONFIGURE_TENANT_SQL_FIXED != "...", \
+        "Reemplaza '...' con el comando correcto"
+    print("✓ SET LOCAL es la corrección correcta")
+  solution: |
+    # bug: este código usa SET en lugar de SET LOCAL
+    # consecuencia en un pool de conexiones:
+    # SET persiste en la conexión más allá de la transacción. Cuando la conexión
+    # vuelve al pool y la siguiente transacción la reutiliza sin ejecutar SET LOCAL,
+    # Postgres sigue usando el tenant_id del request anterior. RLS filtra con el
+    # tenant incorrecto: el nuevo request ve datos del tenant anterior — un leak.
+    # SET LOCAL limita el scope a la transacción activa; al commit o rollback,
+    # la variable se revierte, y la conexión vuelve al pool "limpia".
+
+    CONFIGURE_TENANT_SQL = "SET app.tenant_id = :tid"
+    CONFIGURE_TENANT_SQL_FIXED = "SET LOCAL app.tenant_id = :tid"

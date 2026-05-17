@@ -1,0 +1,68 @@
+- slug: null_comparison
+  question: |
+    Tienes una tabla `invoice` con algunas filas donde `paid_at` es `NULL`.
+    ¿Cuál de estas queries devuelve correctamente esas filas?
+  explanation: |
+    `NULL` es la ausencia de valor. La comparación `= NULL` siempre evalúa a `NULL` (desconocido),
+    nunca a `TRUE`. La única forma correcta de detectar nulos es `IS NULL`.
+  options:
+    - text: "`WHERE paid_at = NULL`"
+      correct: false
+      feedback: "`NULL = NULL` evalúa a `NULL`, no a `TRUE`. El WHERE descarta filas donde la condición no es explícitamente `TRUE`. Esta query devuelve cero filas."
+    - text: "`WHERE paid_at IS NULL`"
+      correct: true
+      feedback: "Correcto. `IS NULL` es el operador diseñado para detectar la ausencia de valor."
+    - text: "`WHERE paid_at == NULL`"
+      correct: false
+      feedback: "`==` no es SQL estándar (es Python). En SQL se usa `=`, pero aun así `= NULL` no funciona por la razón explicada arriba."
+    - text: "`WHERE paid_at != NULL`"
+      correct: false
+      feedback: "`!= NULL` tiene el mismo problema: compara usando igualdad, que siempre devuelve `NULL` para nulos. Usa `IS NOT NULL`."
+
+- slug: update_without_where
+  question: |
+    Ejecutas `UPDATE invoice SET paid = 1` en la tabla de producción de ACME.
+    ¿Qué ocurre?
+  explanation: |
+    Un `UPDATE` sin `WHERE` modifica **todas las filas** de la tabla. No hay confirmación ni advertencia.
+    La protección es procedimental: siempre probar con `SELECT` antes del `UPDATE`, y en producción,
+    exigir que todo `UPDATE`/`DELETE` sin `WHERE` sea aprobado explícitamente.
+  options:
+    - text: "Modifica todas las filas de la tabla — todas las facturas quedan marcadas como pagadas."
+      correct: true
+      feedback: "Correcto. Sin `WHERE`, la condición aplica a todas las filas."
+    - text: "El motor lanza un error porque `UPDATE` sin `WHERE` no es SQL válido."
+      correct: false
+      feedback: "`UPDATE` sin `WHERE` es SQL perfectamente válido — y perfectamente peligroso. El motor lo ejecuta sin quejarse."
+    - text: "Solo modifica la última fila insertada."
+      correct: false
+      feedback: "No existe ese comportamiento en SQL estándar. Sin `WHERE`, el `UPDATE` toca todas las filas."
+    - text: "Modifica las filas que están en caché de la sesión actual."
+      correct: false
+      feedback: "SQL no tiene «caché de sesión» que filtre qué filas se modifican. Toca todo."
+
+- slug: sql_order_of_evaluation
+  question: |
+    ¿Por qué esta query lanza un error en la mayoría de motores SQL?
+    ```sql
+    SELECT total_eur * 1.19 AS monto_con_iva
+    FROM invoice
+    WHERE monto_con_iva > 5000;
+    ```
+  explanation: |
+    SQL evalúa en este orden: `FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT`.
+    El alias `monto_con_iva` se define en `SELECT`, que se evalúa **después** de `WHERE`.
+    Cuando el motor ejecuta el `WHERE`, el alias aún no existe.
+  options:
+    - text: "El alias `monto_con_iva` no existe cuando el `WHERE` se evalúa — el `SELECT` es posterior."
+      correct: true
+      feedback: "Correcto. El orden de evaluación es `FROM → WHERE → SELECT`. El alias solo existe después del `SELECT`."
+    - text: "Los alias no se permiten en SQL — hay que usar siempre el nombre de la columna original."
+      correct: false
+      feedback: "Los alias sí se permiten en `SELECT`. El problema es específico del uso en `WHERE`, no de los alias en general."
+    - text: "El operador `*` no se puede usar en `SELECT` junto con `WHERE`."
+      correct: false
+      feedback: "El operador aritmético `*` en una expresión de `SELECT` es perfectamente válido. El error es otro."
+    - text: "El problema es que `1.19` debería escribirse `1,19` en SQL."
+      correct: false
+      feedback: "SQL usa punto como separador decimal, igual que Python. `1.19` es correcto."

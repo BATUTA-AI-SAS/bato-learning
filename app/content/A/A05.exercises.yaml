@@ -1,0 +1,238 @@
+- slug: sys-path-order
+  title: "¿Por qué falla este import?"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente código intenta importar `audit_utils` pero falla con
+    `ModuleNotFoundError`. El módulo existe en la carpeta `tools/`, pero
+    `sys.path` no incluye esa carpeta.
+
+    Usa `sys.path.insert` para añadir `"tools"` al principio de `sys.path`.
+    Luego importa `audit_utils` y llama a `audit_utils.greet("ACME")`.
+
+    Nota: en este ejercicio simulamos el módulo con `types.ModuleType` para
+    que corra en Pyodide sin archivos reales.
+  hint: |
+    `sys.path.insert(0, "ruta")` añade al frente. Pero en producción, la
+    solución real es usar `python -m` desde la raíz correcta, no manipular
+    `sys.path` a mano.
+  starter: |
+    import sys
+    import types
+
+    # simulamos un módulo en "tools/audit_utils.py"
+    _fake = types.ModuleType("audit_utils")
+    _fake.greet = lambda name: f"Auditing {name}"
+    sys.modules["audit_utils"] = _fake
+
+    # añade "tools" a sys.path (aunque aquí el módulo ya está en sys.modules)
+    # y luego importa audit_utils
+    result = None  # asigna aquí el resultado de audit_utils.greet("ACME")
+  test: |
+    assert result == "Auditing ACME", f"esperado 'Auditing ACME', obtenido {result!r}"
+    print("ok")
+  solution: |
+    import sys
+    import types
+
+    _fake = types.ModuleType("audit_utils")
+    _fake.greet = lambda name: f"Auditing {name}"
+    sys.modules["audit_utils"] = _fake
+
+    sys.path.insert(0, "tools")
+    import audit_utils
+    result = audit_utils.greet("ACME")
+
+- slug: package-facade
+  title: "Construye la fachada de un paquete"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes dos funciones dispersas que simulan módulos de un paquete de
+    conciliación. Tu tarea es crear un `__init__` de paquete que las reexporte,
+    usando el mismo patrón que usa `app/models/__init__.py` en esta app.
+
+    Las funciones ya están definidas abajo. Crea el dict `__init_exports__`
+    que mapee nombre → función, simulando lo que haría un `__init__.py` real.
+    Luego verifica que el consumidor pueda acceder a ambas por sus nombres
+    cortos.
+  hint: |
+    En un `__init__.py` real escribirías `from .matcher import match_exact`.
+    Aquí simulamos con un dict porque Pyodide no maneja archivos dinámicos.
+    El concepto es el mismo: centralizar qué expone el paquete.
+  starter: |
+    # simula matcher.py
+    def match_exact(amount: float, ref: str) -> bool:
+        """Match exacto por monto y referencia."""
+        return amount > 0 and bool(ref)
+
+    # simula reporter.py
+    def build_summary(findings: list[str]) -> str:
+        """Genera resumen de hallazgos."""
+        return f"{len(findings)} finding(s): " + ", ".join(findings)
+
+    # simula __init__.py: crea el dict que reexporta ambas funciones
+    __init_exports__: dict = {
+        # "match_exact": ...,
+        # "build_summary": ...,
+    }
+  test: |
+    assert "match_exact" in __init_exports__, "falta match_exact en la fachada"
+    assert "build_summary" in __init_exports__, "falta build_summary en la fachada"
+
+    fn_match = __init_exports__["match_exact"]
+    fn_report = __init_exports__["build_summary"]
+
+    assert fn_match(4820.0, "INV-042") is True
+    assert fn_match(0.0, "INV-042") is False
+    assert fn_report(["vendor nuevo", "monto duplicado"]) == "2 finding(s): vendor nuevo, monto duplicado"
+    print("ok")
+  solution: |
+    def match_exact(amount: float, ref: str) -> bool:
+        """Match exacto por monto y referencia."""
+        return amount > 0 and bool(ref)
+
+    def build_summary(findings: list[str]) -> str:
+        """Genera resumen de hallazgos."""
+        return f"{len(findings)} finding(s): " + ", ".join(findings)
+
+    __init_exports__: dict = {
+        "match_exact": match_exact,
+        "build_summary": build_summary,
+    }
+
+- slug: detect-circular-import
+  title: "Detecta y rompe el ciclo de import"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente pseudocódigo simula un ciclo de import típico entre un router
+    y un servicio. El test verifica que lo rompiste correctamente aplicando
+    inyección de dependencias: el servicio ya no necesita importar nada del router.
+
+    Regla: `ChatService` no puede importar nada de `ChatRouter` (ni llamar
+    funciones de él). `ChatRouter` puede recibir `ChatService` como parámetro.
+
+    Implementa `ChatRouter.handle(msg: str) -> str` que delega en
+    `self.service.process(msg)`.
+  hint: |
+    La solución clásica: el router recibe el servicio como argumento en
+    `__init__`. El servicio no necesita saber nada del router.
+  starter: |
+    # ANTES (ciclo):
+    # class ChatService:
+    #     def process(msg): return ChatRouter.format(msg)  ← importa router!
+    # class ChatRouter:
+    #     def handle(msg): return ChatService().process(msg)
+
+    # DESPUÉS (sin ciclo): implementa las dos clases sin dependencia mutua
+
+    class ChatService:
+        def process(self, msg: str) -> str:
+            """Procesa el mensaje; devuelve respuesta prefijada."""
+            return f"[processed] {msg}"
+
+    class ChatRouter:
+        def __init__(self, service: ChatService) -> None:
+            ...  # guarda el servicio
+
+        def handle(self, msg: str) -> str:
+            ...  # delega en self.service.process
+  test: |
+    svc = ChatService()
+    router = ChatRouter(svc)
+
+    result = router.handle("hola ACME")
+    assert result == "[processed] hola ACME", f"obtenido: {result!r}"
+
+    # ChatService no tiene referencia a ChatRouter
+    import inspect
+    src = inspect.getsource(ChatService.process)
+    assert "ChatRouter" not in src, "ChatService no debe referenciar ChatRouter"
+    print("ok")
+  solution: |
+    class ChatService:
+        def process(self, msg: str) -> str:
+            """Procesa el mensaje; devuelve respuesta prefijada."""
+            return f"[processed] {msg}"
+
+    class ChatRouter:
+        def __init__(self, service: ChatService) -> None:
+            self.service = service
+
+        def handle(self, msg: str) -> str:
+            return self.service.process(self.msg if False else msg)
+
+- slug: monolith-to-package
+  title: "Parte el monolito en un paquete de dos módulos"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente script monolítico hace dos cosas distintas: (1) parse de
+    facturas y (2) reporte de anomalías. Tu tarea es refactorizarlo en dos
+    «módulos» simulados como dicts de funciones (porque Pyodide no crea archivos):
+
+    - `parser_module`: con `parse_invoices(rows: list[dict]) -> list[dict]`
+      que devuelve solo filas donde `"amount" > 0`.
+    - `reporter_module`: con `report_anomalies(invoices: list[dict]) -> list[str]`
+      que devuelve los `vendor_id` donde `amount > 10_000`.
+
+    El dict `package` simula el `__init__.py`: reexporta ambas funciones como
+    `"parse"` y `"report"`.
+
+    Ninguna función de `reporter_module` debe referenciar a `parser_module`
+    directamente (pasa los datos ya parseados como parámetro).
+  hint: |
+    La separación de responsabilidades significa que `reporter_module` no
+    sabe cómo se parsearon las facturas — recibe la lista ya limpia.
+  starter: |
+    # MONOLITO ORIGINAL — refactoriza en dos módulos
+    def process_all(rows):
+        invoices = [r for r in rows if r.get("amount", 0) > 0]
+        anomalies = [inv["vendor_id"] for inv in invoices if inv["amount"] > 10_000]
+        return anomalies
+
+    # Crea parser_module, reporter_module y package aquí
+    parser_module: dict = {}
+    reporter_module: dict = {}
+    package: dict = {}  # fachada: keys "parse" y "report"
+  test: |
+    rows = [
+        {"vendor_id": "V-01", "amount": 500},
+        {"vendor_id": "V-02", "amount": 0},      # se descarta
+        {"vendor_id": "V-03", "amount": 15000},
+    ]
+
+    parse = package["parse"]
+    report = package["report"]
+
+    invoices = parse(rows)
+    assert len(invoices) == 2, f"esperado 2 facturas válidas, obtenido {len(invoices)}"
+    assert invoices[0]["vendor_id"] == "V-01"
+
+    anomalies = report(invoices)
+    assert anomalies == ["V-03"], f"anomalías: {anomalies}"
+
+    # reporter_module no referencia parser_module
+    import inspect
+    reporter_src = inspect.getsource(reporter_module["report_anomalies"])
+    assert "parser_module" not in reporter_src
+    print("ok")
+  solution: |
+    def _parse_invoices(rows: list[dict]) -> list[dict]:
+        return [r for r in rows if r.get("amount", 0) > 0]
+
+    def _report_anomalies(invoices: list[dict]) -> list[str]:
+        return [inv["vendor_id"] for inv in invoices if inv["amount"] > 10_000]
+
+    parser_module: dict = {"parse_invoices": _parse_invoices}
+    reporter_module: dict = {"report_anomalies": _report_anomalies}
+    package: dict = {
+        "parse": parser_module["parse_invoices"],
+        "report": reporter_module["report_anomalies"],
+    }
+
+    def process_all(rows):
+        invoices = [r for r in rows if r.get("amount", 0) > 0]
+        anomalies = [inv["vendor_id"] for inv in invoices if inv["amount"] > 10_000]
+        return anomalies

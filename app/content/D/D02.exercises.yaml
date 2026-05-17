@@ -1,0 +1,443 @@
+# D02 — docker compose: servicios, volúmenes, healthchecks
+
+- slug: parse-compose-services
+  title: "Analizar dependencias de un compose file"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `get_startup_order` recibe un diccionario que representa los servicios
+    de un `compose.yaml` (sin resolver las claves `image`, `build`, etc. — solo
+    las dependencias) y devuelve una lista de listas de strings representando
+    el orden de arranque por nivel.
+
+    Cada nivel contiene los servicios que pueden arrancar en paralelo porque
+    sus dependencias ya están resueltas. Los servicios sin dependencias van en
+    el nivel 0.
+
+    Ejemplo:
+    ```python
+    services = {
+        "api":      ["postgres", "redis"],
+        "postgres": [],
+        "redis":    [],
+        "worker":   ["api"],
+    }
+    # resultado: [["postgres", "redis"], ["api"], ["worker"]]
+    ```
+
+    Los servicios dentro de cada nivel deben estar ordenados alfabéticamente.
+  hint: |
+    Usa un algoritmo de ordenamiento topológico por niveles (BFS desde los nodos
+    sin dependencias). En cada iteración, añade los servicios cuyas dependencias
+    ya están en niveles anteriores.
+  starter: |
+    def get_startup_order(services: dict[str, list[str]]) -> list[list[str]]:
+        """
+        Devuelve el orden de arranque por niveles de un compose file.
+        Los servicios en el mismo nivel pueden arrancar en paralelo.
+        """
+        resolved: set[str] = set()
+        result: list[list[str]] = []
+        remaining = dict(services)
+
+        while remaining:
+            # encuentra servicios cuyas dependencias están todas resueltas
+            current_level: list[str] = []
+            for service, deps in remaining.items():
+                # implementa aquí
+                pass
+
+            if not current_level:
+                # hay una dependencia circular o un servicio no declarado
+                raise ValueError(f"Dependencia circular o servicio no declarado: {list(remaining.keys())}")
+
+            current_level.sort()
+            result.append(current_level)
+            for svc in current_level:
+                resolved.add(svc)
+                del remaining[svc]
+
+        return result
+
+    # caso del docker-compose.yml de la api/
+    api_services = {
+        "api":         ["postgres", "redis", "phoenix", "temporal"],
+        "postgres":    [],
+        "redis":       [],
+        "phoenix":     [],
+        "temporal":    ["postgres"],
+        "temporal-ui": ["temporal"],
+    }
+    for level in get_startup_order(api_services):
+        print(level)
+  test: |
+    # caso simple
+    simple = {
+        "api":      ["postgres", "redis"],
+        "postgres": [],
+        "redis":    [],
+        "worker":   ["api"],
+    }
+    result = get_startup_order(simple)
+    assert result[0] == ["postgres", "redis"], f"Nivel 0 incorrecto: {result[0]}"
+    assert result[1] == ["api"], f"Nivel 1 incorrecto: {result[1]}"
+    assert result[2] == ["worker"], f"Nivel 2 incorrecto: {result[2]}"
+
+    # caso del docker-compose.yml real de la api/
+    api_services = {
+        "api":         ["postgres", "redis", "phoenix", "temporal"],
+        "postgres":    [],
+        "redis":       [],
+        "phoenix":     [],
+        "temporal":    ["postgres"],
+        "temporal-ui": ["temporal"],
+    }
+    result2 = get_startup_order(api_services)
+    # postgres, redis, phoenix deben estar en el nivel 0
+    assert "postgres" in result2[0], "postgres debe estar en nivel 0"
+    assert "redis" in result2[0], "redis debe estar en nivel 0"
+    assert "phoenix" in result2[0], "phoenix debe estar en nivel 0"
+    # temporal después de postgres
+    temporal_level = next(i for i, lvl in enumerate(result2) if "temporal" in lvl)
+    postgres_level = next(i for i, lvl in enumerate(result2) if "postgres" in lvl)
+    assert temporal_level > postgres_level, "temporal debe arrancar después de postgres"
+    # temporal-ui es el último
+    ui_level = next(i for i, lvl in enumerate(result2) if "temporal-ui" in lvl)
+    assert ui_level > temporal_level, "temporal-ui debe arrancar después de temporal"
+
+    # caso sin dependencias
+    flat = {"a": [], "b": [], "c": []}
+    result3 = get_startup_order(flat)
+    assert result3 == [["a", "b", "c"]], f"Todos en nivel 0: {result3}"
+
+    print("ok")
+  solution: |
+    def get_startup_order(services: dict[str, list[str]]) -> list[list[str]]:
+        resolved: set[str] = set()
+        result: list[list[str]] = []
+        remaining = dict(services)
+
+        while remaining:
+            current_level: list[str] = [
+                svc for svc, deps in remaining.items()
+                if all(dep in resolved for dep in deps)
+            ]
+
+            if not current_level:
+                raise ValueError(f"Dependencia circular o servicio no declarado: {list(remaining.keys())}")
+
+            current_level.sort()
+            result.append(current_level)
+            for svc in current_level:
+                resolved.add(svc)
+                del remaining[svc]
+
+        return result
+
+    api_services = {
+        "api":         ["postgres", "redis", "phoenix", "temporal"],
+        "postgres":    [],
+        "redis":       [],
+        "phoenix":     [],
+        "temporal":    ["postgres"],
+        "temporal-ui": ["temporal"],
+    }
+    for level in get_startup_order(api_services):
+        print(level)
+
+- slug: volume-type-classifier
+  title: "Clasificar volúmenes de un compose file"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `classify_volumes` recibe una lista de strings de volúmenes tal
+    como aparecen en el campo `volumes:` de un servicio en compose, y devuelve
+    un diccionario con tres claves:
+    - `"bind"`: lista de bind mounts (empiezan con `.` o `/`)
+    - `"named"`: lista de named volumes (no empiezan con `.` o `/`, no son anónimos)
+    - `"anonymous"`: lista de volúmenes anónimos (solo el path del contenedor, sin `:`)
+
+    Ejemplo:
+    ```python
+    classify_volumes([
+        "./data:/srv/data",
+        "./app/content:/srv/app/content:ro",
+        "pgdata:/var/lib/postgresql/data",
+        "/srv/data",
+    ])
+    # {
+    #   "bind": ["./data:/srv/data", "./app/content:/srv/app/content:ro"],
+    #   "named": ["pgdata:/var/lib/postgresql/data"],
+    #   "anonymous": ["/srv/data"],
+    # }
+    ```
+  hint: |
+    Para cada volumen: si no contiene `:` es anónimo. Si la parte antes del `:`
+    empieza con `.` o `/`, es bind mount. Si no, es named volume.
+  starter: |
+    def classify_volumes(volumes: list[str]) -> dict[str, list[str]]:
+        """Clasifica volúmenes de compose en bind, named y anonymous."""
+        result: dict[str, list[str]] = {"bind": [], "named": [], "anonymous": []}
+
+        for vol in volumes:
+            # implementa la clasificación aquí
+            pass
+
+        return result
+
+    # volúmenes del compose.yaml de bato-learning
+    bato_vols = [
+        "./data:/srv/data",
+        "./app/content:/srv/app/content:ro",
+    ]
+    print(classify_volumes(bato_vols))
+
+    # volúmenes del docker-compose.yml de api/
+    api_vols = [
+        "pgdata:/var/lib/postgresql/data",
+        "./infra/postgres/init:/docker-entrypoint-initdb.d:ro",
+        "phoenix_data:/data",
+    ]
+    print(classify_volumes(api_vols))
+  test: |
+    # caso bato-learning
+    bato_vols = [
+        "./data:/srv/data",
+        "./app/content:/srv/app/content:ro",
+    ]
+    r = classify_volumes(bato_vols)
+    assert r["bind"] == bato_vols, f"Ambos son bind mounts: {r['bind']}"
+    assert r["named"] == [], f"No hay named volumes: {r['named']}"
+    assert r["anonymous"] == [], f"No hay anónimos: {r['anonymous']}"
+
+    # caso mixto
+    mixed = [
+        "pgdata:/var/lib/postgresql/data",
+        "./infra/postgres/init:/docker-entrypoint-initdb.d:ro",
+        "phoenix_data:/data",
+        "/tmp/cache",
+    ]
+    r2 = classify_volumes(mixed)
+    assert "pgdata:/var/lib/postgresql/data" in r2["named"]
+    assert "phoenix_data:/data" in r2["named"]
+    assert "./infra/postgres/init:/docker-entrypoint-initdb.d:ro" in r2["bind"]
+    assert "/tmp/cache" in r2["anonymous"]
+
+    # caso absoluto (bind mount de path absoluto)
+    abs_bind = ["/host/path:/container/path"]
+    r3 = classify_volumes(abs_bind)
+    assert r3["bind"] == ["/host/path:/container/path"], (
+        "Path absoluto también es bind mount"
+    )
+
+    print("ok")
+  solution: |
+    def classify_volumes(volumes: list[str]) -> dict[str, list[str]]:
+        result: dict[str, list[str]] = {"bind": [], "named": [], "anonymous": []}
+
+        for vol in volumes:
+            if ":" not in vol:
+                result["anonymous"].append(vol)
+                continue
+            source = vol.split(":")[0]
+            if source.startswith(".") or source.startswith("/"):
+                result["bind"].append(vol)
+            else:
+                result["named"].append(vol)
+
+        return result
+
+    bato_vols = [
+        "./data:/srv/data",
+        "./app/content:/srv/app/content:ro",
+    ]
+    print(classify_volumes(bato_vols))
+
+    api_vols = [
+        "pgdata:/var/lib/postgresql/data",
+        "./infra/postgres/init:/docker-entrypoint-initdb.d:ro",
+        "phoenix_data:/data",
+    ]
+    print(classify_volumes(api_vols))
+
+- slug: design-knowledge-base-compose
+  title: "Diseñar compose para base de conocimiento (F-CX-03)"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El caso F-CX-03 (base de conocimiento) necesita un stack mínimo con:
+    - `api`: servicio FastAPI (imagen local, puerto 8000 en host)
+    - `qdrant`: vector store (imagen `qdrant/qdrant:v1.9.0`, puerto 6333)
+    - `worker`: procesador de documentos (misma imagen que `api`, comando diferente)
+
+    La función `validate_compose_config` recibe un diccionario que representa
+    un compose file (con la clave `services`) y verifica que cumple estos requisitos:
+
+    1. Existen los tres servicios: `api`, `qdrant`, `worker`.
+    2. `qdrant` usa exactamente la imagen `qdrant/qdrant:v1.9.0`.
+    3. `api` mapea el puerto 8000 al host (alguna entry en `ports` que contenga `"8000"`).
+    4. `worker` tiene `depends_on` que incluye a `api` o a `qdrant`.
+    5. Al menos un servicio tiene configurado `healthcheck`.
+
+    Devuelve una lista de strings con los problemas encontrados (vacía si está OK).
+  hint: |
+    Itera la lista de chequeos y acumula los mensajes de error. Usa `.get()` en
+    los dicts para evitar KeyError cuando un campo no existe.
+  starter: |
+    def validate_compose_config(config: dict) -> list[str]:
+        """
+        Valida la configuración de un compose file para F-CX-03.
+        Devuelve lista de problemas (vacía si está bien).
+        """
+        problems: list[str] = []
+        services: dict = config.get("services", {})
+
+        # 1. verificar que existen los tres servicios requeridos
+        required = {"api", "qdrant", "worker"}
+        missing = required - set(services.keys())
+        if missing:
+            problems.append(f"Faltan servicios: {sorted(missing)}")
+
+        # 2. qdrant usa la imagen correcta
+        # implementa aquí
+
+        # 3. api mapea puerto 8000
+        # implementa aquí
+
+        # 4. worker tiene depends_on
+        # implementa aquí
+
+        # 5. al menos un servicio tiene healthcheck
+        # implementa aquí
+
+        return problems
+
+    # configuración correcta
+    good_config = {
+        "services": {
+            "api": {
+                "build": {"context": "."},
+                "ports": ["8000:8000"],
+                "healthcheck": {
+                    "test": ["CMD", "curl", "-f", "http://localhost:8000/health"],
+                    "interval": "10s",
+                },
+            },
+            "qdrant": {
+                "image": "qdrant/qdrant:v1.9.0",
+                "ports": ["6333:6333"],
+            },
+            "worker": {
+                "build": {"context": "."},
+                "command": "uv run python -m app.worker",
+                "depends_on": ["qdrant"],
+            },
+        }
+    }
+    print(validate_compose_config(good_config))
+  test: |
+    # configuración correcta → sin problemas
+    good_config = {
+        "services": {
+            "api": {
+                "build": {"context": "."},
+                "ports": ["8000:8000"],
+                "healthcheck": {"test": ["CMD", "curl", "-f", "http://localhost:8000/health"]},
+            },
+            "qdrant": {
+                "image": "qdrant/qdrant:v1.9.0",
+                "ports": ["6333:6333"],
+            },
+            "worker": {
+                "build": {"context": "."},
+                "command": "uv run python -m app.worker",
+                "depends_on": ["qdrant"],
+            },
+        }
+    }
+    problems = validate_compose_config(good_config)
+    assert problems == [], f"Config correcta no debe tener problemas: {problems}"
+
+    # faltan servicios
+    missing_svc = {"services": {"api": {}, "qdrant": {"image": "qdrant/qdrant:v1.9.0"}}}
+    p2 = validate_compose_config(missing_svc)
+    assert any("worker" in str(p) for p in p2), f"Debe detectar worker faltante: {p2}"
+
+    # imagen qdrant incorrecta
+    wrong_image = {
+        "services": {
+            "api": {"ports": ["8000:8000"], "healthcheck": {"test": ["CMD", "curl"]}},
+            "qdrant": {"image": "qdrant/qdrant:latest"},
+            "worker": {"depends_on": ["api"]},
+        }
+    }
+    p3 = validate_compose_config(wrong_image)
+    assert any("qdrant" in str(p).lower() and "imagen" in str(p).lower() for p in p3), (
+        f"Debe detectar imagen qdrant incorrecta: {p3}"
+    )
+
+    # sin healthcheck en ningún servicio
+    no_health = {
+        "services": {
+            "api": {"ports": ["8000:8000"]},
+            "qdrant": {"image": "qdrant/qdrant:v1.9.0"},
+            "worker": {"depends_on": ["api"]},
+        }
+    }
+    p4 = validate_compose_config(no_health)
+    assert any("healthcheck" in str(p).lower() for p in p4), (
+        f"Debe detectar ausencia de healthcheck: {p4}"
+    )
+
+    print("ok")
+  solution: |
+    def validate_compose_config(config: dict) -> list[str]:
+        problems: list[str] = []
+        services: dict = config.get("services", {})
+
+        required = {"api", "qdrant", "worker"}
+        missing = required - set(services.keys())
+        if missing:
+            problems.append(f"Faltan servicios: {sorted(missing)}")
+
+        qdrant_svc = services.get("qdrant", {})
+        if qdrant_svc.get("image") != "qdrant/qdrant:v1.9.0":
+            problems.append("qdrant: imagen debe ser 'qdrant/qdrant:v1.9.0'")
+
+        api_svc = services.get("api", {})
+        api_ports = api_svc.get("ports", [])
+        if not any("8000" in str(p) for p in api_ports):
+            problems.append("api: debe mapear el puerto 8000 al host")
+
+        worker_svc = services.get("worker", {})
+        worker_deps = worker_svc.get("depends_on", [])
+        if not worker_deps:
+            problems.append("worker: debe tener depends_on (api o qdrant)")
+
+        has_healthcheck = any(
+            "healthcheck" in svc for svc in services.values()
+        )
+        if not has_healthcheck:
+            problems.append("Al menos un servicio debe tener healthcheck configurado")
+
+        return problems
+
+    good_config = {
+        "services": {
+            "api": {
+                "build": {"context": "."},
+                "ports": ["8000:8000"],
+                "healthcheck": {"test": ["CMD", "curl", "-f", "http://localhost:8000/health"]},
+            },
+            "qdrant": {
+                "image": "qdrant/qdrant:v1.9.0",
+                "ports": ["6333:6333"],
+            },
+            "worker": {
+                "build": {"context": "."},
+                "command": "uv run python -m app.worker",
+                "depends_on": ["qdrant"],
+            },
+        }
+    }
+    print(validate_compose_config(good_config))

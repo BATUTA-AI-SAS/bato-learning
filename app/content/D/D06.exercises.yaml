@@ -1,0 +1,191 @@
+- slug: identify-compose-problems
+  title: "Identifica los problemas en este compose de producción"
+  runner: backend
+  kind: design
+  prompt: |
+    El siguiente `compose.prod.yaml` de Globex Logistics tiene **5 problemas** que causarán
+    fallos en producción. Léelo con cuidado e identifica cada uno.
+    Para cada problema escribe: qué es, qué síntoma produce, y cómo corregirlo.
+
+    ```yaml
+    services:
+      api:
+        image: ghcr.io/globex/logistics-api:latest
+        ports:
+          - "8000:8000"
+        environment:
+          DATABASE_URL: postgresql://admin:globex123@postgres:5432/logistics
+          ANTHROPIC_API_KEY: sk-ant-api03-XXXX
+        depends_on:
+          - postgres
+
+      worker:
+        image: ghcr.io/globex/logistics-api:latest
+        command: python -m app.worker
+        depends_on:
+          - postgres
+
+      postgres:
+        image: postgres:16-alpine
+        environment:
+          POSTGRES_PASSWORD: globex123
+          POSTGRES_DB: logistics
+        volumes:
+          - ./postgres_data:/var/lib/postgresql/data
+
+      phoenix:
+        image: arizephoenix/phoenix:latest
+        ports:
+          - "6006:6006"
+        labels:
+          - "traefik.enable=true"
+          - "traefik.http.routers.phoenix.rule=Host(`phoenix.globex.com`)"
+          - "traefik.http.routers.phoenix.entrypoints=websecure"
+          - "traefik.http.routers.phoenix.tls.certresolver=le"
+    ```
+  hint: |
+    Pistas por área:
+    - Secretos: ¿hay algo en el YAML que no debería estar ahí?
+    - Imágenes: ¿`latest` es auditable en producción?
+    - Dependencias: ¿`depends_on` sin condición garantiza que Postgres está listo?
+    - Worker: ¿qué pasa si el worker muere inesperadamente?
+    - Observabilidad: ¿Phoenix debería estar en internet?
+  solution: |
+    Problema 1 — ANTHROPIC_API_KEY hardcodeada en el YAML.
+    Síntoma: si el repo es accesible o el archivo se commitea, la key queda expuesta.
+    Corrección: usar `${ANTHROPIC_API_KEY}` e inyectarla desde el entorno del host o desde un .env en el servidor (que está en .gitignore).
+
+    Problema 2 — Tag `latest` en las imágenes.
+    Síntoma: no sabes qué versión exacta está en producción; un `docker pull` silencioso puede cambiar el comportamiento.
+    Corrección: usar el SHA del commit como tag: `ghcr.io/globex/logistics-api:${IMAGE_TAG}` donde `IMAGE_TAG` se inyecta desde el pipeline de CI.
+
+    Problema 3 — `depends_on` sin healthcheck para el worker y la API.
+    Síntoma: la API o el worker intentan conectarse a Postgres antes de que esté listo; falla con `Connection refused` en los primeros segundos.
+    Corrección: añadir `healthcheck` al servicio `postgres` y usar `condition: service_healthy` en el `depends_on` de `api` y `worker`.
+
+    Problema 4 — Worker sin `restart: unless-stopped`.
+    Síntoma: si el worker muere (excepción no capturada, OOM), el contenedor queda en estado `exited` y no reinicia. Las tareas de background dejan de procesarse silenciosamente.
+    Corrección: añadir `restart: unless-stopped` al servicio `worker` (y también a `api` y `postgres`).
+
+    Problema 5 — Phoenix expuesto públicamente sin autenticación.
+    Síntoma: cualquiera con el dominio `phoenix.globex.com` puede ver el historial completo de prompts de todos los tenants de Globex.
+    Corrección: eliminar el label de Traefik de Phoenix. Acceso solo por SSH tunnel: `ssh -L 6006:localhost:6006 deploy@servidor`. Si se necesita acceso remoto, usar Tailscale o un middleware BasicAuth en Traefik.
+
+- slug: choose-vector-store
+  title: "¿pgvector o Qdrant Cloud?"
+  runner: backend
+  kind: design
+  prompt: |
+    Tres clientes de BATUTA tienen requisitos distintos. Para cada uno, decide si
+    usar **pgvector** (integrado en Postgres) o un **vector store separado** (Qdrant Cloud
+    o Pinecone), y justifica la decisión con los criterios del módulo.
+
+    **Cliente A — Initech Audit:**
+    - 50 000 documentos de contratos legales.
+    - Crecimiento: ~500 documentos/mes.
+    - Latencia aceptable para búsqueda: < 500 ms.
+    - Equipo: 1 ingeniero.
+    - Presupuesto de infra: $50/mes total.
+
+    **Cliente B — TiendaBox Retail:**
+    - 8 millones de SKUs con embeddings de descripción de producto.
+    - Búsqueda en tiempo real en el checkout: < 50 ms de p99.
+    - Equipo: 5 ingenieros.
+    - Presupuesto de infra: $500/mes.
+
+    **Cliente C — Constructora Andina:**
+    - 200 000 planos técnicos y especificaciones en PDF.
+    - Crecimiento: ~2 000 documentos/mes.
+    - Búsqueda usada en reportes diarios (no tiempo real): < 2 s aceptable.
+    - Equipo: 2 ingenieros.
+    - Presupuesto de infra: $100/mes.
+
+    Para cada cliente: decisión (pgvector / separado) + 2-3 líneas de justificación.
+  hint: |
+    Los criterios clave son:
+    - Volumen: < 5 M vectores → pgvector aguanta.
+    - Latencia: < 100 ms p99 en tiempo real → posiblemente necesitas vector store dedicado.
+    - Ops capacity: 1 ingeniero no debería operar un Qdrant self-hosted.
+    - Presupuesto: Qdrant Cloud desde $25/mes.
+  solution: |
+    Cliente A — Initech Audit: pgvector.
+    50 000 documentos está muy por debajo del límite donde pgvector comienza a degradar.
+    Con un índice hnsw, las búsquedas serán < 100 ms fácilmente, muy por debajo del
+    SLA de 500 ms. El equipo es de 1 persona: operar un servicio extra no se justifica.
+    Costo: $0 adicional.
+
+    Cliente B — TiendaBox Retail: Qdrant Cloud o Pinecone.
+    8 millones de SKUs supera el rango donde pgvector mantiene el SLA de 50 ms p99 sin
+    hardware dedicado. Con un vector store dedicado como Qdrant Cloud, la búsqueda
+    vectorial corre en hardware optimizado para ANN (approximate nearest neighbor).
+    El equipo de 5 ingenieros puede operar el servicio. El presupuesto de $500/mes
+    absorbe los ~$100/mes de Qdrant Cloud. Alternativa: si el Postgres es muy potente
+    (ej. 64 GB RAM, SSD NVMe), vale la pena probar primero con pgvector + hnsw index
+    y medir. La migración a Qdrant es siempre posible después.
+
+    Cliente C — Constructora Andina: pgvector.
+    200 000 documentos está dentro del rango confortable de pgvector. La latencia de 2 s
+    es holgada para reportes diarios (no tiempo real). El equipo de 2 ingenieros se
+    beneficia de la simplicidad de un solo Postgres. Cuando supere 1 M documentos o
+    el equipo crezca, reevaluar.
+
+- slug: complete-worker-service
+  title: "Completa el servicio worker del compose"
+  runner: backend
+  kind: code
+  prompt: |
+    El servicio `worker` del siguiente `compose.yaml` está incompleto.
+    Rellena los campos faltantes (marcados con `# ???`) para que:
+    1. Use la misma imagen que `api` (variable `${IMAGE_TAG}`).
+    2. Arranque con el comando `python -m app.worker`.
+    3. Reinicie automáticamente si muere.
+    4. Tenga las mismas variables de entorno que `api` (puedes copiarlas).
+    5. Dependa de que postgres esté healthy y de que temporal esté corriendo.
+    6. No exponga ningún puerto.
+
+    ```yaml
+    services:
+      api:
+        image: ghcr.io/acme/audit-api:${IMAGE_TAG}
+        restart: unless-stopped
+        ports:
+          - "8000:8000"
+        environment:
+          DATABASE_URL: postgresql+asyncpg://bato:${DB_PASSWORD}@postgres:5432/audit
+          ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+          TEMPORAL_HOST: temporal:7233
+        depends_on:
+          postgres:
+            condition: service_healthy
+          temporal:
+            condition: service_started
+
+      worker:
+        image: # ???
+        command: # ???
+        restart: # ???
+        environment:
+          # ???
+        depends_on:
+          # ???
+    ```
+
+    Entrega el bloque `worker:` completo y correcto.
+  hint: |
+    - La imagen es la misma que `api` para evitar mantener dos Dockerfiles.
+    - `restart: unless-stopped` reinicia el contenedor salvo que lo pares manualmente.
+    - No pongas `ports:` en el worker — no escucha en ningún puerto.
+  solution: |
+    worker:
+      image: ghcr.io/acme/audit-api:${IMAGE_TAG}
+      command: python -m app.worker
+      restart: unless-stopped
+      environment:
+        DATABASE_URL: postgresql+asyncpg://bato:${DB_PASSWORD}@postgres:5432/audit
+        ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+        TEMPORAL_HOST: temporal:7233
+      depends_on:
+        postgres:
+          condition: service_healthy
+        temporal:
+          condition: service_started

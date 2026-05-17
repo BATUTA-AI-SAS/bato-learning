@@ -1,0 +1,146 @@
+# Ejercicios de E01 — Anthropic SDK: messages, tools, prompt caching
+# Runner: backend (requiere anthropic SDK; no corre en Pyodide)
+
+- slug: fix_tool_use_id
+  kind: code
+  title: "Corregir emparejamiento tool_use_id"
+  ord: 1
+  prompt_md: |
+    El siguiente fragmento de un loop de agente tiene un bug crítico: el campo
+    `tool_use_id` usa `block.name` en lugar del identificador correcto.
+
+    Corrige el bug. El loop debe completar sin error 400 cuando el mock devuelve
+    un único bloque `tool_use`.
+  starter_code: |
+    # loop recortado — solo el tramo de tool_result
+    tool_results = []
+    for block in resp_content:
+        if block["type"] == "tool_use":
+            output = f"resultado de {block['name']}"
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": block["name"],  # ← bug
+                "content": output,
+            })
+    # devuelve tool_results para que el test lo inspeccione
+  test_code: |
+    mock_block = {"type": "tool_use", "name": "sql_query", "id": "toolu_abc123", "input": {}}
+    resp_content = [mock_block]
+    tool_results = []
+    for block in resp_content:
+        if block["type"] == "tool_use":
+            output = f"resultado de {block['name']}"
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": block["id"],   # solución esperada
+                "content": output,
+            })
+    assert len(tool_results) == 1, "debe haber exactamente 1 tool_result"
+    assert tool_results[0]["tool_use_id"] == "toolu_abc123", \
+        f"tool_use_id incorrecto: {tool_results[0]['tool_use_id']}"
+    assert tool_results[0]["type"] == "tool_result"
+    print("ok")
+  solution_code: |
+    tool_results = []
+    for block in resp_content:
+        if block["type"] == "tool_use":
+            output = f"resultado de {block['name']}"
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": block["id"],   # correcto: block.id, no block.name
+                "content": output,
+            })
+  hints:
+    - "El campo que identifica unívocamente a un tool_use es `id`, no `name`."
+    - "Busca en el mock_block qué campo tiene el valor 'toolu_abc123'."
+
+- slug: add_cache_control
+  kind: code
+  title: "Añadir cache_control al system prompt"
+  ord: 2
+  prompt_md: |
+    Tienes dos bloques de system prompt. Añade `cache_control` con `ttl="1h"`
+    al primero (reglas del tutor, el prefijo estable). El segundo bloque (historial
+    dinámico) **no** debe llevar cache_control.
+
+    La función `build_system` debe devolver la lista de bloques correcta.
+  starter_code: |
+    TUTOR_RULES = "Eres el tutor de bato-learning. Responde en español."
+    MODULE_BODY = "## Módulo E01\n\nContenido del módulo..."
+    RECENT_ATTEMPTS = "El lector falló el ejercicio 1 hace 5 minutos."
+
+    def build_system(rules: str, body: str, attempts: str) -> list[dict]:
+        return [
+            {"type": "text", "text": rules},   # ← añadir cache_control aquí
+            {"type": "text", "text": body},     # ← también aquí
+            {"type": "text", "text": attempts}, # ← este NO lleva cache_control
+        ]
+
+    blocks = build_system(TUTOR_RULES, MODULE_BODY, RECENT_ATTEMPTS)
+  test_code: |
+    assert len(blocks) == 3, "debe haber 3 bloques"
+    assert "cache_control" in blocks[0], "el bloque 0 (rules) debe tener cache_control"
+    assert blocks[0]["cache_control"]["ttl"] == "1h", \
+        "ttl debe ser '1h', no otro valor"
+    assert blocks[0]["cache_control"]["type"] == "ephemeral"
+    assert "cache_control" in blocks[1], "el bloque 1 (body) debe tener cache_control"
+    assert blocks[1]["cache_control"]["ttl"] == "1h"
+    assert "cache_control" not in blocks[2], \
+        "el bloque 2 (attempts, dinámico) NO debe tener cache_control"
+    print("ok")
+  solution_code: |
+    def build_system(rules: str, body: str, attempts: str) -> list[dict]:
+        return [
+            {
+                "type": "text",
+                "text": rules,
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
+            },
+            {
+                "type": "text",
+                "text": body,
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
+            },
+            {"type": "text", "text": attempts},  # sin cache: es dinámico
+        ]
+
+    blocks = build_system(TUTOR_RULES, MODULE_BODY, RECENT_ATTEMPTS)
+  hints:
+    - "El campo se llama `cache_control` y es un dict: `{'type': 'ephemeral', 'ttl': '1h'}`."
+    - "Solo los bloques que no cambian turno a turno van con cache."
+
+- slug: hit_rate
+  kind: code
+  title: "Calcular hit rate del cache"
+  ord: 3
+  prompt_md: |
+    Escribe la función `hit_rate(usage: dict) -> float` que devuelve la fracción
+    de tokens que vinieron del cache sobre el total de tokens de entrada.
+
+    Fórmula: `cache_read_input_tokens / (input_tokens + cache_read_input_tokens)`.
+
+    Maneja los tres casos borde: sin cache (devuelve 0.0), hit total (devuelve 1.0),
+    hit parcial. Si `input_tokens + cache_read_input_tokens == 0`, devuelve 0.0.
+  starter_code: |
+    def hit_rate(usage: dict) -> float:
+        # completa
+        pass
+  test_code: |
+    assert hit_rate({}) == 0.0, "sin datos → 0.0"
+    assert hit_rate({"input_tokens": 0, "cache_read_input_tokens": 0}) == 0.0
+    assert hit_rate({"input_tokens": 0, "cache_read_input_tokens": 500}) == 1.0, \
+        "hit total → 1.0"
+    result = hit_rate({"input_tokens": 300, "cache_read_input_tokens": 700})
+    assert abs(result - 0.7) < 1e-9, f"hit parcial esperado 0.7, got {result}"
+    print("ok")
+  solution_code: |
+    def hit_rate(usage: dict) -> float:
+        cache_read = usage.get("cache_read_input_tokens", 0) or 0
+        input_tok  = usage.get("input_tokens", 0) or 0
+        total = input_tok + cache_read
+        if total == 0:
+            return 0.0
+        return cache_read / total
+  hints:
+    - "Usa `.get(key, 0)` para los campos opcionales."
+    - "Guarda el denominador en una variable antes de dividir para evitar ZeroDivisionError."

@@ -1,0 +1,72 @@
+- slug: lgpd_extraterritorialidade
+  question: |
+    Tu SaaS está incorporado en Colombia. Tienes un cliente en São Paulo cuyo
+    agente procesa datos de personas naturales brasileñas. ¿La LGPD aplica a
+    tu SaaS?
+  explanation: |
+    El Art. 3 de la LGPD establece la extraterritorialidade: la ley aplica a
+    cualquier operación de tratamiento que tenga por objeto ofrecer bienes o
+    servicios a personas en Brasil, o que trate datos recolectados en Brasil.
+    El hecho de que tu empresa esté incorporada en otro país no te excluye del
+    alcance de la LGPD.
+  options:
+    - text: "Sí — la LGPD aplica porque tratas datos de personas en Brasil, independientemente de dónde está tu empresa"
+      correct: true
+      feedback: "Correcto. Art. 3 LGPD: la extraterritorialidade alcanza a quien trate datos recolectados en Brasil o de personas en Brasil, sin importar la sede del operador."
+    - text: "No — la LGPD solo aplica a empresas domiciliadas en Brasil"
+      correct: false
+      feedback: "Incorrecto. La LGPD tiene alcance extraterritorial explícito (Art. 3). El precedente del GDPR europeo fue el modelo seguido; la sede del proveedor no es el criterio."
+    - text: "Depende — solo si tienes un establecimiento físico en Brasil"
+      correct: false
+      feedback: "Incorrecto. No se requiere establecimiento físico. El criterio es si ofreces servicios a personas en Brasil o tratas datos recolectados en Brasil."
+    - text: "Solo si el contrato con el cliente dice que aplica la LGPD"
+      correct: false
+      feedback: "Incorrecto. Las leyes de protección de datos aplican por ley, no por elección contractual. Las partes pueden elegir el foro, pero no pueden eximir la aplicación de la LGPD a datos de titulares brasileños."
+
+- slug: scc_anpd_plazo
+  question: |
+    ¿Cuándo entraron en vigor obligatoriamente las Cláusulas Contratuais Padrão
+    de la ANPD para transferencias internacionales de datos desde Brasil?
+  explanation: |
+    La Resolução CD/ANPD Nº 19 fue publicada el 23 de agosto de 2024. Las
+    empresas tuvieron 12 meses de gracia, hasta el 22 de agosto de 2025, para
+    incorporar las SCCs en sus contratos existentes. Desde esa fecha, las
+    transferencias internacionales de datos personales desde Brasil sin los
+    mecanismos válidos (SCCs, adequação o BCRs) son ilegales bajo la LGPD.
+  options:
+    - text: "22 de agosto de 2025 — después de 12 meses de gracia desde la Resolución 19/2024"
+      correct: true
+      feedback: "Correcto. La Resolução CD/ANPD Nº 19 fue publicada el 23 agosto 2024 con 12 meses de período de adaptación."
+    - text: "23 de agosto de 2024 — desde el día de publicación de la Resolución"
+      correct: false
+      feedback: "Incorrecto. La resolución se publicó esa fecha pero incluyó 12 meses de gracia para que las empresas adaptaran sus contratos existentes."
+    - text: "Septiembre de 2020 — cuando la LGPD entró en vigor"
+      correct: false
+      feedback: "Incorrecto. Cuando la LGPD entró en vigor (sep. 2020) no había regulación detallada de transferencias internacionales. La Resolução 19/2024 vino cuatro años después."
+    - text: "Las SCCs de la ANPD son opcionales; las empresas pueden usar las SCCs europeas del GDPR"
+      correct: false
+      feedback: "Incorrecto. La ANPD emitió sus propias SCCs para Brasil. Las SCCs europeas no son automáticamente válidas bajo la LGPD; hay que usar los mecanismos aprobados por la ANPD brasileña."
+
+- slug: encarregado_obligacion
+  question: |
+    ¿Para qué tipo de empresas es obligatorio nominar un encarregado bajo
+    la LGPD (Art. 41)?
+  explanation: |
+    El Art. 41 de la LGPD establece la obligación del controlador y del operador
+    de nominar un encarregado (DPO). A diferencia del GDPR europeo que tiene
+    umbrales de tamaño y tipo de datos, la ANPD ha señalado que esta obligación
+    aplica de forma general. Pueden obtenerse regulaciones específicas para micro
+    y pequeñas empresas, pero el principio es de cumplimiento general.
+  options:
+    - text: "Para todos los controladores y operadores bajo la LGPD, de forma general"
+      correct: true
+      feedback: "Correcto. Art. 41 LGPD no establece umbrales de tamaño. La ANPD ha indicado que la obligación es general, aunque puede haber flexibilización futura para micro/pequeñas empresas."
+    - text: "Solo para empresas con más de 250 empleados, igual que el GDPR europeo"
+      correct: false
+      feedback: "Incorrecto. El GDPR europeo tiene criterios de umbral (250+ empleados, tratamiento sistemático a gran escala). La LGPD no replica exactamente esos umbrales; el Art. 41 aplica de forma más general."
+    - text: "Solo para entidades del sector financiero y de salud"
+      correct: false
+      feedback: "Incorrecto. El Art. 41 no limita la obligación a sectores específicos. Aplica a cualquier controlador u operador bajo la LGPD."
+    - text: "Solo cuando se tratan datos sensibles (Art. 11 LGPD)"
+      correct: false
+      feedback: "Incorrecto. La obligación del encarregado (Art. 41) es independiente de si se tratan datos sensibles. Tratar datos sensibles agrega otras obligaciones (Art. 11), no reemplaza la del encarregado."

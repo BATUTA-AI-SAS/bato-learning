@@ -1,0 +1,38 @@
+slug: openai-responses-api
+title: "Haz lo mismo con la API de OpenAI"
+kind: code
+phase: PH03
+ord: 50
+trains_skill: multi-provider
+concepts_introduced: [openai-responses-api, built-in-tools]
+concepts_reinforced: [llm-api, tool-calling, async]
+xp: 20
+est_seconds: 150
+scenario_md: |
+  El CTO de ACME quiere que el agente soporte OpenAI como proveedor alternativo.
+  Implementa la misma pregunta financiera usando la Responses API de OpenAI.
+  Compara la firma con la de Anthropic.
+payload:
+  starter: |
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI()
+
+    async def ask_openai(question: str) -> str:
+        """Llama a OpenAI Responses API y retorna el texto de la respuesta."""
+        # usa client.responses.create con model="gpt-4o-mini"
+        ...
+  tests: |
+    import asyncio
+    result = asyncio.run(ask_openai("¿Cuánto gastó ACME en abril?"))
+    assert isinstance(result, str)
+    assert len(result) > 10
+hint_md: |
+  `client.responses.create(model=..., input=...)` retorna un objeto con
+  `.output_text` para el texto completo. La Responses API es stateful por
+  defecto (mantiene historial con `previous_response_id`).
+solution_md: |
+  La Responses API de OpenAI tiene built-in tools (web search, code interpreter)
+  sin infra adicional. La Anthropic Messages API da más control sobre el loop.
+  Envolver ambos en una interfaz común (patrón Strategy) permite cambiar
+  de proveedor sin tocar el agente.

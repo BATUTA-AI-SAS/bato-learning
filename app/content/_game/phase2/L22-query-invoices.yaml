@@ -1,0 +1,50 @@
+slug: query-invoices
+title: "Consulta facturas del mes actual"
+kind: code
+phase: PH02
+ord: 22
+trains_skill: sql-query
+xp: 15
+est_seconds: 150
+scenario_md: |
+  El CFO de ACME quiere las facturas mayores a $10 000 del período 2024-03,
+  ordenadas de mayor a menor. La tabla ya existe y tiene datos.
+  Escribe la query correcta y asigna los resultados a `rows`.
+payload:
+  starter: |
+    import sqlite3
+
+    conn = sqlite3.connect(":memory:")
+    cur = conn.cursor()
+    cur.executescript("""
+    CREATE TABLE invoice (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vendor TEXT NOT NULL,
+        amount REAL NOT NULL,
+        period TEXT NOT NULL
+    );
+    INSERT INTO invoice (vendor, amount, period) VALUES
+        ('Constructora Andina', 45200.00, '2024-03'),
+        ('Globex Logistics',    12300.00, '2024-03'),
+        ('Proveedor Menor',      870.25,  '2024-03'),
+        ('SolEnergy',           18900.00, '2024-03'),
+        ('Initech Audit',        3200.00, '2024-02');
+    """)
+
+    # Escribe la query: facturas donde amount > 10000 Y period = '2024-03'
+    # Ordena por amount DESC
+    # Guarda los resultados en `rows`
+    rows = []
+  tests: |
+    assert len(rows) == 3, f"Esperaba 3 filas, obtuve {len(rows)}"
+    amounts = [r[2] for r in rows]
+    assert amounts == sorted(amounts, reverse=True), "No está ordenado por amount DESC"
+    assert all(r[2] > 10000 for r in rows), "Hay facturas <= 10000 en el resultado"
+    assert all(r[3] == "2024-03" for r in rows), "Hay facturas de otro período"
+hint_md: |
+  `SELECT * FROM invoice WHERE amount > 10000 AND period = '2024-03' ORDER BY amount DESC`
+  Guarda con `rows = cur.execute(...).fetchall()`.
+solution_md: |
+  WHERE filtra antes de devolver filas — no traigas todo y filtres en Python.
+  ORDER BY no es ordenar la tabla: es el orden del resultado. Sin índice en
+  `period` esta query escanea la tabla completa; con índice salta directo.

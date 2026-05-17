@@ -1,0 +1,69 @@
+- slug: seq_scan_vs_index_scan
+  question: |
+    `EXPLAIN ANALYZE` muestra `Seq Scan on invoice (rows=450000)` para una query
+    `WHERE tenant_id = 'acme' AND period = '2026-04'` que devuelve 3 000 filas.
+    ¿Cuál es el diagnóstico y la solución correcta?
+  explanation: |
+    Un `Seq Scan` sobre 450 000 filas para devolver 3 000 significa que el motor recorre
+    toda la tabla y descarta el 99% de las filas. La solución es un índice compuesto en las
+    columnas del `WHERE` — en este caso `(tenant_id, period)`.
+  options:
+    - text: "Falta un índice en `(tenant_id, period)`. Crearlo convierte el Seq Scan en Index Scan."
+      correct: true
+      feedback: "Correcto. Un índice compuesto en las columnas del WHERE permite al motor saltar directamente a las 3 000 filas relevantes."
+    - text: "La query tiene demasiadas condiciones en el `WHERE` — hay que simplificarla."
+      correct: false
+      feedback: "Dos condiciones en el WHERE no son demasiadas. El problema es la ausencia de índice, no la complejidad de la query."
+    - text: "Hay que usar `FORCE INDEX` para obligar al motor a usar el índice."
+      correct: false
+      feedback: "`FORCE INDEX` (MySQL) o `SET enable_seqscan=off` (Postgres) son hacks para diagnóstico, no soluciones. Si el motor elige seq scan con un índice existente, probablemente el índice no aplica a la query."
+    - text: "El Seq Scan es correcto porque no hay índice — hay que crear la tabla de nuevo con índices."
+      correct: false
+      feedback: "No hay que recrear la tabla. `CREATE INDEX` añade el índice a una tabla existente sin borrar datos."
+
+- slug: leftmost_prefix_rule
+  question: |
+    Tienes el índice `CREATE INDEX idx_a ON invoice (tenant_id, period, paid)`.
+    ¿Cuál de estas queries **no** puede usar este índice?
+  explanation: |
+    La **leftmost prefix rule**: un índice en `(A, B, C)` puede usarse para queries con
+    `WHERE A = ...`, `WHERE A = ... AND B = ...`, o `WHERE A = ... AND B = ... AND C = ...`.
+    No puede usarse para queries que omiten el prefijo izquierdo, como `WHERE period = ...`
+    (sin `tenant_id`) o `WHERE paid = ...` (sin `tenant_id` ni `period`).
+  options:
+    - text: "`WHERE period = '2026-04' AND paid = 0` (sin `tenant_id`)"
+      correct: true
+      feedback: "Correcto. `period` no es el prefijo izquierdo del índice. Sin `tenant_id`, el índice no puede usarse para esta query."
+    - text: "`WHERE tenant_id = 'acme'` (solo el primer campo)"
+      correct: false
+      feedback: "Sí puede usar el índice. `tenant_id` es el prefijo izquierdo — el índice lo cubre."
+    - text: "`WHERE tenant_id = 'acme' AND period = '2026-04'`"
+      correct: false
+      feedback: "Sí puede usar el índice. Cubre los dos primeros campos del índice."
+    - text: "`WHERE tenant_id = 'acme' AND period = '2026-04' AND paid = 0`"
+      correct: false
+      feedback: "Sí puede usar el índice. Cubre los tres campos del índice en orden."
+
+- slug: when_not_to_index
+  question: |
+    La tabla `invoice` tiene una columna `paid` que es `0` (no pagada) para el 2%
+    de las filas y `1` (pagada) para el 98%. Tienes un índice en `paid`.
+    ¿Qué hace el optimizador de Postgres al ejecutar `WHERE paid = 1`?
+  explanation: |
+    Cuando un filtro devuelve el 98% de las filas, usar el índice tiene más overhead
+    que hacer un Seq Scan (el motor tendría que saltar aleatoriamente por el disco para
+    leer el 98% de las filas). El optimizador elige el Seq Scan — y tiene razón.
+    Los índices B-tree son útiles cuando la selectividad es alta: el filtro devuelve <20% de las filas.
+  options:
+    - text: "Elige Seq Scan porque un índice que devuelve el 98% de las filas es menos eficiente que recorrer la tabla."
+      correct: true
+      feedback: "Correcto. El optimizador calcula el coste de ambas opciones. Con 98% de selectividad, el Seq Scan evita el overhead de saltos aleatorios por el índice."
+    - text: "Usa el índice porque existe — el motor siempre lo usa si está disponible."
+      correct: false
+      feedback: "El optimizador puede ignorar índices si estima que son más lentos. No es obligado a usarlos."
+    - text: "Lanza un error porque el índice tiene baja cardinalidad."
+      correct: false
+      feedback: "No hay errores. El motor simplemente elige el plan más eficiente según sus estadísticas."
+    - text: "Usa el índice parcial automáticamente."
+      correct: false
+      feedback: "Un índice parcial debe crearse explícitamente con `CREATE INDEX ... WHERE paid = 0`. No existe automáticamente."

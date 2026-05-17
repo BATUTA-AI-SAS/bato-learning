@@ -1,0 +1,34 @@
+slug: jinja-template
+title: "Renderiza el reporte en HTML"
+kind: fill_blank
+trains_skill: jinja2
+concepts_introduced: [HTML, Jinja2, template, CSS-basico]
+concepts_reinforced: [FastAPI]
+scenario_md: |
+  El CFO de ACME quiere ver el resumen de facturas en el navegador, no en
+  la terminal. Completa la plantilla Jinja2 que recibe la lista de facturas
+  y el total, y los muestra en una tabla HTML sencilla.
+payload:
+  code_template: |
+    <!-- reporte.html -->
+    <h1>Reporte ACME</h1>
+    <p>Total: ${{ ___ }}</p>
+    <ul>
+    {% for factura in ___ %}
+      <li>{{ factura }}</li>
+    {% ___ %}
+    </ul>
+  blanks:
+    - label: "variable del total"
+      correct: ["total", "total_mes", "monto_total"]
+    - label: "nombre de la lista de facturas"
+      correct: ["facturas", "lista_facturas"]
+    - label: "tag Jinja2 que cierra el bucle for"
+      correct: ["endfor"]
+hint_md: "Jinja2 usa {% %} para lógica y {{ }} para valores. Los bloques de control se cierran con end+nombre."
+solution_md: |
+  {{ total }} interpola la variable. {% for factura in facturas %} itera la
+  lista. {% endfor %} cierra el bloque. Sin endfor Jinja2 lanza un error de
+  sintaxis al renderizar.
+xp: 15
+est_seconds: 90

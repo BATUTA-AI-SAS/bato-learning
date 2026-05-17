@@ -1,0 +1,181 @@
+- slug: classify_database_types
+  title: "Clasifica el tipo de base de datos"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Completa el diccionario `db_type` asignando a cada caso de uso el tipo de
+    base de datos correcto. Usa exactamente estas cadenas como valor:
+    `"relational"`, `"key-value"`, `"document"`, `"columnar"`, `"time-series"`, `"vector"`.
+
+    Casos:
+    - `"invoices_with_joins"`: facturas con relaciones a proveedores y pagos.
+    - `"session_cache"`: sesiones de usuario con TTL de 24 horas.
+    - `"sensor_metrics"`: temperatura de máquinas, una lectura cada 10 segundos.
+    - `"semantic_search"`: buscar párrafos similares a una pregunta del usuario.
+    - `"monthly_kpi_aggregation"`: suma de ventas por región en los últimos 3 años.
+    - `"variable_forms"`: respuestas de formularios donde cada usuario responde campos distintos.
+  hint: |
+    Recuerda el decision tree del módulo. Relacional = tablas + joins. Key-value = clave → valor con TTL.
+    Time-series = timestamp obligatorio, append-only. Vector = similitud semántica. Columnar = agregaciones grandes.
+  starter: |
+    db_type = {
+        "invoices_with_joins": "",         # facturas, proveedores, pagos
+        "session_cache": "",               # TTL, usuario anónimo o autenticado
+        "sensor_metrics": "",              # temperatura cada 10 s
+        "semantic_search": "",             # similitud semántica
+        "monthly_kpi_aggregation": "",     # SUM, GROUP BY sobre millones de filas
+        "variable_forms": "",              # schema variable por usuario
+    }
+  test: |
+    expected = {
+        "invoices_with_joins": "relational",
+        "session_cache": "key-value",
+        "sensor_metrics": "time-series",
+        "semantic_search": "vector",
+        "monthly_kpi_aggregation": "columnar",
+        "variable_forms": "document",
+    }
+    for key, val in expected.items():
+        assert db_type.get(key) == val, (
+            f"'{key}' debería ser '{val}', obtuve '{db_type.get(key)}'"
+        )
+    print("ok")
+  solution: |
+    db_type = {
+        "invoices_with_joins": "relational",
+        "session_cache": "key-value",
+        "sensor_metrics": "time-series",
+        "semantic_search": "vector",
+        "monthly_kpi_aggregation": "columnar",
+        "variable_forms": "document",
+    }
+
+- slug: schema_from_excel
+  title: "Del Excel al schema relacional"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes la siguiente hoja Excel de ACME (representada como lista de dicts):
+
+    ```python
+    excel_rows = [
+        {"Factura #": "F-001", "Proveedor": "Siemens GmbH",  "Monto EUR": 4820.0,  "Periodo": "2026-04", "Pagada": "Sí"},
+        {"Factura #": "F-002", "Proveedor": "Bosch AG",       "Monto EUR": 9100.5,  "Periodo": "2026-04", "Pagada": "No"},
+        {"Factura #": "F-003", "Proveedor": "Siemens GmbH",  "Monto EUR": 2310.0,  "Periodo": "2026-03", "Pagada": "Sí"},
+    ]
+    ```
+
+    Convierte este Excel a un schema relacional representado como lista de dicts
+    con nombres de columna en snake_case inglés y tipos de dato Python correctos.
+    Almacena el resultado en `invoices`.
+
+    Reglas de conversión:
+    - `"Factura #"` → `invoice_number` (str)
+    - `"Proveedor"` → `vendor_name` (str)
+    - `"Monto EUR"` → `total_eur` (float, ya es float en el input)
+    - `"Periodo"` → `period` (str)
+    - `"Pagada"` → `paid` (bool: `"Sí"` → `True`, cualquier otra cosa → `False`)
+  hint: |
+    Usa una comprensión de lista. Para el campo `paid`, compara el valor con la cadena `"Sí"`.
+  starter: |
+    excel_rows = [
+        {"Factura #": "F-001", "Proveedor": "Siemens GmbH",  "Monto EUR": 4820.0,  "Periodo": "2026-04", "Pagada": "Sí"},
+        {"Factura #": "F-002", "Proveedor": "Bosch AG",       "Monto EUR": 9100.5,  "Periodo": "2026-04", "Pagada": "No"},
+        {"Factura #": "F-003", "Proveedor": "Siemens GmbH",  "Monto EUR": 2310.0,  "Periodo": "2026-03", "Pagada": "Sí"},
+    ]
+
+    invoices = [
+        # convierte cada fila del Excel al schema relacional
+    ]
+  test: |
+    assert len(invoices) == 3, f"esperaba 3 filas, obtuve {len(invoices)}"
+    assert invoices[0]["invoice_number"] == "F-001"
+    assert invoices[0]["vendor_name"] == "Siemens GmbH"
+    assert invoices[0]["total_eur"] == 4820.0
+    assert invoices[0]["period"] == "2026-04"
+    assert invoices[0]["paid"] is True, "F-001 está pagada, debería ser True"
+    assert invoices[1]["paid"] is False, "F-002 no está pagada, debería ser False"
+    assert invoices[2]["paid"] is True, "F-003 está pagada, debería ser True"
+    # verificar que todos los campos están presentes
+    required = {"invoice_number", "vendor_name", "total_eur", "period", "paid"}
+    for row in invoices:
+        missing = required - set(row.keys())
+        assert not missing, f"faltan columnas: {missing}"
+    print("ok")
+  solution: |
+    invoices = [
+        {
+            "invoice_number": row["Factura #"],
+            "vendor_name": row["Proveedor"],
+            "total_eur": row["Monto EUR"],
+            "period": row["Periodo"],
+            "paid": row["Pagada"] == "Sí",
+        }
+        for row in excel_rows
+    ]
+
+- slug: acid_transaction_simulation
+  title: "Simulación de transacción ACID"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Simula una transacción ACID con listas Python. ACME paga la factura F-002:
+    debe restar `9 100.50` del saldo bancario de ACME Y marcar la factura como pagada.
+    Si el saldo es insuficiente, **ninguna** operación debe aplicarse (rollback).
+
+    Implementa `process_payment(invoice_number, bank_accounts, invoices)` que:
+    1. Busca la factura por `invoice_number` en la lista `invoices`.
+    2. Busca la cuenta bancaria de `"acme"` en `bank_accounts`.
+    3. Si el saldo es suficiente: descuenta el monto y marca la factura como `paid=True`.
+    4. Si el saldo es insuficiente: no modifica nada y retorna `False`.
+    5. Retorna `True` si el pago fue exitoso.
+  hint: |
+    La clave «todo o nada»: verifica la condición antes de modificar cualquier cosa.
+    Si la condición no se cumple, return False sin haber tocado nada.
+  starter: |
+    bank_accounts = [
+        {"tenant": "acme",   "balance_eur": 15000.0},
+        {"tenant": "globex", "balance_eur": 8000.0},
+    ]
+    invoices = [
+        {"invoice_number": "F-001", "vendor_name": "Siemens GmbH", "total_eur": 4820.0,  "paid": True},
+        {"invoice_number": "F-002", "vendor_name": "Bosch AG",      "total_eur": 9100.5,  "paid": False},
+    ]
+
+    def process_payment(
+        invoice_number: str,
+        bank_accounts: list[dict],
+        invoices: list[dict],
+    ) -> bool:
+        # implementa aquí
+        pass
+  test: |
+    # pago exitoso
+    result = process_payment("F-002", bank_accounts, invoices)
+    assert result is True, "el pago debería ser exitoso"
+    acme_account = next(a for a in bank_accounts if a["tenant"] == "acme")
+    assert abs(acme_account["balance_eur"] - 5899.5) < 0.01, (
+        f"saldo esperado 5899.5, obtuve {acme_account['balance_eur']}"
+    )
+    f002 = next(i for i in invoices if i["invoice_number"] == "F-002")
+    assert f002["paid"] is True, "la factura debería quedar marcada como pagada"
+
+    # saldo insuficiente → rollback (no modifica nada)
+    bank_accounts2 = [{"tenant": "acme", "balance_eur": 100.0}]
+    invoices2 = [{"invoice_number": "F-002", "total_eur": 9100.5, "paid": False}]
+    result2 = process_payment("F-002", bank_accounts2, invoices2)
+    assert result2 is False, "con saldo insuficiente debería retornar False"
+    assert bank_accounts2[0]["balance_eur"] == 100.0, "el saldo no debería haber cambiado"
+    assert invoices2[0]["paid"] is False, "la factura no debería haberse marcado"
+    print("ok")
+  solution: |
+    def process_payment(invoice_number, bank_accounts, invoices):
+        invoice = next((i for i in invoices if i["invoice_number"] == invoice_number), None)
+        account = next((a for a in bank_accounts if a["tenant"] == "acme"), None)
+        if invoice is None or account is None:
+            return False
+        if account["balance_eur"] < invoice["total_eur"]:
+            return False
+        account["balance_eur"] -= invoice["total_eur"]
+        invoice["paid"] = True
+        return True

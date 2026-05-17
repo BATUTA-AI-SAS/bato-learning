@@ -1,0 +1,295 @@
+- slug: test-response-validator
+  title: "Escribe un validador de respuestas de API para el suite de ACME"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Sin usar httpx (que no está disponible en Pyodide), implementa la lógica
+    de validación que normalmente iría en un test de API.
+
+    Implementa `validate_api_response(response: dict, contract: dict) -> list[str]`
+    que dado un dict simulando una respuesta y un contrato de campos requeridos,
+    devuelva una lista de errores. Si no hay errores, devuelve lista vacía.
+
+    El `contract` tiene:
+    - `"required_fields"`: lista de campos que deben existir en el response body
+    - `"expected_status"`: el status code esperado
+    - `"field_types"`: dict `{campo: tipo_esperado}` donde tipo es "str", "int", "float", "bool"
+
+    Errores posibles:
+    - `"status mismatch: expected {x}, got {y}"`
+    - `"missing field: {campo}"`
+    - `"wrong type for {campo}: expected {tipo}, got {tipo_real}"`
+
+    Prueba con la respuesta de `POST /api/v1/invoices`:
+    ```python
+    good_response = {
+        "status_code": 201,
+        "body": {"id": "inv-001", "vendor_id": "vnd-001", "amount": 4820.0, "status": "pending"},
+    }
+    contract = {
+        "required_fields": ["id", "vendor_id", "amount", "status"],
+        "expected_status": 201,
+        "field_types": {"amount": "float", "id": "str", "status": "str"},
+    }
+    ```
+  hint: |
+    Comprueba el status primero, luego los campos requeridos, luego los tipos.
+    `type(value).__name__` da el nombre del tipo Python como string.
+  starter: |
+    def validate_api_response(response: dict, contract: dict) -> list[str]:
+        errors = []
+        body = response.get("body", {})
+
+        # 1. verificar status code
+        if response["status_code"] != contract["expected_status"]:
+            errors.append(
+                f"status mismatch: expected {contract['expected_status']}, "
+                f"got {response['status_code']}"
+            )
+
+        # 2. verificar campos requeridos
+        for field in contract.get("required_fields", []):
+            if field not in body:
+                errors.append(f"missing field: {field}")
+
+        # 3. verificar tipos
+        # completa esta parte
+        ...
+
+        return errors
+
+    good_response = {
+        "status_code": 201,
+        "body": {"id": "inv-001", "vendor_id": "vnd-001", "amount": 4820.0, "status": "pending"},
+    }
+    contract = {
+        "required_fields": ["id", "vendor_id", "amount", "status"],
+        "expected_status": 201,
+        "field_types": {"amount": "float", "id": "str", "status": "str"},
+    }
+    print(validate_api_response(good_response, contract))  # []
+  test: |
+    def validate_api_response(response: dict, contract: dict) -> list[str]:
+        errors = []
+        body = response.get("body", {})
+
+        if response["status_code"] != contract["expected_status"]:
+            errors.append(
+                f"status mismatch: expected {contract['expected_status']}, "
+                f"got {response['status_code']}"
+            )
+
+        for field in contract.get("required_fields", []):
+            if field not in body:
+                errors.append(f"missing field: {field}")
+
+        for field, expected_type in contract.get("field_types", {}).items():
+            if field in body:
+                actual_type = type(body[field]).__name__
+                if actual_type != expected_type:
+                    errors.append(
+                        f"wrong type for {field}: expected {expected_type}, got {actual_type}"
+                    )
+
+        return errors
+
+    contract = {
+        "required_fields": ["id", "vendor_id", "amount", "status"],
+        "expected_status": 201,
+        "field_types": {"amount": "float", "id": "str", "status": "str"},
+    }
+
+    good = {"status_code": 201, "body": {"id": "inv-001", "vendor_id": "vnd-001", "amount": 4820.0, "status": "pending"}}
+    assert validate_api_response(good, contract) == [], f"respuesta válida: {validate_api_response(good, contract)}"
+
+    bad_status = {"status_code": 200, "body": {"id": "inv-001", "vendor_id": "vnd-001", "amount": 4820.0, "status": "pending"}}
+    errs = validate_api_response(bad_status, contract)
+    assert any("status mismatch" in e for e in errs), f"status incorrecto: {errs}"
+
+    missing = {"status_code": 201, "body": {"id": "inv-001", "amount": 4820.0}}
+    errs = validate_api_response(missing, contract)
+    assert any("missing field: vendor_id" in e for e in errs)
+    assert any("missing field: status" in e for e in errs)
+
+    wrong_type = {"status_code": 201, "body": {"id": "inv-001", "vendor_id": "vnd-001", "amount": "4820", "status": "pending"}}
+    errs = validate_api_response(wrong_type, contract)
+    assert any("wrong type for amount" in e and "str" in e for e in errs), f"tipo incorrecto: {errs}"
+
+    print("ok")
+  solution: |
+    def validate_api_response(response: dict, contract: dict) -> list[str]:
+        errors = []
+        body = response.get("body", {})
+
+        if response["status_code"] != contract["expected_status"]:
+            errors.append(
+                f"status mismatch: expected {contract['expected_status']}, "
+                f"got {response['status_code']}"
+            )
+
+        for field in contract.get("required_fields", []):
+            if field not in body:
+                errors.append(f"missing field: {field}")
+
+        for field, expected_type in contract.get("field_types", {}).items():
+            if field in body:
+                actual_type = type(body[field]).__name__
+                if actual_type != expected_type:
+                    errors.append(
+                        f"wrong type for {field}: expected {expected_type}, got {actual_type}"
+                    )
+
+        return errors
+
+    good_response = {
+        "status_code": 201,
+        "body": {"id": "inv-001", "vendor_id": "vnd-001", "amount": 4820.0, "status": "pending"},
+    }
+    contract = {
+        "required_fields": ["id", "vendor_id", "amount", "status"],
+        "expected_status": 201,
+        "field_types": {"amount": "float", "id": "str", "status": "str"},
+    }
+    print(validate_api_response(good_response, contract))
+
+- slug: test-case-designer
+  title: "Diseña los test cases para el endpoint de webhook de ACME"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado el endpoint `POST /webhooks/siigo/invoice` del módulo B09, diseña
+    el conjunto mínimo de test cases para cubrir el contrato.
+
+    Implementa `generate_test_cases(endpoint_contract: dict) -> list[dict]`
+    que dado el contrato del endpoint (ya definido abajo), devuelva una lista
+    de casos de test. Cada caso es un dict con:
+    - `"name"`: nombre descriptivo del test
+    - `"payload"`: el body de la request
+    - `"expected_status"`: el status HTTP esperado
+    - `"should_enqueue"`: bool — ¿el evento debe quedar en cola?
+
+    El endpoint tiene este comportamiento (del módulo B09):
+    - Payload válido (`event_id`, `event_type` = "invoice.created"|"invoice.updated", `data`) → 200, enqueue=True
+    - Payload con `event_id` ya procesado → 200, enqueue=False (idempotente)
+    - Falta algún campo → 400, enqueue=False
+    - `event_type` desconocido → 422, enqueue=False
+
+    Genera mínimo 4 casos que cubran todas las ramas.
+  hint: |
+    Cada rama del contrato necesita al menos un caso de test. Los 4 escenarios
+    mencionados arriban son exactamente las 4 ramas: feliz, duplicado, campo faltante,
+    event_type inválido.
+  starter: |
+    def generate_test_cases(endpoint_contract: dict) -> list[dict]:
+        # devuelve una lista con al menos 4 test cases
+        return [
+            {
+                "name": "payload válido — primer evento",
+                "payload": {"event_id": "evt-001", "event_type": "invoice.created", "data": {}},
+                "expected_status": 200,
+                "should_enqueue": True,
+            },
+            # añade los 3 casos restantes
+        ]
+
+    contract = {
+        "path": "POST /webhooks/siigo/invoice",
+        "required_fields": ["event_id", "event_type", "data"],
+        "valid_event_types": ["invoice.created", "invoice.updated"],
+    }
+
+    cases = generate_test_cases(contract)
+    for case in cases:
+        print(f"{case['name']:45s} → {case['expected_status']}, enqueue={case['should_enqueue']}")
+    print(f"Total: {len(cases)} casos")
+  test: |
+    def generate_test_cases(endpoint_contract: dict) -> list[dict]:
+        return [
+            {
+                "name": "payload válido — primer evento",
+                "payload": {"event_id": "evt-001", "event_type": "invoice.created", "data": {}},
+                "expected_status": 200,
+                "should_enqueue": True,
+            },
+            {
+                "name": "evento duplicado — misma event_id",
+                "payload": {"event_id": "evt-001", "event_type": "invoice.created", "data": {}},
+                "expected_status": 200,
+                "should_enqueue": False,
+            },
+            {
+                "name": "campo requerido faltante — sin event_type",
+                "payload": {"event_id": "evt-002", "data": {}},
+                "expected_status": 400,
+                "should_enqueue": False,
+            },
+            {
+                "name": "event_type desconocido",
+                "payload": {"event_id": "evt-003", "event_type": "invoice.deleted", "data": {}},
+                "expected_status": 422,
+                "should_enqueue": False,
+            },
+        ]
+
+    contract = {
+        "path": "POST /webhooks/siigo/invoice",
+        "required_fields": ["event_id", "event_type", "data"],
+        "valid_event_types": ["invoice.created", "invoice.updated"],
+    }
+
+    cases = generate_test_cases(contract)
+    assert len(cases) >= 4, f"necesitas al menos 4 casos, obtuve {len(cases)}"
+
+    statuses = {c["expected_status"] for c in cases}
+    assert 200 in statuses, "debe haber al menos un caso con status 200"
+    assert 400 in statuses or 422 in statuses, "debe haber al menos un caso de error (400 o 422)"
+
+    enqueue_true = [c for c in cases if c.get("should_enqueue") is True]
+    enqueue_false = [c for c in cases if c.get("should_enqueue") is False]
+    assert len(enqueue_true) >= 1, "debe haber al menos un caso donde should_enqueue=True"
+    assert len(enqueue_false) >= 2, "debe haber al menos 2 casos donde should_enqueue=False"
+
+    for case in cases:
+        assert "name" in case and case["name"], "cada caso debe tener un nombre"
+        assert "expected_status" in case, "cada caso debe tener expected_status"
+        assert "should_enqueue" in case, "cada caso debe tener should_enqueue"
+    print("ok")
+  solution: |
+    def generate_test_cases(endpoint_contract: dict) -> list[dict]:
+        return [
+            {
+                "name": "payload válido — primer evento",
+                "payload": {"event_id": "evt-001", "event_type": "invoice.created", "data": {}},
+                "expected_status": 200,
+                "should_enqueue": True,
+            },
+            {
+                "name": "evento duplicado — misma event_id",
+                "payload": {"event_id": "evt-001", "event_type": "invoice.created", "data": {}},
+                "expected_status": 200,
+                "should_enqueue": False,
+            },
+            {
+                "name": "campo requerido faltante — sin event_type",
+                "payload": {"event_id": "evt-002", "data": {}},
+                "expected_status": 400,
+                "should_enqueue": False,
+            },
+            {
+                "name": "event_type desconocido",
+                "payload": {"event_id": "evt-003", "event_type": "invoice.deleted", "data": {}},
+                "expected_status": 422,
+                "should_enqueue": False,
+            },
+        ]
+
+    contract = {
+        "path": "POST /webhooks/siigo/invoice",
+        "required_fields": ["event_id", "event_type", "data"],
+        "valid_event_types": ["invoice.created", "invoice.updated"],
+    }
+
+    cases = generate_test_cases(contract)
+    for case in cases:
+        print(f"{case['name']:45s} → {case['expected_status']}, enqueue={case['should_enqueue']}")
+    print(f"Total: {len(cases)} casos")

@@ -1,0 +1,112 @@
+- slug: predict-aliasing-output
+  kind: predict
+  question: |
+    Sin ejecutar el código, ¿qué imprime la última línea?
+  code: |
+    invoices = [{"id": "INV-001", "amount": 500.0}]
+    backup = invoices
+    backup.append({"id": "INV-002", "amount": 200.0})
+    print(len(invoices))
+  expected_output: "2"
+  explanation: |
+    `backup = invoices` copia la referencia, no la lista. Ambos nombres apuntan
+    al mismo objeto. `backup.append(...)` muta ese objeto, por lo que `len(invoices)` es 2.
+
+- slug: aliasing-list-mutation
+  question: |
+    ```python
+    clients: list[str] = ["ACME", "Globex"]
+    clients2 = clients
+    clients2.append("Initech")
+    print(len(clients))
+    ```
+    ¿Qué imprime?
+  explanation: |
+    `clients2 = clients` copia la referencia, no la lista. Ambos nombres apuntan
+    al mismo objeto `list`. `clients2.append("Initech")` muta ese objeto.
+    `len(clients)` ve la lista ya modificada: 3 elementos.
+  options:
+    - text: "2"
+      correct: false
+      feedback: |
+        `clients` y `clients2` apuntan al mismo objeto. Cualquier mutación a través
+        de uno se refleja en el otro. Para obtener 2, necesitarías `clients2 = clients[:]`
+        (copia superficial).
+    - text: "3"
+      correct: true
+      feedback: |
+        Correcto. `clients2 = clients` no crea una lista nueva; copia la referencia.
+        `append` muta el objeto compartido.
+    - text: "Error: no se puede modificar `clients` a través de `clients2`."
+      correct: false
+      feedback: |
+        Python no tiene protección contra eso. Solo los tipos inmutables (`tuple`,
+        `str`, `int`) no se pueden mutar. Una `list` asignada a otro nombre
+        sigue siendo la misma lista mutable.
+
+- slug: immutable-reassignment
+  question: |
+    ```python
+    amount: int = 4820
+    ref = amount
+    amount += 500
+    print(ref)
+    ```
+    ¿Qué imprime?
+  explanation: |
+    `int` es inmutable. `amount += 500` crea un **objeto nuevo** con valor 5320
+    y reasigna el nombre `amount` a ese objeto. `ref` sigue apuntando al objeto
+    original `4820`. No hay aliasing peligroso con tipos inmutables.
+  options:
+    - text: "5320"
+      correct: false
+      feedback: |
+        `ref` apunta al objeto `int` original (4820). `amount += 500` **no** muta
+        ese objeto — crea uno nuevo. `ref` nunca apunta al nuevo objeto.
+    - text: "4820"
+      correct: true
+      feedback: |
+        Correcto. Los enteros son inmutables. `amount += 500` crea un nuevo int
+        y reasigna `amount`, sin tocar el objeto al que `ref` apunta.
+    - text: "Error: no se puede reasignar `amount` porque `ref` lo referencia."
+      correct: false
+      feedback: |
+        Python no tiene ese tipo de restricción. Cualquier nombre se puede reasignar
+        libremente. Lo que importa es que el *objeto* `int` no puede mutar, no que
+        el nombre `amount` no pueda apuntar a otro objeto.
+
+- slug: default-mutable-arg
+  question: |
+    ```python
+    def add_vendor(name: str, registry: list[str] = []) -> list[str]:
+        registry.append(name)
+        return registry
+
+    r1 = add_vendor("ACME")
+    r2 = add_vendor("Globex")
+    print(r1)
+    ```
+    ¿Qué imprime?
+  explanation: |
+    Python evalúa el valor por defecto `[]` **una sola vez**, cuando define la función.
+    La misma lista se reutiliza en cada llamada sin argumento. `r1` y `r2` son el mismo
+    objeto. `r1` ve los dos nombres.
+  options:
+    - text: "`['ACME']`"
+      correct: false
+      feedback: |
+        Si `r1` y `r2` fueran listas distintas, `r1` tendría solo `"ACME"`. Pero
+        el argumento por defecto `[]` se crea una sola vez. Ambas llamadas usan
+        la misma lista, y `r1 is r2` es `True`.
+    - text: "`['ACME', 'Globex']`"
+      correct: true
+      feedback: |
+        Correcto. El default `[]` se crea al definir la función, no en cada llamada.
+        La misma lista acumula todos los valores. El arreglo estándar es usar
+        `registry: list[str] | None = None` e inicializar dentro.
+    - text: "`[]`"
+      correct: false
+      feedback: |
+        La lista empieza vacía, pero `append` la modifica en sitio. No está vacía
+        después de la primera llamada. Si cada llamada creara una lista nueva,
+        la respuesta sería `['ACME']` — pero tampoco `[]`.

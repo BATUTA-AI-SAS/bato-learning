@@ -1,0 +1,160 @@
+- slug: sum-all-amounts
+  title: "Sumar todos los montos"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes esta lista de facturas de ACME:
+
+    ```python
+    invoices = [
+        {"id": "INV-001", "vendor": "acme_global",  "amount": 4820.0},
+        {"id": "INV-002", "vendor": "andina_co",     "amount": 1500.0},
+        {"id": "INV-003", "vendor": "globex_log",    "amount": 3100.0},
+    ]
+    ```
+
+    Escribe un bucle `for` que sume todos los montos y guarde el resultado
+    en la variable `total`. Luego imprime `total`.
+
+    No uses funciones de Python como `sum()` — el objetivo es el bucle manual.
+  hint: |
+    Inicializa `total = 0.0` antes del bucle. Dentro del bucle: `total += inv["amount"]`.
+  starter: |
+    invoices = [
+        {"id": "INV-001", "vendor": "acme_global",  "amount": 4820.0},
+        {"id": "INV-002", "vendor": "andina_co",     "amount": 1500.0},
+        {"id": "INV-003", "vendor": "globex_log",    "amount": 3100.0},
+    ]
+
+    total = 0.0
+
+    # escribe el bucle aquí
+
+    print(total)
+  test: |
+    assert total == 9420.0, f"total esperado 9420.0, obtuve {total}"
+    print("ok")
+  solution: |
+    invoices = [
+        {"id": "INV-001", "vendor": "acme_global",  "amount": 4820.0},
+        {"id": "INV-002", "vendor": "andina_co",     "amount": 1500.0},
+        {"id": "INV-003", "vendor": "globex_log",    "amount": 3100.0},
+    ]
+
+    total = 0.0
+
+    for inv in invoices:
+        total += inv["amount"]
+
+    print(total)
+
+- slug: filter-unpaid
+  title: "Filtrar facturas no pagadas"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado este dataset de facturas:
+
+    ```python
+    invoices = [
+        {"id": "INV-001", "amount": 4820.0, "paid": True},
+        {"id": "INV-002", "amount": 1500.0, "paid": False},
+        {"id": "INV-003", "amount": 3100.0, "paid": False},
+        {"id": "INV-004", "amount": 0.0,    "paid": False},
+    ]
+    ```
+
+    Escribe un bucle `for` que construya una lista `unpaid_ids` con los `id`
+    de las facturas cuyo campo `"paid"` es `False` **y** cuyo monto es mayor
+    que cero. Luego imprime `unpaid_ids`.
+
+    Resultado esperado: `['INV-002', 'INV-003']`
+  hint: |
+    Inicializa `unpaid_ids = []` antes del bucle. Dentro: usa `if` con `and`
+    para comprobar las dos condiciones. Si se cumplen: `unpaid_ids.append(inv["id"])`.
+  starter: |
+    invoices = [
+        {"id": "INV-001", "amount": 4820.0, "paid": True},
+        {"id": "INV-002", "amount": 1500.0, "paid": False},
+        {"id": "INV-003", "amount": 3100.0, "paid": False},
+        {"id": "INV-004", "amount": 0.0,    "paid": False},
+    ]
+
+    unpaid_ids = []
+
+    # escribe el bucle aquí
+
+    print(unpaid_ids)
+  test: |
+    assert unpaid_ids == ["INV-002", "INV-003"], (
+        f"esperaba ['INV-002', 'INV-003'], obtuve {unpaid_ids}"
+    )
+    print("ok")
+  solution: |
+    invoices = [
+        {"id": "INV-001", "amount": 4820.0, "paid": True},
+        {"id": "INV-002", "amount": 1500.0, "paid": False},
+        {"id": "INV-003", "amount": 3100.0, "paid": False},
+        {"id": "INV-004", "amount": 0.0,    "paid": False},
+    ]
+
+    unpaid_ids = []
+
+    for inv in invoices:
+        if not inv["paid"] and inv["amount"] > 0:
+            unpaid_ids.append(inv["id"])
+
+    print(unpaid_ids)
+
+- slug: enumerate-report
+  title: "Reporte numerado con enumerate"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Usa `enumerate` para imprimir un reporte numerado de las facturas.
+    Cada línea debe tener el formato:
+    `#1 INV-001 — acme_global — 4820.0 EUR`
+
+    El número empieza en 1 (no en 0).
+
+    ```python
+    invoices = [
+        {"id": "INV-001", "vendor": "acme_global",  "amount": 4820.0},
+        {"id": "INV-002", "vendor": "andina_co",     "amount": 1500.0},
+        {"id": "INV-003", "vendor": "globex_log",    "amount": 3100.0},
+    ]
+    ```
+  hint: |
+    `for i, inv in enumerate(invoices):` — `i` empieza en 0, así que usa
+    `i + 1` para el número de línea. Usa un f-string para formatear.
+  starter: |
+    invoices = [
+        {"id": "INV-001", "vendor": "acme_global",  "amount": 4820.0},
+        {"id": "INV-002", "vendor": "andina_co",     "amount": 1500.0},
+        {"id": "INV-003", "vendor": "globex_log",    "amount": 3100.0},
+    ]
+
+    # escribe el bucle con enumerate
+
+  test: |
+    out = __cap.getvalue().strip().splitlines()
+    assert len(out) == 3, f"esperaba 3 líneas, obtuve {len(out)}"
+    assert out[0] == "#1 INV-001 — acme_global — 4820.0 EUR", (
+        f"línea 1 incorrecta: {out[0]!r}"
+    )
+    assert out[1] == "#2 INV-002 — andina_co — 1500.0 EUR", (
+        f"línea 2 incorrecta: {out[1]!r}"
+    )
+    assert out[2] == "#3 INV-003 — globex_log — 3100.0 EUR", (
+        f"línea 3 incorrecta: {out[2]!r}"
+    )
+    print("ok")
+  solution: |
+    invoices = [
+        {"id": "INV-001", "vendor": "acme_global",  "amount": 4820.0},
+        {"id": "INV-002", "vendor": "andina_co",     "amount": 1500.0},
+        {"id": "INV-003", "vendor": "globex_log",    "amount": 3100.0},
+    ]
+
+    for i, inv in enumerate(invoices):
+        print(f"#{i+1} {inv['id']} — {inv['vendor']} — {inv['amount']} EUR")

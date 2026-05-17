@@ -1,0 +1,99 @@
+- slug: uv-command-mapping
+  title: "Mapear comandos uv a su propósito"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El diccionario `commands` mapea cada comando `uv` a una descripción incorrecta.
+    Corrige los valores para que cada clave apunte a la descripción correcta.
+
+    Descripciones disponibles (usa exactamente estos strings):
+    - `"Crea un nuevo proyecto con pyproject.toml"`
+    - `"Añade una dependencia a pyproject.toml y actualiza uv.lock"`
+    - `"Instala las dependencias declaradas en pyproject.toml"`
+    - `"Ejecuta un script dentro del entorno del proyecto"`
+    - `"Instala una versión específica de Python"`
+
+    El diccionario final debe tener exactamente estas cinco claves:
+    `"uv init"`, `"uv add"`, `"uv sync"`, `"uv run"`, `"uv python install"`.
+  hint: |
+    Simplemente asigna el valor correcto a cada clave. Por ejemplo:
+    `commands["uv init"] = "Crea un nuevo proyecto con pyproject.toml"`.
+  starter: |
+    commands = {
+        "uv init": "Instala las dependencias declaradas en pyproject.toml",
+        "uv add": "Ejecuta un script dentro del entorno del proyecto",
+        "uv sync": "Crea un nuevo proyecto con pyproject.toml",
+        "uv run": "Añade una dependencia a pyproject.toml y actualiza uv.lock",
+        "uv python install": "Instala las dependencias declaradas en pyproject.toml",
+    }
+
+    # corrige los valores incorrectos
+    commands["uv init"] = ...
+    # corrige el resto
+  test: |
+    assert commands["uv init"] == "Crea un nuevo proyecto con pyproject.toml", \
+        f"uv init incorrecto: {commands['uv init']!r}"
+    assert commands["uv add"] == "Añade una dependencia a pyproject.toml y actualiza uv.lock", \
+        f"uv add incorrecto: {commands['uv add']!r}"
+    assert commands["uv sync"] == "Instala las dependencias declaradas en pyproject.toml", \
+        f"uv sync incorrecto: {commands['uv sync']!r}"
+    assert commands["uv run"] == "Ejecuta un script dentro del entorno del proyecto", \
+        f"uv run incorrecto: {commands['uv run']!r}"
+    assert commands["uv python install"] == "Instala una versión específica de Python", \
+        f"uv python install incorrecto: {commands['uv python install']!r}"
+    print("ok")
+  solution: |
+    commands = {
+        "uv init": "Crea un nuevo proyecto con pyproject.toml",
+        "uv add": "Añade una dependencia a pyproject.toml y actualiza uv.lock",
+        "uv sync": "Instala las dependencias declaradas en pyproject.toml",
+        "uv run": "Ejecuta un script dentro del entorno del proyecto",
+        "uv python install": "Instala una versión específica de Python",
+    }
+
+- slug: pip-vs-uv-detector
+  title: "Detectar uso de pip en un flujo de setup"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `has_pip_usage` recibe una lista de comandos ejecutados por un
+    desarrollador durante el setup del proyecto. Debe devolver `True` si algún
+    comando empieza con `"pip "` (con espacio), y `False` si el flujo es correcto.
+
+    Implementa `has_pip_usage`.
+  hint: |
+    Recorre la lista con un bucle `for` o usa `any()`.
+    `cmd.startswith("pip ")` devuelve `True` si el comando empieza con `"pip "`.
+  starter: |
+    def has_pip_usage(commands: list) -> bool:
+        """Devuelve True si algún comando usa pip en lugar de uv."""
+        # implementa aquí
+        ...
+
+    # prueba manual
+    bad_flow = ["uv init acme-audit", "pip install anthropic", "uv sync"]
+    good_flow = ["uv init acme-audit", "uv add anthropic", "uv sync"]
+
+    print(has_pip_usage(bad_flow))   # True
+    print(has_pip_usage(good_flow))  # False
+  test: |
+    assert has_pip_usage(["uv init", "pip install pydantic"]) is True, \
+        "Debe detectar pip install"
+    assert has_pip_usage(["uv init", "uv add pydantic", "uv sync"]) is False, \
+        "Flujo limpio no debe detectar pip"
+    assert has_pip_usage([]) is False, \
+        "Lista vacía no debe detectar pip"
+    assert has_pip_usage(["pip install fastapi", "pip install pydantic"]) is True, \
+        "Debe detectar pip aunque aparezca varias veces"
+    assert has_pip_usage(["uv run pip --version"]) is False, \
+        "uv run pip no es pip directo; no debe contarlo"
+    print("ok")
+  solution: |
+    def has_pip_usage(commands: list) -> bool:
+        """Devuelve True si algún comando usa pip en lugar de uv."""
+        return any(cmd.startswith("pip ") for cmd in commands)
+
+    bad_flow = ["uv init acme-audit", "pip install anthropic", "uv sync"]
+    good_flow = ["uv init acme-audit", "uv add anthropic", "uv sync"]
+    print(has_pip_usage(bad_flow))
+    print(has_pip_usage(good_flow))

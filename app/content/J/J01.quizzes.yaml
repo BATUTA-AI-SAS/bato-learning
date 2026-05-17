@@ -1,0 +1,73 @@
+- slug: dato_personal_nit
+  question: |
+    El agente de ACME procesa una factura con el campo `nit_proveedor: "12345678"`.
+    ¿Cómo clasifica este dato bajo la Ley 1581 de Colombia?
+  explanation: |
+    Un número de cédula de ciudadanía (persona natural) que coincide con el NIT
+    es dato personal según el Art. 3 de la Ley 1581: «información vinculada a una
+    persona natural determinada o determinable». Los NITs de personas jurídicas
+    (con dígito de verificación, p.ej. 900123456-1) no identifican a una persona
+    natural directamente.
+  options:
+    - text: "Dato personal — el NIT de 8 dígitos sin guion es una cédula de persona natural"
+      correct: true
+      feedback: "Correcto. Ley 1581 Art. 3: cualquier información que identifique a una persona natural. La CC coincide con el NIT de personas naturales."
+    - text: "Dato general — es un número fiscal, no una identificación personal"
+      correct: false
+      feedback: "Incorrecto. El NIT de persona natural en Colombia coincide exactamente con la cédula. El hecho de que sea «fiscal» no lo excluye del régimen de habeas data."
+    - text: "Dato sensible — los datos financieros siempre son sensibles"
+      correct: false
+      feedback: "Incorrecto. Datos sensibles (Art. 5 Ley 1581) son los de salud, biometría, origen étnico, religión, opinión política. Un NIT es dato personal ordinario, no sensible."
+    - text: "Depende: solo es personal si el titular lo registró voluntariamente"
+      correct: false
+      feedback: "Incorrecto. La Ley 1581 no distingue por voluntariedad de registro. Si el dato identifica a una persona natural, es dato personal, punto."
+
+- slug: encargado_vs_responsable
+  question: |
+    Tu SaaS de auditoría financiera procesa las facturas de Coop. Popular de Crédito.
+    ¿Cuál es tu rol bajo la Ley 1581 y qué obligación principal te genera?
+  explanation: |
+    El Art. 3 de la Ley 1581 define: el Responsable es quien decide sobre los datos
+    (tu cliente); el Encargado es quien los procesa por cuenta del Responsable (tú).
+    Como Encargado tu obligación principal es seguir las instrucciones del Responsable,
+    no usar los datos para finalidades distintas, y reportarle brechas a tiempo para
+    que él pueda notificar a la SIC dentro del plazo.
+  options:
+    - text: "Encargado del tratamiento — debo seguir las instrucciones del responsable y no usar los datos para otras finalidades"
+      correct: true
+      feedback: "Correcto. Art. 3 lit. d Ley 1581. El encargado no puede actuar más allá de lo que el responsable le instruye en el DPA."
+    - text: "Responsable del tratamiento — porque soy quien opera técnicamente el sistema"
+      correct: false
+      feedback: "Incorrecto. El Responsable es quien decide la finalidad y el tratamiento (Coop. Popular). Tú como proveedor de tecnología eres el Encargado."
+    - text: "Ninguno de los dos — la ley solo aplica a quien recolecta los datos directamente del titular"
+      correct: false
+      feedback: "Incorrecto. La Ley 1581 aplica a cualquiera que trate datos personales, independientemente de si los recopiló directamente o los recibió de un responsable."
+    - text: "Responsable y encargado simultáneamente en todos los casos"
+      correct: false
+      feedback: "Incorrecto. Los roles son distintos. Puedes ser responsable de algunos datos (p.ej., datos de tus propios empleados) y encargado de otros (los datos del cliente de tu cliente), pero en este caso específico eres encargado."
+
+- slug: plazo_brecha_peru
+  question: |
+    Tu SaaS detecta el viernes 16 de mayo de 2026 a las 10:00 AM que una base de
+    datos con NITs y correos de clientes peruanos fue accedida sin autorización.
+    ¿Cuándo vence el plazo para notificar a la ANPDP bajo el nuevo Reglamento
+    DS 16-2024-JUS de Perú?
+  explanation: |
+    El Reglamento DS 16-2024-JUS (vigente desde 29 de marzo de 2024) fijó en 48 horas
+    el plazo para notificar brechas a la ANPDP, contadas desde que se tiene conocimiento
+    de la brecha. 48 horas desde el viernes 16 de mayo a las 10:00 AM = domingo 18 de
+    mayo a las 10:00 AM. Este es un cambio radical respecto al régimen anterior que
+    daba 5 días hábiles.
+  options:
+    - text: "Domingo 18 de mayo a las 10:00 AM (48 horas después)"
+      correct: true
+      feedback: "Correcto. DS 16-2024-JUS: 48 horas desde el conocimiento de la brecha, sin distinción de días hábiles."
+    - text: "Viernes 23 de mayo (5 días hábiles después)"
+      correct: false
+      feedback: "Incorrecto. El régimen anterior daba 5 días hábiles. El DS 16-2024-JUS redujo el plazo a 48 horas calendario, no hábiles."
+    - text: "Viernes 29 de mayo (15 días hábiles, como en Colombia)"
+      correct: false
+      feedback: "Incorrecto. Colombia tiene 15 días hábiles (Decreto 1074/2015). Perú redujo a 48 horas con el DS 16-2024-JUS de 2024. Los plazos son distintos por país."
+    - text: "No hay plazo definido — Perú no tiene ley de protección de datos activa"
+      correct: false
+      feedback: "Incorrecto. La Ley 29733 existe desde 2011 y su Reglamento fue actualizado en noviembre 2024 con el DS 16-2024-JUS, que establece explícitamente las 48 horas."

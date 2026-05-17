@@ -1,0 +1,10 @@
+slug: agente
+title: "¿Qué es un agente de IA?"
+analogy_md: |
+  Un agente es un LLM que puede tomar decisiones en bucle: llama herramientas, observa
+  resultados y decide el siguiente paso, como un empleado que ejecuta un proceso sin que lo supervisen
+  en cada paso.
+example_md: |
+  ```
+  LLM → decide tool → ejecuta tool → observa resultado → decide siguiente paso
+  ```

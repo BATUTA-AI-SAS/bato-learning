@@ -1,0 +1,346 @@
+- slug: kyc_expedient_completeness
+  title: "Validación de completitud de expediente KYC para auditoría SARLAFT"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `validate_kyc_expedient(exp: dict) -> dict` que verifica si un
+    expediente KYC está completo para efectos de auditoría SARLAFT/SAGRILAFT.
+
+    El expediente `exp` tiene esta estructura:
+    ```python
+    {
+        "subject_id": str,
+        "subject_name": str,
+        "list_checks": [{"list_name": str, "match_found": bool, "score": float}],
+        "is_pep": bool,
+        "pep_senior_approved": bool,   # requerido si is_pep=True
+        "reputational_risk": str,      # "low" | "medium" | "high"
+        "agent_recommendation": str,   # "vincular" | "escalar" | "rechazar"
+        "human_decision": str,         # vacío si no firmado
+        "officer_id": str,             # vacío si no firmado
+        "decision_timestamp": str,     # ISO timestamp o vacío
+    }
+    ```
+
+    Reglas de completitud:
+    1. Debe haber al menos una verificación de lista OFAC (list_name contiene "ofac")
+    2. Debe haber al menos una verificación de lista ONU (list_name contiene "onu" o "un")
+    3. `human_decision` no puede estar vacío
+    4. `officer_id` no puede estar vacío
+    5. Si `is_pep=True` → `pep_senior_approved` debe ser True
+    6. Si `reputational_risk` es "high" → `human_decision` debe ser "escalar" o "rechazar"
+       (no se puede vincular con riesgo reputacional alto)
+
+    Retorna:
+    ```python
+    {"is_complete": bool, "issues": list[str]}
+    ```
+  hint: |
+    Las verificaciones de lista se pueden chequear con `any(... in r["list_name"].lower() for r in exp["list_checks"])`.
+  starter: |
+    def validate_kyc_expedient(exp: dict) -> dict:
+        issues = []
+
+        # Verificación OFAC
+        ofac_ok = any("ofac" in r["list_name"].lower() for r in exp.get("list_checks", []))
+        if not ofac_ok:
+            issues.append("FALTA: verificación lista OFAC SDN")
+
+        # Completa las demás validaciones...
+
+        return {"is_complete": len(issues) == 0, "issues": issues}
+  test: |
+    # Expediente completo válido
+    good = {
+        "subject_id": "suj001",
+        "subject_name": "Juan Pérez",
+        "list_checks": [
+            {"list_name": "OFAC SDN", "match_found": False, "score": 0.1},
+            {"list_name": "ONU Comite 1267", "match_found": False, "score": 0.05},
+        ],
+        "is_pep": False,
+        "pep_senior_approved": False,
+        "reputational_risk": "low",
+        "agent_recommendation": "vincular",
+        "human_decision": "vincular_aprobado",
+        "officer_id": "oficial_001",
+        "decision_timestamp": "2026-05-16T10:00:00",
+    }
+    r1 = validate_kyc_expedient(good)
+    assert r1["is_complete"] is True, f"Expediente válido debería pasar: {r1['issues']}"
+
+    # Sin decisión humana
+    no_human = {**good, "human_decision": "", "officer_id": ""}
+    r2 = validate_kyc_expedient(no_human)
+    assert r2["is_complete"] is False
+    assert any("humano" in i.lower() or "oficial" in i.lower() or "decision" in i.lower()
+               for i in r2["issues"]), f"Debe detectar falta de decisión humana: {r2['issues']}"
+
+    # PEP sin aprobación senior
+    pep_no_senior = {**good, "is_pep": True, "pep_senior_approved": False}
+    r3 = validate_kyc_expedient(pep_no_senior)
+    assert r3["is_complete"] is False
+    assert any("pep" in i.lower() or "senior" in i.lower() for i in r3["issues"]), \
+        f"Debe detectar PEP sin aprobación senior: {r3['issues']}"
+
+    # Riesgo alto con decisión de vincular (inválido)
+    high_risk_vincular = {**good, "reputational_risk": "high", "agent_recommendation": "vincular",
+                          "human_decision": "vincular_aprobado"}
+    r4 = validate_kyc_expedient(high_risk_vincular)
+    assert r4["is_complete"] is False
+    assert any("alto" in i.lower() or "high" in i.lower() or "riesgo" in i.lower()
+               for i in r4["issues"]), f"Debe detectar riesgo alto con vinculación: {r4['issues']}"
+
+    # Sin verificación ONU
+    no_onu = {**good, "list_checks": [{"list_name": "OFAC SDN", "match_found": False, "score": 0.1}]}
+    r5 = validate_kyc_expedient(no_onu)
+    assert r5["is_complete"] is False
+    assert any("onu" in i.lower() or "un" in i.lower() for i in r5["issues"]), \
+        f"Debe detectar falta ONU: {r5['issues']}"
+
+    print("ok")
+  solution: |
+    def validate_kyc_expedient(exp: dict) -> dict:
+        issues = []
+        checks = exp.get("list_checks", [])
+
+        if not any("ofac" in r["list_name"].lower() for r in checks):
+            issues.append("FALTA: verificación lista OFAC SDN")
+
+        if not any("onu" in r["list_name"].lower() or " un " in r["list_name"].lower()
+                   or r["list_name"].lower().startswith("un ") or "1267" in r["list_name"]
+                   for r in checks):
+            issues.append("FALTA: verificación lista ONU Comité 1267")
+
+        if not exp.get("human_decision"):
+            issues.append("FALTA: decisión del oficial de cumplimiento")
+
+        if not exp.get("officer_id"):
+            issues.append("FALTA: identificación del oficial que firmó la decisión")
+
+        if exp.get("is_pep") and not exp.get("pep_senior_approved"):
+            issues.append("FALTA: aprobación de alta dirección para PEP (Circular 027/2020)")
+
+        if exp.get("reputational_risk") == "high" and exp.get("human_decision") not in (
+            "escalar", "rechazar", "escalar_comite", "rechazar_no_viable"
+        ):
+            issues.append(
+                "INVÁLIDO: riesgo reputacional alto no puede resultar en vinculación directa"
+            )
+
+        return {"is_complete": len(issues) == 0, "issues": issues}
+
+- slug: aros_schedule_design
+  title: "Diseño del Schedule de AROS para un tenant financiero"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Implementa `should_file_aros(tenant: str, quarter: str, ros_count: int) -> dict`
+    que determina si un tenant debe presentar el AROS (Ausencia de Reporte de
+    Operación Sospechosa) ante la UIAF.
+
+    Parámetros:
+    - `tenant`: slug del tenant
+    - `quarter`: "Q1", "Q2", "Q3" o "Q4" del año en curso
+    - `ros_count`: número de ROS radicados en ese trimestre
+
+    Reglas:
+    - Si `ros_count` == 0 → debe presentar AROS (is_aros_required=True)
+    - Si `ros_count` > 0 → ya cumplió con reportes (is_aros_required=False)
+    - El deadline para el AROS es el día 10 del mes siguiente al trimestre:
+      Q1 (ene-mar) → deadline 10 de abril
+      Q2 (abr-jun) → deadline 10 de julio
+      Q3 (jul-sep) → deadline 10 de octubre
+      Q4 (oct-dic) → deadline 10 de enero del año siguiente
+    - La "fecha actual" para el ejercicio es 2026-05-16
+
+    Retorna:
+    ```python
+    {
+        "tenant": str,
+        "quarter": str,
+        "is_aros_required": bool,
+        "deadline": str,      # "YYYY-MM-DD"
+        "is_overdue": bool,   # True si ya pasó el deadline
+        "action": str,        # "file_aros" | "already_compliant" | "file_aros_URGENT"
+    }
+    ```
+  hint: |
+    Mapea cada trimestre a su mes de deadline y construye la fecha con un dict.
+  starter: |
+    QUARTER_DEADLINE_MONTH = {
+        "Q1": (4, 10, 0),   # mes, día, años_adelante (0=mismo año)
+        "Q2": (7, 10, 0),
+        "Q3": (10, 10, 0),
+        "Q4": (1, 10, 1),   # enero del año siguiente
+    }
+
+    CURRENT_DATE_STR = "2026-05-16"
+
+    def should_file_aros(tenant: str, quarter: str, ros_count: int) -> dict:
+        from datetime import date
+        current = date.fromisoformat(CURRENT_DATE_STR)
+        month, day, year_offset = QUARTER_DEADLINE_MONTH[quarter]
+        deadline = date(current.year + year_offset, month, day)
+
+        is_aros_required = ros_count == 0
+        is_overdue = current > deadline and is_aros_required
+
+        if not is_aros_required:
+            action = "already_compliant"
+        elif is_overdue:
+            action = "file_aros_URGENT"
+        else:
+            action = "file_aros"
+
+        return {
+            "tenant": tenant,
+            "quarter": quarter,
+            "is_aros_required": is_aros_required,
+            "deadline": deadline.isoformat(),
+            "is_overdue": is_overdue,
+            "action": action,
+        }
+  test: |
+    # Q1 2026 (ene-mar), 0 ROS, deadline 10 abril → ya venció al 16 mayo
+    r1 = should_file_aros("cooppopular", "Q1", ros_count=0)
+    assert r1["is_aros_required"] is True
+    assert r1["deadline"] == "2026-04-10"
+    assert r1["is_overdue"] is True
+    assert r1["action"] == "file_aros_URGENT", f"Q1 vencido debe ser URGENT: {r1}"
+
+    # Q2 2026 (abr-jun), 0 ROS, deadline 10 julio → aún no venció al 16 mayo
+    r2 = should_file_aros("cooppopular", "Q2", ros_count=0)
+    assert r2["is_aros_required"] is True
+    assert r2["deadline"] == "2026-07-10"
+    assert r2["is_overdue"] is False
+    assert r2["action"] == "file_aros"
+
+    # Q1 2026, hay ROS → ya cumplió
+    r3 = should_file_aros("cooppopular", "Q1", ros_count=3)
+    assert r3["is_aros_required"] is False
+    assert r3["action"] == "already_compliant"
+
+    # Q4 2026 → deadline enero 2027
+    r4 = should_file_aros("cooppopular", "Q4", ros_count=0)
+    assert r4["deadline"] == "2027-01-10"
+    assert r4["is_overdue"] is False
+
+    print("ok")
+  solution: |
+    QUARTER_DEADLINE_MONTH = {
+        "Q1": (4, 10, 0),
+        "Q2": (7, 10, 0),
+        "Q3": (10, 10, 0),
+        "Q4": (1, 10, 1),
+    }
+
+    CURRENT_DATE_STR = "2026-05-16"
+
+    def should_file_aros(tenant: str, quarter: str, ros_count: int) -> dict:
+        from datetime import date
+        current = date.fromisoformat(CURRENT_DATE_STR)
+        month, day, year_offset = QUARTER_DEADLINE_MONTH[quarter]
+        deadline = date(current.year + year_offset, month, day)
+        is_aros_required = ros_count == 0
+        is_overdue = current > deadline and is_aros_required
+        if not is_aros_required:
+            action = "already_compliant"
+        elif is_overdue:
+            action = "file_aros_URGENT"
+        else:
+            action = "file_aros"
+        return {
+            "tenant": tenant,
+            "quarter": quarter,
+            "is_aros_required": is_aros_required,
+            "deadline": deadline.isoformat(),
+            "is_overdue": is_overdue,
+            "action": action,
+        }
+
+- slug: kyc_agent_vs_human_case
+  title: "Caso KYC: qué hace el agente y qué hace el humano"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Dado el siguiente caso de un cliente potencial de Coop. Popular de Crédito,
+    implementa `classify_kyc_actions(flags: dict) -> dict` que clasifica cada
+    acción posible como "agent" (el agente lo hace) o "human" (solo el oficial
+    puede hacerlo).
+
+    El cliente tiene estos flags:
+    - `ofac_score`: 0.78 (similitud con entrada OFAC, pero < 1.0)
+    - `is_pep`: True (es concejal municipal en ejercicio)
+    - `news_risk`: "medium" (hay noticias de investigación disciplinaria, no penal)
+    - `income_anomaly`: True (ingresos declarados no coinciden con historial de transacciones)
+
+    Las acciones posibles:
+    - "escalate_to_officer": escalar el expediente al oficial
+    - "request_additional_docs": solicitar más documentación al cliente
+    - "approve_client": aprobar la vinculación del cliente
+    - "reject_client": rechazar la vinculación del cliente
+    - "file_ros_to_uiaf": radicar ROS ante la UIAF
+    - "draft_ros": redactar borrador de ROS
+    - "document_ofac_check": documentar el resultado de la verificación OFAC
+    - "require_senior_for_pep": escalar a alta dirección por ser PEP
+    - "send_alert_to_officer": enviar alerta al oficial con resumen de flags
+
+    Retorna: dict con la acción como clave y "agent" | "human" como valor.
+  hint: |
+    El agente solo hace análisis, documentación y escaladas. El humano decide,
+    aprueba, rechaza y firma reportes ante autoridades.
+  starter: |
+    def classify_kyc_actions(flags: dict) -> dict:
+        # Define quién hace cada acción
+        return {
+            "escalate_to_officer": "agent",       # el agente escala el caso
+            "request_additional_docs": "?",        # ¿quién pide docs adicionales?
+            "approve_client": "?",
+            "reject_client": "?",
+            "file_ros_to_uiaf": "?",
+            "draft_ros": "?",
+            "document_ofac_check": "?",
+            "require_senior_for_pep": "?",
+            "send_alert_to_officer": "?",
+        }
+  test: |
+    flags = {
+        "ofac_score": 0.78,
+        "is_pep": True,
+        "news_risk": "medium",
+        "income_anomaly": True,
+    }
+    r = classify_kyc_actions(flags)
+
+    # Acciones que solo puede hacer el humano (oficial/comité)
+    human_only = ["approve_client", "reject_client", "file_ros_to_uiaf"]
+    for action in human_only:
+        assert r[action] == "human", f"{action} debe ser human, got {r[action]}"
+
+    # Acciones que puede hacer el agente
+    agent_ok = ["escalate_to_officer", "document_ofac_check", "draft_ros",
+                "send_alert_to_officer"]
+    for action in agent_ok:
+        assert r[action] == "agent", f"{action} debe ser agent, got {r[action]}"
+
+    # require_senior_for_pep: el agente activa el proceso, pero la aprobación la da el senior
+    # Aceptamos "agent" (el agente escala) o "human" (el senior aprueba)
+    # El test verifica que esté clasificado (no "?")
+    assert r["require_senior_for_pep"] in ("agent", "human"), \
+        f"require_senior_for_pep debe estar clasificado: {r['require_senior_for_pep']}"
+
+    print("ok")
+  solution: |
+    def classify_kyc_actions(flags: dict) -> dict:
+        return {
+            "escalate_to_officer": "agent",
+            "request_additional_docs": "agent",   # el agente puede notificar la solicitud, pero quien autoriza es el oficial
+            "approve_client": "human",
+            "reject_client": "human",
+            "file_ros_to_uiaf": "human",          # SIEMPRE el oficial firmado
+            "draft_ros": "agent",                  # borrador; el oficial revisa y envía
+            "document_ofac_check": "agent",
+            "require_senior_for_pep": "agent",    # el agente activa la escalada; la aprobación es del senior
+            "send_alert_to_officer": "agent",
+        }

@@ -1,0 +1,23 @@
+slug: sqlite-vs-postgres
+chapter_ref: phase2
+prompt_md: |
+  El servicio de facturación de ACME funciona bien con SQLite en desarrollo.
+  El Director de TI quiere ponerlo en producción para tres empresas simultáneas.
+  ¿Qué base de datos usas?
+options:
+  - label: "SQLite (un archivo, cero infraestructura)"
+    tradeoff_md: |
+      + Cero setup. Funciona de inmediato.
+      + Backup = copiar un archivo.
+      + Perfecto para un solo tenant o desarrollo local.
+      − Solo un escritor a la vez. Con tres empresas escribiendo en paralelo, hay bloqueos.
+      − Sin RLS nativo. El aislamiento de tenants depende 100% del código de aplicación.
+    consequence_skill: sqlite-ops
+  - label: "Postgres (servidor dedicado)"
+    tradeoff_md: |
+      + Concurrencia real: 100 usuarios escribiendo sin conflictos de bloqueo.
+      + RLS nativo, roles, auditoría de acceso por fila.
+      + Escalable a producción sin cambiar la capa de aplicación.
+      − Un servicio más que mantener o pagar como managed (RDS, Supabase, Neon).
+      − Migraciones más estrictas; no permite cambios destructivos silenciosos.
+    consequence_skill: postgres-ops

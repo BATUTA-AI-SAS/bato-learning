@@ -1,0 +1,170 @@
+# Ejercicios de E03 — Skills, AGENTS.md, CLAUDE.md y aislamiento de contexto
+# Runner: backend (YAML parsing, no requiere Anthropic API)
+
+- slug: classify_contents
+  kind: code
+  title: "Clasificar contenido: CLAUDE.md vs skill"
+  ord: 1
+  prompt_md: |
+    La lista `ITEMS` contiene instrucciones de un repo de auditoría contable.
+    Clasifica cada ítem como `"claude_md"`, `"skill"` o `"both"` en el dict
+    `classification`. Solo hay una respuesta correcta por ítem según las
+    reglas del curso.
+
+    Pista: CLAUDE.md es para invariantes globales del proyecto; skills para
+    recetas de tareas específicas.
+  starter_code: |
+    ITEMS = [
+        "never hardcode tenant_id in any file",        # 0
+        "classify transaction using chart_of_accounts",# 1
+        "run tests with: uv run pytest",               # 2
+        "escalate to human if confidence < 0.7",       # 3
+        "stack: FastAPI 0.136+, LangGraph, Temporal",  # 4
+        "report format: date, account_code, amount",   # 5
+    ]
+
+    classification = {
+        0: None,  # completa
+        1: None,
+        2: None,
+        3: None,
+        4: None,
+        5: None,
+    }
+  test_code: |
+    expected = {
+        0: "claude_md",    # invariante de seguridad global
+        1: "skill",        # receta de tarea específica
+        2: "claude_md",    # comando de desarrollo del repo
+        3: "skill",        # umbral dentro de la receta de clasificación
+        4: "claude_md",    # stack técnico del proyecto
+        5: "skill",        # formato de output de la tarea
+    }
+    for idx, expected_val in expected.items():
+        assert classification[idx] == expected_val, (
+            f"Ítem {idx}: esperado '{expected_val}', got '{classification[idx]}'"
+        )
+    print("ok")
+  solution_code: |
+    classification = {
+        0: "claude_md",
+        1: "skill",
+        2: "claude_md",
+        3: "skill",
+        4: "claude_md",
+        5: "skill",
+    }
+  hints:
+    - "CLAUDE.md = invariantes del proyecto que aplican a TODA tarea (seguridad, stack, comandos)."
+    - "Skill = instrucciones que solo aplican cuando se ejecuta esa tarea específica."
+    - "Si una instrucción cambiaría entre clasificar-transacción y redactar-reporte, va en skill."
+
+- slug: skill_frontmatter
+  kind: code
+  title: "Escribir frontmatter de skill multitenant"
+  ord: 2
+  prompt_md: |
+    Completa el dict `skill_meta` para que represente el frontmatter de un
+    skill `monthly-bank-recon` multitenant.
+
+    Requisitos:
+    - `name`: "monthly-bank-recon"
+    - `description`: al menos 10 palabras describiendo qué hace
+    - `trigger`: incluye la palabra "conciliar" y "bancaria"
+    - `slots`: dict con al menos 3 claves (bank_rules, tolerance_eur, reviewer_email)
+    - `requires_confirmation`: False (este skill solo lee, no escribe)
+    - `version`: 1
+  starter_code: |
+    skill_meta = {
+        "name": None,           # completa
+        "description": None,
+        "trigger": None,
+        "slots": None,          # dict con >= 3 claves
+        "requires_confirmation": None,
+        "version": None,
+    }
+  test_code: |
+    assert skill_meta["name"] == "monthly-bank-recon", \
+        f"name incorrecto: {skill_meta['name']}"
+    assert isinstance(skill_meta["description"], str) and \
+        len(skill_meta["description"].split()) >= 10, \
+        "description debe tener al menos 10 palabras"
+    assert "conciliar" in skill_meta["trigger"].lower() and \
+        "bancaria" in skill_meta["trigger"].lower(), \
+        "trigger debe mencionar 'conciliar' y 'bancaria'"
+    assert isinstance(skill_meta["slots"], dict) and \
+        len(skill_meta["slots"]) >= 3, \
+        "slots debe ser un dict con al menos 3 entradas"
+    for key in ["bank_rules", "tolerance_eur", "reviewer_email"]:
+        assert key in skill_meta["slots"], f"falta slot '{key}'"
+    assert skill_meta["requires_confirmation"] is False, \
+        "requires_confirmation debe ser False (solo lectura)"
+    assert skill_meta["version"] == 1
+    print("ok")
+  solution_code: |
+    skill_meta = {
+        "name": "monthly-bank-recon",
+        "description": (
+            "Concilia el extracto bancario mensual del tenant contra el "
+            "libro contable. Identifica diferencias y genera hallazgos."
+        ),
+        "trigger": (
+            "Cuando el workflow pida conciliar el extracto bancaria mensual, "
+            "o cuando el nodo 'reconcile' del grafo se active."
+        ),
+        "slots": {
+            "bank_rules": "Reglas de tolerancia y cuentas excluidas del banco del tenant.",
+            "tolerance_eur": "Diferencia máxima aceptable sin escalamiento. Ej: 0.50.",
+            "reviewer_email": "Email del revisor al que se escala. Ej: cfo@acme.com.",
+        },
+        "requires_confirmation": False,
+        "version": 1,
+    }
+  hints:
+    - "Los slots son strings descriptivos, no los valores del tenant. El harness los rellena."
+    - "El trigger debe ser específico: verbo + objeto ('conciliar bancaria'), no 'cuando haya transacciones'."
+
+- slug: slot_substitution
+  kind: code
+  title: "Sustitución de slots en el body del skill"
+  ord: 3
+  prompt_md: |
+    Implementa `apply_slots(body: str, slots: dict[str, str]) -> str` que
+    sustituye en el body del skill los placeholders `` `slot_name` `` por
+    el valor del slot correspondiente.
+
+    El formato de placeholder es: el nombre del slot entre backticks,
+    exactamente igual que en el frontmatter.
+
+    Ejemplo: si `slots = {"tolerance_eur": "0.50"}`, el placeholder
+    `` `tolerance_eur` `` debe reemplazarse por `"0.50"`.
+  starter_code: |
+    def apply_slots(body: str, slots: dict[str, str]) -> str:
+        # completa
+        pass
+  test_code: |
+    body = (
+        "Usa tolerancia de `tolerance_eur` EUR. "
+        "Escala a `reviewer_email` si hay diferencias."
+    )
+    slots = {"tolerance_eur": "0.50", "reviewer_email": "cfo@acme.com"}
+    result = apply_slots(body, slots)
+    assert "0.50" in result, "debe sustituir tolerance_eur"
+    assert "cfo@acme.com" in result, "debe sustituir reviewer_email"
+    assert "`tolerance_eur`" not in result, "no debe quedar el placeholder"
+    assert "`reviewer_email`" not in result, "no debe quedar el placeholder"
+
+    # globex con valores distintos — mismo skill, otro tenant
+    slots_globex = {"tolerance_eur": "1.00", "reviewer_email": "finance@globex.com"}
+    result_globex = apply_slots(body, slots_globex)
+    assert "1.00" in result_globex
+    assert "finance@globex.com" in result_globex
+    print("ok")
+  solution_code: |
+    def apply_slots(body: str, slots: dict[str, str]) -> str:
+        for slot_name, slot_value in slots.items():
+            body = body.replace(f"`{slot_name}`", slot_value)
+        return body
+  hints:
+    - "El placeholder incluye los backticks: es la cadena f\"`{slot_name}`\"."
+    - "str.replace devuelve una nueva cadena; reasígnala en cada iteración."

@@ -1,0 +1,103 @@
+- slug: add-messages-reducer
+  question: |
+    Defines el estado así:
+
+    ```python
+    class State(TypedDict):
+        messages: list
+    ```
+
+    Tu nodo del modelo devuelve `{"messages": [nuevo_mensaje]}`.
+    ¿Qué contiene `state["messages"]` después de tres turnos?
+  explanation: |
+    Sin `Annotated[list, add_messages]`, cada actualización **reemplaza** la lista.
+    El resultado es que el estado solo contiene el último mensaje, no el historial.
+    El reducer `add_messages` convierte el update en un `append`.
+  options:
+    - text: "Los tres mensajes del historial acumulados."
+      correct: false
+      feedback: "No. Sin el reducer `add_messages`, cada nodo sobreescribe la lista completa. Solo queda el último mensaje."
+    - text: "Solo el último mensaje — cada nodo sobrescribió la lista anterior."
+      correct: true
+      feedback: "Correcto. Para acumular el historial necesitas `Annotated[list, add_messages]` en la declaración del campo."
+    - text: "Un error en runtime porque LangGraph valida el tipo."
+      correct: false
+      feedback: "LangGraph no valida en runtime que uses `add_messages`; el código corre pero el historial se pierde silenciosamente."
+    - text: "Una lista con tres listas anidadas, una por turno."
+      correct: false
+      feedback: "No. LangGraph aplica la actualización directamente al campo — sobreescribe, no anida."
+
+- slug: thread-id-tenant
+  question: |
+    Tienes dos tenants: `acme` y `globex`. Ambos inician una sesión de auditoría
+    para el período `2026-04`. Usas `thread_id = "audit:2026-04"` para los dos.
+    ¿Qué pasa?
+  explanation: |
+    El `thread_id` es la clave del checkpoint. Si dos tenants comparten el mismo
+    `thread_id`, comparten el mismo estado en el checkpointer — el segundo sobrescribe
+    al primero. El aislamiento multitenant exige que el `thread_id` incluya el `tenant_id`
+    como prefijo: `f"{tenant_id}:audit:{period}"`.
+  options:
+    - text: "Globex continúa la sesión de ACME porque comparten el checkpoint."
+      correct: true
+      feedback: "Correcto. El checkpointer usa `thread_id` como clave. Si es igual, el segundo `invoke` carga el estado del primero — fuga de datos entre tenants."
+    - text: "LangGraph rechaza el segundo `invoke` con `ConflictError`."
+      correct: false
+      feedback: "LangGraph no detecta conflictos por `thread_id`. Simplemente carga el checkpoint más reciente bajo esa clave."
+    - text: "Cada tenant tiene su propio namespace automático — no hay colisión."
+      correct: false
+      feedback: "LangGraph no namespaces automáticamente por tenant. La responsabilidad del aislamiento es del harness."
+    - text: "El checkpointer crea dos entradas distintas porque detecta el tenant por el contenido."
+      correct: false
+      feedback: "El checkpointer no lee el contenido del estado para segmentar. Solo usa la clave `thread_id`."
+
+- slug: interrupt-before-resume
+  question: |
+    Compilas el grafo con `interrupt_before=["tools"]` y ejecutas:
+
+    ```python
+    state = app.invoke({"messages": [HumanMessage("¿Cuántas facturas?")]}, config=cfg)
+    ```
+
+    El modelo generó `tool_calls`. Para reanudar desde el punto de pausa,
+    ¿qué llamas a continuación?
+  explanation: |
+    `interrupt_before` pausa el grafo antes de ejecutar el nodo `"tools"`. El
+    estado se guarda en el checkpointer. Para reanudar, se invoca con `None` como
+    input — `None` le indica a LangGraph «carga el checkpoint y continúa». Pasar
+    un dict con mensajes iniciaría un nuevo turno desde el principio, ignorando la pausa.
+  options:
+    - text: "`app.invoke(None, config=cfg)`"
+      correct: true
+      feedback: "Correcto. `None` como input instruye a LangGraph a reanudar desde el último checkpoint guardado."
+    - text: '`app.invoke({}, config=cfg)`'
+      correct: false
+      feedback: "Un dict vacío no es `None` — LangGraph lo trata como un input nuevo sin mensajes, lo que genera un error o comportamiento inesperado."
+    - text: '`app.invoke({"messages": []}, config=cfg)`'
+      correct: false
+      feedback: "Un dict con lista vacía intenta actualizar el estado con cero mensajes nuevos — no es lo mismo que reanudar desde la pausa."
+    - text: '`app.resume(config=cfg)`'
+      correct: false
+      feedback: "LangGraph no tiene método `resume`. La reanudación se hace con `invoke(None, config=...)`."
+
+- slug: tools-condition-role
+  question: |
+    ¿Cuál es el propósito de `tools_condition` en `add_conditional_edges("model", tools_condition)`?
+  explanation: |
+    `tools_condition` es una función que inspecciona el último mensaje del estado.
+    Si ese mensaje es un `AIMessage` con `tool_calls`, devuelve `"tools"`.
+    Si no tiene `tool_calls`, devuelve `END`. Es el router del ReAct loop — no es
+    una decisión del modelo, es lógica determinística sobre el contenido del mensaje.
+  options:
+    - text: "Determina si el último mensaje del modelo contiene `tool_calls` y dirige el flujo hacia el nodo `tools` o hacia `END`."
+      correct: true
+      feedback: "Correcto. Es lógica determinística: inspecciona el mensaje y enruta. El modelo no decide — solo emite o no `tool_calls`."
+    - text: "Le pregunta al modelo si quiere ejecutar una tool, y el modelo responde sí/no."
+      correct: false
+      feedback: "No. `tools_condition` es código Python, no una llamada al modelo. Inspecciona el mensaje que el modelo ya generó."
+    - text: "Valida que los argumentos de la tool sean correctos antes de ejecutarla."
+      correct: false
+      feedback: "Eso es responsabilidad del schema de la tool y de `ToolNode`. `tools_condition` solo decide si ir al nodo `tools` o a `END`."
+    - text: "Limita cuántas veces el modelo puede llamar tools en un solo turno."
+      correct: false
+      feedback: "No hay límite de llamadas implementado en `tools_condition`. Para limitar iteraciones necesitas lógica adicional en la condición."

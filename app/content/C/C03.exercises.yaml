@@ -1,0 +1,183 @@
+- slug: pg-dump-command
+  title: "Construir el comando pg_dump correcto"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Escribe la función `build_pg_dump_cmd(host, port, user, dbname, output_file)`
+    que devuelve la lista de argumentos para subprocess correspondiente al
+    siguiente comando:
+
+    ```
+    pg_dump --host=<host> --port=<port> --username=<user>
+            --dbname=<dbname> --format=custom --compress=9
+            --file=<output_file>
+    ```
+
+    La función debe devolver una lista de strings (el primer elemento es
+    `"pg_dump"`). Sin contraseña en los argumentos — esa va en la variable
+    de entorno `PGPASSWORD`.
+  hint: |
+    Cada argumento `--key=value` es un string separado. También puedes usar
+    la forma `["--host", host, "--port", str(port), ...]`.
+    `--format=custom` y `--compress=9` son constantes.
+  starter: |
+    def build_pg_dump_cmd(
+        host: str,
+        port: int,
+        user: str,
+        dbname: str,
+        output_file: str,
+    ) -> list[str]:
+        # devuelve la lista de argumentos del comando
+        ...
+  test: |
+    cmd = build_pg_dump_cmd(
+        host="localhost",
+        port=5432,
+        user="batuta_app",
+        dbname="batuta",
+        output_file="/backups/batuta_20260416.dump",
+    )
+    assert isinstance(cmd, list), "Debe devolver una lista"
+    assert cmd[0] == "pg_dump", f"El primer elemento debe ser 'pg_dump', no '{cmd[0]}'"
+
+    # convertir a string plano para verificar flags
+    flat = " ".join(cmd)
+    assert "localhost" in flat, "Debe incluir el host"
+    assert "5432" in flat, "Debe incluir el puerto"
+    assert "batuta_app" in flat, "Debe incluir el usuario"
+    assert "batuta" in flat, "Debe incluir el nombre de la BD"
+    assert "/backups/batuta_20260416.dump" in flat, "Debe incluir el output file"
+    assert "custom" in flat, "Debe usar --format=custom"
+    assert "compress" in flat and "9" in flat, "Debe usar --compress=9"
+    assert "password" not in flat.lower(), "La contraseña no va en los argumentos"
+
+    print("✓ comando pg_dump construido correctamente")
+  solution: |
+    def build_pg_dump_cmd(
+        host: str,
+        port: int,
+        user: str,
+        dbname: str,
+        output_file: str,
+    ) -> list[str]:
+        return [
+            "pg_dump",
+            f"--host={host}",
+            f"--port={port}",
+            f"--username={user}",
+            f"--dbname={dbname}",
+            "--format=custom",
+            "--compress=9",
+            f"--file={output_file}",
+        ]
+
+- slug: retention-policy
+  title: "Decidir la política de retención"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa la función `retention_days(sector: str) -> int` que devuelve
+    el número de días de retención rolling para backups según el sector del
+    cliente:
+
+    - `"general"` → 14 días
+    - `"contabilidad"` → 30 días
+    - `"salud"` → 30 días
+    - `"contratos_mercantiles"` → 30 días
+    - `"servicios_financieros"` → 90 días
+    - Cualquier sector no reconocido → 14 días (default conservador)
+
+    El valor de retención es solo para el rolling diario. El archivado de
+    largo plazo (meses o años) es una política separada.
+  hint: |
+    Un dict con los valores es más limpio que un if/elif largo.
+    Usa `dict.get(key, default)` para el fallback.
+  starter: |
+    def retention_days(sector: str) -> int:
+        # implementa la tabla de retención aquí
+        ...
+  test: |
+    assert retention_days("general") == 14
+    assert retention_days("contabilidad") == 30
+    assert retention_days("salud") == 30
+    assert retention_days("contratos_mercantiles") == 30
+    assert retention_days("servicios_financieros") == 90
+    assert retention_days("desconocido") == 14, \
+        "Sector desconocido debe devolver 14 (default conservador)"
+    assert retention_days("") == 14, \
+        "String vacío también usa el default"
+    print("✓ política de retención correcta")
+  solution: |
+    def retention_days(sector: str) -> int:
+        _TABLE = {
+            "general": 14,
+            "contabilidad": 30,
+            "salud": 30,
+            "contratos_mercantiles": 30,
+            "servicios_financieros": 90,
+        }
+        return _TABLE.get(sector, 14)
+
+- slug: restore-drill-checklist
+  title: "Diseñar el restore drill"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Constructora Andina tiene su BD de contratos en Postgres. El equipo quiere
+    implementar un restore drill mensual. Escribe la función
+    `restore_drill_steps() -> list[str]` que devuelve la lista ordenada de
+    pasos del drill.
+
+    El drill debe incluir **al menos 5 pasos** en este orden lógico:
+    1. Descargar el backup desde el destino externo.
+    2. Descifrar si está cifrado.
+    3. Crear una base de datos temporal de prueba.
+    4. Ejecutar el restore.
+    5. Verificar integridad (row count u otra métrica).
+    6. Limpiar la BD temporal.
+    7. Documentar el resultado.
+
+    Puedes usar tus propias palabras. El test verifica que la lista tiene al
+    menos 5 elementos y que el último elemento menciona "document" o
+    "registr" o "log" (el paso de documentación).
+  hint: |
+    Empieza por los pasos del script de restore drill que viste en el módulo.
+    Cada paso es un string descriptivo. El orden importa.
+  starter: |
+    def restore_drill_steps() -> list[str]:
+        return [
+            # añade los pasos aquí
+        ]
+  test: |
+    steps = restore_drill_steps()
+    assert isinstance(steps, list), "Debe devolver una lista"
+    assert len(steps) >= 5, \
+        f"El drill debe tener al menos 5 pasos, tiene {len(steps)}"
+
+    last = steps[-1].lower()
+    keywords = ["document", "registr", "log", "anotar", "report"]
+    assert any(kw in last for kw in keywords), (
+        f"El último paso debe mencionar documentación del resultado. "
+        f"Último paso actual: '{steps[-1]}'"
+    )
+
+    # verificar que hay un paso de restore/restaurar
+    restore_found = any(
+        "restor" in s.lower() or "restaur" in s.lower() or "pg_restore" in s.lower()
+        for s in steps
+    )
+    assert restore_found, "Debe haber un paso explícito de restore/restauración"
+
+    print(f"✓ drill con {len(steps)} pasos definido correctamente")
+  solution: |
+    def restore_drill_steps() -> list[str]:
+        return [
+            "Descargar el archivo de backup desde Hetzner Storage Box al servidor de staging.",
+            "Descifrar el archivo con gpg usando la clave privada del equipo.",
+            "Crear la base de datos temporal: CREATE DATABASE batuta_drill_YYYYMMDD.",
+            "Ejecutar pg_restore con --no-owner --no-acl sobre la BD temporal.",
+            "Verificar integridad: comparar row count de tablas clave contra producción.",
+            "Eliminar la base de datos temporal: DROP DATABASE batuta_drill_YYYYMMDD.",
+            "Documentar el resultado: fecha, backup verificado, row counts, tiempo, responsable.",
+        ]

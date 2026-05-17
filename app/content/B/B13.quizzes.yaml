@@ -1,0 +1,61 @@
+- slug: dependency-override
+  question: |
+    En un test de FastAPI, ¿para qué se usa `app.dependency_overrides`?
+  explanation: |
+    `dependency_overrides` permite sustituir cualquier `Depends` del código de producción
+    por una implementación de test — sin modificar el código de producción.
+  options:
+    - text: "Para cambiar la URL base del servidor en tests"
+      correct: false
+      feedback: "La URL base se configura en `AsyncClient(base_url='http://test')`. `dependency_overrides` es para sustituir dependencias como `get_session`, no para configurar la red."
+    - text: "Para sustituir dependencias como `get_session` por versiones de test (DB en memoria, mocks)"
+      correct: true
+      feedback: "Correcto. `app.dependency_overrides[get_session] = lambda: test_session` hace que todos los endpoints que usan `Depends(get_session)` reciban la sesión de test en lugar de la de producción — sin tocar el código de producción."
+    - text: "Para deshabilitar la validación de Pydantic en tests"
+      correct: false
+      feedback: "La validación de Pydantic se activa siempre — no se puede (ni se debe) deshabilitar en tests. Si el test envía datos inválidos, el endpoint devuelve 422 como en producción."
+    - text: "Para hacer los tests más rápidos saltándose los middlewares"
+      correct: false
+      feedback: "`dependency_overrides` no afecta a los middlewares. Los tests con `ASGITransport` ejecutan el ASGI completo incluyendo middlewares — es una ventaja, no un problema."
+
+- slug: db-isolation-in-tests
+  question: |
+    ¿Por qué los tests de API deben usar una DB SQLite en memoria en lugar de la DB de desarrollo?
+  explanation: |
+    La DB de desarrollo tiene estado persistente que puede contaminar los tests.
+    Una DB en memoria se crea y destruye por test — sin estado compartido.
+  options:
+    - text: "Porque SQLite en memoria es 10× más rápida que SQLite en disco"
+      correct: false
+      feedback: "La velocidad es un beneficio secundario. La razón principal es el aislamiento: cada test empieza con una DB limpia, independiente del estado de los tests anteriores o de los datos de desarrollo."
+    - text: "Para que cada test empiece con una DB limpia y los tests no se contaminen entre sí"
+      correct: true
+      feedback: "Correcto. Si el test A crea una factura y el test B busca 'todas las facturas', B verá la factura de A si usan la misma DB — ese es un test contaminado. La DB en memoria se destruye al terminar cada fixture."
+    - text: "Porque SQLite en memoria soporta más conexiones concurrentes"
+      correct: false
+      feedback: "SQLite en memoria tiene las mismas limitaciones de concurrencia que SQLite en disco. La razón del in-memory es el aislamiento y la limpieza automática, no la concurrencia."
+    - text: "Porque los tests no necesitan transacciones"
+      correct: false
+      feedback: "Los tests sí necesitan transacciones — la DB en memoria las soporta igual que en disco. El punto es el aislamiento entre tests, no eliminar las transacciones."
+
+- slug: coverage-metric
+  question: |
+    El suite de tests de ACME tiene 95% de coverage. Sin embargo, el agente falla en
+    producción cuando `vendor_id` es un string con solo espacios en blanco.
+    ¿Qué problema revela esto?
+  explanation: |
+    Un coverage alto no garantiza que los comportamientos importantes estén testeados.
+    Si los tests solo verifican el camino feliz, los edge cases quedan sin cubrir.
+  options:
+    - text: "El 95% de coverage debería haber detectado este error — hay un bug en pytest"
+      correct: false
+      feedback: "Coverage mide qué líneas se ejecutaron, no qué comportamientos se verificaron. Si el test para `vendor_id` solo usa un valor válido normal, la línea de validación se ejecuta pero no se testea el edge case de solo espacios."
+    - text: "El coverage mide líneas ejecutadas, no comportamientos verificados — el edge case de vendor_id vacío no tenía test"
+      correct: true
+      feedback: "Correcto. El 95% significa que las líneas del validador de vendor_id se ejecutaron en algún test. Pero si ese test solo usó 'vnd-001', el caso de '   ' (solo espacios) nunca se verificó. Coverage no es calidad."
+    - text: "El problema es que se necesita 100% de coverage para detectar todos los errores"
+      correct: false
+      feedback: "100% de coverage tampoco garantiza que este caso esté testeado. Si el único test de vendor_id usa un valor válido, el coverage será 100% para esa línea pero el edge case sigue sin testear."
+    - text: "Los tests deberían mockear el vendor_id para evitar este tipo de errores"
+      correct: false
+      feedback: "Mockear vendor_id no ayuda — el mock devuelve lo que tú programas. El problema es que nadie programó un mock que devolviera '   '. La solución es escribir un test específico para el edge case."

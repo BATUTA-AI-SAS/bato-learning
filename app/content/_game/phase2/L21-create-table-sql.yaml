@@ -1,0 +1,44 @@
+slug: create-table-sql
+title: "Guarda facturas en la base de datos"
+kind: code
+phase: PH02
+ord: 21
+trains_skill: sql-ddl
+xp: 15
+est_seconds: 150
+scenario_md: |
+  ACME lleva meses guardando facturas en CSV. El archivo ya tiene 4 000 filas
+  y la búsqueda tarda segundos. Es hora de una base de datos real.
+  Crea la tabla e inserta las primeras facturas.
+payload:
+  starter: |
+    import sqlite3
+
+    conn = sqlite3.connect(":memory:")
+    cursor = conn.cursor()
+
+    # 1. Crea la tabla `invoice` con columnas:
+    #    id (PK autoincrement), vendor TEXT NOT NULL,
+    #    amount REAL NOT NULL, period TEXT NOT NULL
+    # 2. Inserta tres facturas de ACME:
+    #    ("Proveedor A", 4820.50, "2024-03"),
+    #    ("Proveedor B", 12300.00, "2024-03"),
+    #    ("Proveedor C", 870.25, "2024-03")
+    # 3. Ejecuta SELECT COUNT(*) y guarda el resultado en `count`
+
+    count = None  # reemplaza con tu query
+  tests: |
+    assert count == 3, f"Esperaba 3 filas, obtuve {count}"
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='invoice'")
+    assert cursor.fetchone() is not None, "La tabla 'invoice' no existe"
+    cursor.execute("PRAGMA table_info(invoice)")
+    cols = [row[1] for row in cursor.fetchall()]
+    assert "id" in cols and "vendor" in cols and "amount" in cols and "period" in cols
+hint_md: |
+  Primero `CREATE TABLE IF NOT EXISTS invoice (...)`.
+  Luego `cursor.executemany(...)` para los tres inserts.
+  Por último `cursor.execute("SELECT COUNT(*) FROM invoice")` y `count = cursor.fetchone()[0]`.
+solution_md: |
+  DDL primero, datos después. El PRIMARY KEY autoincrement le da a cada fila
+  una identidad única que no depende del contenido. Sin eso, duplicados
+  son imposibles de distinguir.

@@ -1,0 +1,175 @@
+- slug: predict-ci-outcome
+  title: "Predecir si un PR bloquea el merge"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado un workflow de GitHub Actions y el resultado de los jobs,
+    determina si el PR puede mergear.
+
+    Escribe la función `can_merge(
+        workflow: dict,
+        job_results: dict[str, str],
+        required_checks: list[str]
+    ) -> tuple[bool, list[str]]` que:
+
+    1. Para cada check en `required_checks`, verifica si está en `job_results`
+       y si su resultado es "success".
+    2. Devuelve `(True, [])` si todos los checks requeridos pasan.
+    3. Devuelve `(False, [lista de checks que fallaron o no corrieron])`.
+
+    Los valores posibles en job_results: "success", "failure", "skipped", "cancelled".
+  hint: |
+    Itera sobre required_checks. Un check falla si no está en job_results
+    o si su valor no es "success".
+  starter: |
+    def can_merge(
+        workflow: dict,
+        job_results: dict[str, str],
+        required_checks: list[str]
+    ) -> tuple[bool, list[str]]:
+        pass
+
+    workflow = {"name": "CI", "on": {"pull_request": {}}}
+
+    # Escenario 1: todo pasa
+    results_ok = {"lint": "success", "test": "success", "eval": "success"}
+    required = ["lint", "test", "eval"]
+    print(can_merge(workflow, results_ok, required))
+
+    # Escenario 2: eval falla
+    results_fail = {"lint": "success", "test": "success", "eval": "failure"}
+    print(can_merge(workflow, results_fail, required))
+
+    # Escenario 3: build no corrió (no está en results)
+    results_missing = {"lint": "success", "test": "success"}
+    required_with_build = ["lint", "test", "build"]
+    print(can_merge(workflow, results_missing, required_with_build))
+  test: |
+    workflow = {"name": "CI"}
+
+    # Todo pasa
+    r1 = can_merge(workflow, {"lint": "success", "test": "success", "eval": "success"}, ["lint", "test", "eval"])
+    assert r1[0] is True
+    assert r1[1] == []
+
+    # Eval falla
+    r2 = can_merge(workflow, {"lint": "success", "test": "success", "eval": "failure"}, ["lint", "test", "eval"])
+    assert r2[0] is False
+    assert "eval" in r2[1]
+
+    # Check no corrió
+    r3 = can_merge(workflow, {"lint": "success", "test": "success"}, ["lint", "test", "build"])
+    assert r3[0] is False
+    assert "build" in r3[1]
+
+    # Skipped también bloquea
+    r4 = can_merge(workflow, {"lint": "success", "test": "skipped"}, ["lint", "test"])
+    assert r4[0] is False
+    assert "test" in r4[1]
+
+    # Sin required_checks siempre pasa
+    r5 = can_merge(workflow, {"lint": "failure"}, [])
+    assert r5[0] is True
+
+    print("ok")
+  solution: |
+    def can_merge(
+        workflow: dict,
+        job_results: dict[str, str],
+        required_checks: list[str]
+    ) -> tuple[bool, list[str]]:
+        failed = []
+        for check in required_checks:
+            if job_results.get(check) != "success":
+                failed.append(check)
+        return (len(failed) == 0, failed)
+
+    workflow = {"name": "CI", "on": {"pull_request": {}}}
+    results_ok = {"lint": "success", "test": "success", "eval": "success"}
+    required = ["lint", "test", "eval"]
+    print(can_merge(workflow, results_ok, required))
+
+    results_fail = {"lint": "success", "test": "success", "eval": "failure"}
+    print(can_merge(workflow, results_fail, required))
+
+    results_missing = {"lint": "success", "test": "success"}
+    required_with_build = ["lint", "test", "build"]
+    print(can_merge(workflow, results_missing, required_with_build))
+
+- slug: conventional-commit-classifier
+  title: "Clasificar commits por tipo y decidir el impacto de versión"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Semver define tres niveles de cambio según el tipo de commit:
+    - MAJOR: commit con "BREAKING CHANGE" en el cuerpo o footer
+    - MINOR: commit de tipo "feat"
+    - PATCH: commit de tipo "fix", "refactor", "test", "docs", "chore"
+
+    Escribe la función `classify_version_impact(commits: list[str]) -> str`
+    que recibe una lista de mensajes de commit y devuelve el impacto
+    de versión más alto encontrado: "MAJOR", "MINOR", o "PATCH".
+
+    Si la lista está vacía, devuelve "NONE".
+    Si un commit tiene "BREAKING CHANGE" en el cuerpo (después de una línea vacía),
+    también cuenta como MAJOR.
+
+    Ejemplos:
+    - ["fix: corregir IVA", "chore: deps"] → "PATCH"
+    - ["feat: exportar PDF", "fix: validación"] → "MINOR"
+    - ["feat!: cambiar API de facturas\n\nBREAKING CHANGE: field 'vendor' renombrado"] → "MAJOR"
+  hint: |
+    El impacto de prioridad: MAJOR > MINOR > PATCH > NONE.
+    Para detectar BREAKING CHANGE, busca si el mensaje contiene "BREAKING CHANGE"
+    en cualquier parte, o si el tipo termina con "!" (feat!, fix!).
+  starter: |
+    def classify_version_impact(commits: list[str]) -> str:
+        if not commits:
+            return "NONE"
+        highest = "PATCH"
+        for msg in commits:
+            # implementa la lógica aquí
+            pass
+        return highest
+
+    print(classify_version_impact([]))
+    print(classify_version_impact(["fix: corregir IVA", "chore: actualizar deps"]))
+    print(classify_version_impact(["feat: exportar PDF", "fix: validación"]))
+    print(classify_version_impact(["feat!: cambiar API\n\nBREAKING CHANGE: field renombrado"]))
+    print(classify_version_impact(["fix: algo\n\nBREAKING CHANGE: comportamiento cambia"]))
+  test: |
+    assert classify_version_impact([]) == "NONE"
+    assert classify_version_impact(["fix: corregir IVA"]) == "PATCH"
+    assert classify_version_impact(["chore: deps", "docs: readme"]) == "PATCH"
+    assert classify_version_impact(["feat: exportar PDF"]) == "MINOR"
+    assert classify_version_impact(["feat: nueva función", "fix: bug"]) == "MINOR"
+    assert classify_version_impact(["feat!: romper API"]) == "MAJOR"
+    assert classify_version_impact(["fix: algo\n\nBREAKING CHANGE: campo renombrado"]) == "MAJOR"
+    # MAJOR gana sobre MINOR
+    assert classify_version_impact(["feat: nueva función", "fix!: romper compatibilidad"]) == "MAJOR"
+    print("ok")
+  solution: |
+    def classify_version_impact(commits: list[str]) -> str:
+        if not commits:
+            return "NONE"
+        priority = {"NONE": 0, "PATCH": 1, "MINOR": 2, "MAJOR": 3}
+        highest = "PATCH"
+        for msg in commits:
+            # Detectar BREAKING CHANGE
+            if "BREAKING CHANGE" in msg:
+                impact = "MAJOR"
+            elif msg.split(":")[0].rstrip().endswith("!"):
+                impact = "MAJOR"
+            elif msg.startswith("feat"):
+                impact = "MINOR"
+            else:
+                impact = "PATCH"
+            if priority[impact] > priority[highest]:
+                highest = impact
+        return highest
+
+    print(classify_version_impact([]))
+    print(classify_version_impact(["fix: corregir IVA", "chore: actualizar deps"]))
+    print(classify_version_impact(["feat: exportar PDF", "fix: validación"]))
+    print(classify_version_impact(["feat!: cambiar API\n\nBREAKING CHANGE: field renombrado"]))
+    print(classify_version_impact(["fix: algo\n\nBREAKING CHANGE: comportamiento cambia"]))

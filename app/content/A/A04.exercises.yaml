@@ -1,0 +1,219 @@
+- slug: mutable-default-fix
+  title: "Corrige el default mutable"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente código tiene un bug clásico de default mutable. El test lo
+    revela al llamar `add_finding` dos veces sin pasarle `findings`. Corrige
+    la función para que cada llamada sin argumento parta de una lista vacía.
+
+    No cambies la firma pública (nombre ni tipo de retorno).
+  hint: |
+    Usa `None` como default y crea la lista dentro del cuerpo de la función.
+  starter: |
+    def add_finding(msg: str, findings: list[str] = []) -> list[str]:
+        """Agrega msg a findings y devuelve la lista."""
+        findings.append(msg)
+        return findings
+
+    # no modifiques este bloque
+    r1 = add_finding("vendor duplicado")
+    r2 = add_finding("monto fuera de rango")
+  test: |
+    assert r1 == ["vendor duplicado"], f"r1={r1}"
+    assert r2 == ["monto fuera de rango"], f"r2={r2}"
+    assert r1 is not r2, "r1 y r2 deben ser listas distintas"
+    print("ok")
+  solution: |
+    def add_finding(msg: str, findings: list[str] | None = None) -> list[str]:
+        """Agrega msg a findings y devuelve la lista."""
+        if findings is None:
+            findings = []
+        findings.append(msg)
+        return findings
+
+    r1 = add_finding("vendor duplicado")
+    r2 = add_finding("monto fuera de rango")
+
+- slug: refactor-validate-invoice
+  title: "Refactoriza validate_invoice en tres funciones"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función siguiente hace demasiado: parsea, valida y formatea. Refactorízala
+    en tres funciones de un solo trabajo:
+
+    - `parse_amount(raw: str) -> float` — convierte string a float; lanza
+      `ValueError` si no es número válido.
+    - `check_vendor(vendor_id: str | None, invoice_id: str) -> None` — lanza
+      `ValueError` con el mensaje `"invoice {invoice_id} missing vendor"` si
+      `vendor_id` es vacío o `None`.
+    - `validate_invoice(invoice_id: str, vendor_id: str | None, amount_raw: str) -> float`
+      — llama a las dos anteriores y devuelve el monto.
+
+    El test verifica que cada función lanza el error correcto de forma aislada.
+  hint: |
+    Puedes llamar `parse_amount` y `check_vendor` desde `validate_invoice`.
+    No repitas la lógica de parseo ni de validación de vendor en `validate_invoice`.
+  starter: |
+    def validate_invoice(invoice_id, vendor_id, amount_raw):
+        # hace demasiado — refactoriza
+        if not vendor_id:
+            raise ValueError(f"invoice {invoice_id} missing vendor")
+        try:
+            amount = float(amount_raw.replace(",", "."))
+        except Exception:
+            raise ValueError(f"invalid amount: {amount_raw!r}")
+        return amount
+  test: |
+    import traceback
+
+    # parse_amount
+    assert parse_amount("1.234,56".replace(",", ".")) == 1234.56 or parse_amount("1234.56") == 1234.56
+    try:
+        parse_amount("abc")
+        assert False, "debió lanzar ValueError"
+    except ValueError:
+        pass
+
+    # check_vendor
+    try:
+        check_vendor(None, "INV-001")
+        assert False, "debió lanzar ValueError"
+    except ValueError as e:
+        assert "INV-001" in str(e), f"mensaje incorrecto: {e}"
+
+    check_vendor("V-42", "INV-001")  # no lanza
+
+    # validate_invoice
+    result = validate_invoice("INV-002", "V-42", "4820.00")
+    assert result == 4820.0, f"esperado 4820.0, obtenido {result}"
+
+    try:
+        validate_invoice("INV-003", None, "100.00")
+        assert False, "debió lanzar ValueError"
+    except ValueError:
+        pass
+
+    print("ok")
+  solution: |
+    def parse_amount(raw: str) -> float:
+        """Convierte string a float; lanza ValueError si el formato es inválido."""
+        try:
+            return float(raw.replace(",", "."))
+        except Exception as exc:
+            raise ValueError(f"invalid amount: {raw!r}") from exc
+
+    def check_vendor(vendor_id: str | None, invoice_id: str) -> None:
+        """Lanza ValueError si vendor_id está ausente."""
+        if not vendor_id:
+            raise ValueError(f"invoice {invoice_id} missing vendor")
+
+    def validate_invoice(invoice_id: str, vendor_id: str | None, amount_raw: str) -> float:
+        """Valida una factura y devuelve el monto parseado."""
+        check_vendor(vendor_id, invoice_id)
+        return parse_amount(amount_raw)
+
+- slug: custom-exception-hierarchy
+  title: "Jerarquía de excepciones para auditoría"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Crea la siguiente jerarquía de excepciones:
+
+    - `AuditError(Exception)` — raíz del dominio.
+    - `InvoiceError(AuditError)` — para problemas de factura.
+    - `DuplicateInvoiceError(InvoiceError)` — inicializa con `invoice_id: str`
+      y `period: str`; el mensaje debe ser
+      `"duplicate invoice {invoice_id} in period {period}"`.
+
+    Luego escribe `raise_if_duplicate(invoice_id: str, seen: set[str], period: str) -> None`
+    que lanza `DuplicateInvoiceError` si `invoice_id` ya está en `seen`.
+  hint: |
+    En `__init__` llama a `super().__init__(mensaje)` antes de guardar los
+    atributos. El `isinstance` del test verifica la jerarquía completa.
+  starter: |
+    # define las clases aquí
+
+    def raise_if_duplicate(invoice_id: str, seen: set[str], period: str) -> None:
+        """Lanza DuplicateInvoiceError si invoice_id ya está en seen."""
+        ...
+  test: |
+    seen = {"INV-001", "INV-002"}
+
+    raise_if_duplicate("INV-003", seen, "2026-04")  # no lanza
+
+    try:
+        raise_if_duplicate("INV-001", seen, "2026-04")
+        assert False, "debió lanzar DuplicateInvoiceError"
+    except DuplicateInvoiceError as e:
+        assert isinstance(e, InvoiceError)
+        assert isinstance(e, AuditError)
+        assert "INV-001" in str(e)
+        assert "2026-04" in str(e)
+        assert e.invoice_id == "INV-001"
+        assert e.period == "2026-04"
+
+    print("ok")
+  solution: |
+    class AuditError(Exception):
+        """Raíz de errores del dominio de auditoría."""
+
+    class InvoiceError(AuditError):
+        """Problemas relacionados con una factura."""
+
+    class DuplicateInvoiceError(InvoiceError):
+        def __init__(self, invoice_id: str, period: str) -> None:
+            super().__init__(f"duplicate invoice {invoice_id} in period {period}")
+            self.invoice_id = invoice_id
+            self.period = period
+
+    def raise_if_duplicate(invoice_id: str, seen: set[str], period: str) -> None:
+        """Lanza DuplicateInvoiceError si invoice_id ya está en seen."""
+        if invoice_id in seen:
+            raise DuplicateInvoiceError(invoice_id, period)
+
+- slug: kwargs-rule-dispatcher
+  title: "Dispatcher de reglas contables con **kwargs"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Escribe `classify_invoice(**fields: str) -> str` que recibe campos de una
+    factura como keyword arguments y devuelve una categoría contable según estas
+    reglas (en orden de prioridad):
+
+    1. Si `fields` incluye `"account_code"` y empieza con `"6"` → `"expense"`.
+    2. Si `fields` incluye `"account_code"` y empieza con `"4"` → `"revenue"`.
+    3. Si `fields` incluye `"description"` y `"nomina"` está en el valor
+       (insensible a mayúsculas) → `"payroll"`.
+    4. En cualquier otro caso → `"unclassified"`.
+
+    Type hint del retorno: `str`. Ningún `if` anidado necesita más de 2 niveles.
+  hint: |
+    Accede a `fields.get("account_code", "")` para no lanzar KeyError.
+    El orden de las reglas importa: evalúalas una por una.
+  starter: |
+    def classify_invoice(**fields: str) -> str:
+        """Clasifica una factura según sus campos; devuelve categoría contable."""
+        ...
+  test: |
+    assert classify_invoice(account_code="6100", vendor="ACME") == "expense"
+    assert classify_invoice(account_code="4200", vendor="ACME") == "revenue"
+    assert classify_invoice(description="Pago Nomina Marzo") == "payroll"
+    assert classify_invoice(description="Factura servicios") == "unclassified"
+    assert classify_invoice() == "unclassified"
+    # account_code tiene precedencia sobre description
+    assert classify_invoice(account_code="6300", description="nomina") == "expense"
+    print("ok")
+  solution: |
+    def classify_invoice(**fields: str) -> str:
+        """Clasifica una factura según sus campos; devuelve categoría contable."""
+        account_code = fields.get("account_code", "")
+        if account_code.startswith("6"):
+            return "expense"
+        if account_code.startswith("4"):
+            return "revenue"
+        description = fields.get("description", "")
+        if "nomina" in description.lower():
+            return "payroll"
+        return "unclassified"

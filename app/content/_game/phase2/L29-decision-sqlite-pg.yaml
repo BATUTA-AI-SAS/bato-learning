@@ -1,0 +1,41 @@
+slug: decision-sqlite-pg
+title: "¿SQLite o Postgres para producción?"
+kind: decision
+phase: PH02
+ord: 29
+trains_skill: db-tradeoffs
+xp: 10
+est_seconds: 90
+scenario_md: |
+  ACME pasa de 1 a 10 usuarios concurrentes. El archivo SQLite vive en el
+  contenedor. ¿Mantienes SQLite o migras a Postgres? La decisión afecta
+  cómo implementarás RLS en los niveles siguientes.
+payload:
+  prompt_md: |
+    Tu servicio de ACME tiene 3 000 facturas, 10 usuarios simultáneos y vive
+    en un VPS de $10/mes. El equipo tiene experiencia en SQL básico. Tienes
+    que elegir el motor de base de datos para los próximos 12 meses.
+  options:
+    - label: "SQLite (un archivo en el volumen)"
+      tradeoff_md: |
+        + Cero infra extra. + Un backup es copiar un archivo. + Perfecto para
+        un solo servidor con carga baja.
+        − Escrituras serializadas: mal con > 20 escrituras/segundo.
+        − Sin RLS nativo: el filtro tenant_id lo implementas en código.
+        − Si el volumen falla, pierdes todo.
+      consequence_skill: sqlite-ops
+    - label: "Postgres en Coolify (contenedor adicional)"
+      tradeoff_md: |
+        + Escrituras concurrentes reales. + RLS nativo por tenant.
+        + Backups automáticos con pg_dump. + Escala a múltiples réplicas.
+        − Un servicio más que monitorear. + Requiere migraciones con Alembic
+        igual que SQLite.
+      consequence_skill: postgres-ops
+hint_md: |
+  No hay respuesta correcta universal — depende del contexto. Lee los
+  tradeoffs y elige el que mejor encaja con las restricciones de ACME.
+solution_md: |
+  Para 10 usuarios y 1 servidor, SQLite es una opción válida y es lo que
+  usa esta app de aprendizaje. La regla: si necesitas múltiples writers
+  simultáneos, RLS nativo, o réplicas de lectura → Postgres. Si no, SQLite
+  no es vergonzoso, es pragmático.

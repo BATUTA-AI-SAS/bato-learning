@@ -1,0 +1,153 @@
+- slug: class-vs-instance-attr
+  question: |
+    ¿Qué imprime este código?
+
+    ```python
+    class Invoice:
+        count = 0
+
+    a = Invoice()
+    b = Invoice()
+    a.count = 99
+    print(b.count)
+    ```
+  explanation: |
+    `a.count = 99` crea un atributo de *instancia* en `a` que sombrea el
+    atributo de *clase*. El atributo de clase `Invoice.count` sigue siendo 0.
+    `b` no tiene atributo de instancia propio, así que `b.count` resuelve al
+    atributo de clase: `0`.
+  options:
+    - text: "`99`"
+      correct: false
+      feedback: |
+        No. `a.count = 99` crea un atributo de instancia en `a`, no modifica
+        el atributo de clase `Invoice.count`. `b.count` sigue apuntando al
+        atributo de clase, que vale 0.
+    - text: "`0`"
+      correct: true
+      feedback: |
+        Correcto. `b` no tiene atributo de instancia propio. Python busca en
+        `b.__dict__` (vacío) y luego en `Invoice.__dict__` (count=0). El
+        `a.count = 99` solo crea un atributo en `a.__dict__`.
+    - text: "Lanza `AttributeError`"
+      correct: false
+      feedback: |
+        No hay error. `b.count` resuelve al atributo de clase `Invoice.count`
+        porque `b` no tiene `count` en su propio `__dict__`.
+    - text: "`None`"
+      correct: false
+      feedback: |
+        El atributo de clase `count` vale `0`, no `None`. Python retorna `None`
+        solo si asignas `None` explícitamente o si el atributo no existe
+        (con `.get()` en un dict, no con acceso de atributo).
+
+- slug: dataclass-default-factory
+  question: |
+    ¿Cuál de estas definiciones de `@dataclass` evita el problema del
+    default mutable en el campo `findings`?
+  explanation: |
+    `field(default_factory=list)` crea una nueva lista vacía para cada
+    instancia del dataclass. `default=[]` sufre el mismo problema de default
+    mutable que una función normal: Python crea el `[]` una sola vez.
+    `default_factory` recibe un callable y lo invoca por cada instancia nueva.
+  options:
+    - text: |
+        ```python
+        @dataclass
+        class AuditRun:
+            findings: list[str] = []
+        ```
+      correct: false
+      feedback: |
+        Este código ni siquiera compila: `@dataclass` detecta el default
+        mutable y lanza `ValueError: mutable default ... is not allowed`.
+        Tendrías que usar `field(default_factory=list)`.
+    - text: |
+        ```python
+        from dataclasses import dataclass, field
+
+        @dataclass
+        class AuditRun:
+            findings: list[str] = field(default_factory=list)
+        ```
+      correct: true
+      feedback: |
+        Correcto. `field(default_factory=list)` invoca `list()` por cada
+        instancia nueva. Cada `AuditRun` tiene su propia lista independiente.
+    - text: |
+        ```python
+        @dataclass
+        class AuditRun:
+            findings: list[str] = field(default=list)
+        ```
+      correct: false
+      feedback: |
+        `default=list` asigna la *clase* `list` como valor por defecto, no
+        una lista vacía. Cada instancia tendría `findings == list` (el tipo),
+        no `[]`. Lanzaría error en runtime al hacer `append`.
+    - text: |
+        ```python
+        @dataclass
+        class AuditRun:
+            findings: list[str] = None
+        ```
+      correct: false
+      feedback: |
+        `None` no es una lista. El type hint dice `list[str]`, pero el valor
+        real sería `None`. El código que haga `run.findings.append(...)` lanzaría
+        `AttributeError: 'NoneType' object has no attribute 'append'`.
+
+- slug: protocol-structural-typing
+  question: |
+    Tienes:
+
+    ```python
+    from typing import Protocol
+
+    class Notifier(Protocol):
+        def send(self, msg: str) -> None: ...
+
+    class EmailNotifier:
+        def send(self, msg: str) -> None:
+            print(f"email: {msg}")
+
+    class SlackNotifier:
+        def notify(self, msg: str) -> None:  # nombre diferente
+            print(f"slack: {msg}")
+
+    def dispatch(n: Notifier, msg: str) -> None:
+        n.send(msg)
+    ```
+
+    ¿Cuál de estas afirmaciones es correcta?
+  explanation: |
+    El tipado estructural de `Protocol` valida que el objeto tenga los métodos
+    declarados con las firmas correctas — no que herede de `Protocol`.
+    `EmailNotifier` tiene `send(msg: str) -> None`, que coincide exactamente.
+    `SlackNotifier` tiene `notify`, no `send`, así que `mypy` lo rechaza.
+    En runtime, Python no verifica nada; el error sería `AttributeError` al
+    llamar `n.send(msg)` sobre un `SlackNotifier`.
+  options:
+    - text: "`dispatch(EmailNotifier(), 'hola')` es válido; `dispatch(SlackNotifier(), 'hola')` también porque ambos son `Notifier`."
+      correct: false
+      feedback: |
+        `SlackNotifier` tiene `notify`, no `send`. No cumple el `Protocol`
+        `Notifier`. `mypy` lo marcaría como error de tipo; en runtime
+        lanzaría `AttributeError` al llamar `n.send(...)`.
+    - text: "`dispatch(EmailNotifier(), 'hola')` es válido según el tipado estructural; `dispatch(SlackNotifier(), 'hola')` falla en mypy porque `SlackNotifier` no tiene `send`."
+      correct: true
+      feedback: |
+        Correcto. `Protocol` es tipado estructural: basta con tener los métodos
+        con la firma correcta, sin herencia. `EmailNotifier` los tiene;
+        `SlackNotifier` no tiene `send`, así que no cumple el Protocol.
+    - text: "`EmailNotifier` y `SlackNotifier` deben heredar de `Notifier` para que `dispatch` las acepte."
+      correct: false
+      feedback: |
+        No. Eso sería tipado nominal (como en Java o C#). `Protocol` en Python
+        es tipado *estructural*: la herencia no es necesaria ni suficiente.
+    - text: "En runtime, `dispatch(SlackNotifier(), 'hola')` lanza `TypeError` porque `SlackNotifier` no cumple `Notifier`."
+      correct: false
+      feedback: |
+        En runtime, Python no verifica Protocols. El error sería
+        `AttributeError: 'SlackNotifier' object has no attribute 'send'`,
+        no `TypeError`. La verificación de Protocol es estática (mypy/pyright).

@@ -1,0 +1,225 @@
+- slug: tool-risk-classifier
+  title: "Clasificar tools por nivel de riesgo"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `classify_tool(name: str, schema: dict) -> str` que devuelve el
+    nivel de riesgo de una tool: `"auto"`, `"dry_run"`, `"hitl"`, o `"forbidden"`.
+
+    Reglas (en orden de evaluación, devuelve el primer match):
+    1. `"forbidden"` si `name` contiene `"delete"`, `"drop"`, `"truncate"`, o `"exec"`.
+    2. `"hitl"` si `name` es `"send_email"` o `"bank_open_api"` o si el schema
+       tiene la propiedad `"amount"` (operación financiera).
+    3. `"dry_run"` si `name` contiene `"write"`, `"post"`, o `"create"`.
+    4. `"auto"` en cualquier otro caso.
+  hint: |
+    Evalúa en orden estricto: forbidden → hitl → dry_run → auto.
+    Para verificar si el schema tiene la propiedad "amount":
+    `"amount" in schema.get("properties", {})`.
+  starter: |
+    def classify_tool(name: str, schema: dict) -> str:
+        # regla 1: forbidden
+        # regla 2: hitl
+        # regla 3: dry_run
+        # regla 4: auto (default)
+        return "auto"
+
+    tests = [
+        ("delete_invoice", {}, "forbidden"),
+        ("sql_query", {}, "auto"),
+        ("send_email", {}, "hitl"),
+        ("write_report", {}, "dry_run"),
+        ("transfer_funds", {"properties": {"amount": {}, "to": {}}}, "hitl"),
+        ("fetch_excel", {}, "auto"),
+        ("post_slack_message", {}, "dry_run"),
+        ("exec_script", {}, "forbidden"),
+    ]
+
+    for name, schema, expected in tests:
+        result = classify_tool(name, schema)
+        print(f"{name}: {result} (esperado: {expected})")
+  test: |
+    # forbidden por nombre
+    assert classify_tool("delete_invoice", {}) == "forbidden"
+    assert classify_tool("drop_table", {}) == "forbidden"
+    assert classify_tool("exec_script", {}) == "forbidden"
+
+    # hitl por nombre
+    assert classify_tool("send_email", {}) == "hitl"
+    assert classify_tool("bank_open_api", {}) == "hitl"
+
+    # hitl por schema con amount
+    assert classify_tool("transfer_funds", {"properties": {"amount": {}, "to": {}}}) == "hitl"
+
+    # dry_run por nombre
+    assert classify_tool("write_report", {}) == "dry_run"
+    assert classify_tool("post_slack_message", {}) == "dry_run"
+    assert classify_tool("create_finding", {}) == "dry_run"
+
+    # auto
+    assert classify_tool("sql_query", {}) == "auto"
+    assert classify_tool("fetch_excel", {}) == "auto"
+    assert classify_tool("parse_invoice_pdf", {}) == "auto"
+
+    print("ok")
+  solution: |
+    def classify_tool(name: str, schema: dict) -> str:
+        name_lower = name.lower()
+        # regla 1: forbidden
+        if any(kw in name_lower for kw in ("delete", "drop", "truncate", "exec")):
+            return "forbidden"
+        # regla 2: hitl
+        if name_lower in ("send_email", "bank_open_api"):
+            return "hitl"
+        if "amount" in schema.get("properties", {}):
+            return "hitl"
+        # regla 3: dry_run
+        if any(kw in name_lower for kw in ("write", "post", "create")):
+            return "dry_run"
+        # regla 4: auto
+        return "auto"
+
+- slug: idempotency-key
+  title: "Generar idempotency_key correcta para tools con side-effect"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `make_idempotency_key(tool_name: str, tenant: str, **kwargs) -> str`
+    que genera una clave de idempotencia para un tool_use.
+
+    La clave debe:
+    1. Empezar con `f"{tool_name}:{tenant}:"`.
+    2. Continuar con los kwargs ordenados alfabéticamente por clave, en formato
+       `key1=val1|key2=val2|...` (separados por `|`, pares con `=`).
+    3. Si no hay kwargs, la clave termina después del segundo `:`.
+
+    Ejemplos:
+    - `make_idempotency_key("send_email", "acme", period="2026-04", report="audit")` →
+      `"send_email:acme:period=2026-04|report=audit"`
+    - `make_idempotency_key("write_report", "globex")` →
+      `"write_report:globex:"`
+  hint: |
+    `sorted(kwargs.items())` devuelve los pares (key, value) ordenados por key.
+    Luego `"|".join(f"{k}={v}" for k, v in sorted_items)`.
+  starter: |
+    def make_idempotency_key(tool_name: str, tenant: str, **kwargs) -> str:
+        prefix = f"{tool_name}:{tenant}:"
+        # construye el sufijo con kwargs ordenados
+        return prefix
+
+    print(make_idempotency_key("send_email", "acme", period="2026-04", report="audit"))
+    print(make_idempotency_key("write_report", "globex"))
+    print(make_idempotency_key("sql_query", "initech", table="invoices", limit="100"))
+  test: |
+    r1 = make_idempotency_key("send_email", "acme", period="2026-04", report="audit")
+    assert r1 == "send_email:acme:period=2026-04|report=audit", f"got: {r1!r}"
+
+    r2 = make_idempotency_key("write_report", "globex")
+    assert r2 == "write_report:globex:", f"got: {r2!r}"
+
+    # orden alfabético importa
+    r3 = make_idempotency_key("sql_query", "initech", limit="100", table="invoices")
+    assert r3 == "sql_query:initech:limit=100|table=invoices", f"got: {r3!r}"
+
+    # mismo resultado con distinto orden de kwargs
+    r4 = make_idempotency_key("sql_query", "initech", table="invoices", limit="100")
+    assert r4 == r3, "el orden de los kwargs no debe afectar la clave"
+
+    print("ok")
+  solution: |
+    def make_idempotency_key(tool_name: str, tenant: str, **kwargs) -> str:
+        prefix = f"{tool_name}:{tenant}:"
+        if not kwargs:
+            return prefix
+        suffix = "|".join(f"{k}={v}" for k, v in sorted(kwargs.items()))
+        return prefix + suffix
+
+- slug: dry-run-tool
+  title: "Implementar send_email con dry_run"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `send_email(to, subject, body_md, tenant, dry_run=False) -> dict`
+    que simula el envío de un email.
+
+    Comportamiento:
+    - Si `dry_run=True`: devuelve `{"status": "dry_run", "preview": {"to": to, "subject": subject, "body_preview": body_md[:100]}}`
+    - Si `dry_run=False` y `tenant` es una cadena no vacía: devuelve `{"status": "sent", "to": to, "tenant": tenant}`
+    - Si `dry_run=False` y `tenant` está vacío: lanza `ValueError("tenant required")`
+    - Si `to` es una lista vacía: lanza `ValueError("to is empty")` (antes de verificar dry_run)
+
+    Nota: el check de `to` vacío ocurre siempre, incluso en dry_run.
+  hint: |
+    Verifica `to` primero (antes del if dry_run). Luego bifurca por dry_run.
+    `body_md[:100]` funciona aunque body_md tenga menos de 100 chars.
+  starter: |
+    def send_email(
+        to: list[str],
+        subject: str,
+        body_md: str,
+        tenant: str,
+        dry_run: bool = False,
+    ) -> dict:
+        # verificar to vacío (siempre)
+        # verificar dry_run
+        # verificar tenant
+        pass
+
+    # dry_run
+    r = send_email(["cfo@acme.com"], "Reporte", "El reporte mensual...", "acme", dry_run=True)
+    print(r)
+
+    # real
+    r = send_email(["cfo@acme.com"], "Reporte", "El reporte mensual...", "acme")
+    print(r)
+  test: |
+    # dry_run devuelve preview
+    r = send_email(["cfo@acme.com"], "Reporte", "El reporte mensual de abril", "acme", dry_run=True)
+    assert r["status"] == "dry_run"
+    assert "preview" in r
+    assert r["preview"]["to"] == ["cfo@acme.com"]
+    assert "body_preview" in r["preview"]
+    assert len(r["preview"]["body_preview"]) <= 100
+
+    # envío real
+    r2 = send_email(["cfo@acme.com"], "Reporte", "Contenido", "acme")
+    assert r2["status"] == "sent"
+    assert r2["tenant"] == "acme"
+
+    # to vacío siempre falla, incluso en dry_run
+    try:
+        send_email([], "Reporte", "Contenido", "acme", dry_run=True)
+        assert False, "debió fallar con to vacío"
+    except ValueError as e:
+        assert "to" in str(e).lower()
+
+    # tenant vacío en real
+    try:
+        send_email(["x@y.com"], "Reporte", "Contenido", "")
+        assert False, "debió fallar con tenant vacío"
+    except ValueError as e:
+        assert "tenant" in str(e).lower()
+
+    print("ok")
+  solution: |
+    def send_email(
+        to: list[str],
+        subject: str,
+        body_md: str,
+        tenant: str,
+        dry_run: bool = False,
+    ) -> dict:
+        if not to:
+            raise ValueError("to is empty")
+        if dry_run:
+            return {
+                "status": "dry_run",
+                "preview": {
+                    "to": to,
+                    "subject": subject,
+                    "body_preview": body_md[:100],
+                },
+            }
+        if not tenant:
+            raise ValueError("tenant required")
+        return {"status": "sent", "to": to, "tenant": tenant}

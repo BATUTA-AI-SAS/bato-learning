@@ -1,0 +1,51 @@
+slug: multitenancy-filter
+title: "Empresa A no puede ver datos de Empresa B"
+kind: code
+phase: PH02
+ord: 28
+trains_skill: multitenancy
+xp: 25
+est_seconds: 180
+scenario_md: |
+  ACME y Globex comparten la misma base de datos. Una consulta sin filtro
+  de tenant devuelve facturas de los dos. Añade el filtro `tenant_id`
+  a la función `get_invoices` para que cada empresa solo vea lo suyo.
+payload:
+  starter: |
+    from dataclasses import dataclass
+    from typing import List
+
+    @dataclass
+    class Invoice:
+        id: int
+        vendor: str
+        amount: float
+        tenant_id: str  # "acme" | "globex"
+
+    # Base de datos simulada (no modificar)
+    _db: List[Invoice] = [
+        Invoice(1, "Proveedor Norte",  4820.50, "acme"),
+        Invoice(2, "Transportes GX",  12300.00, "globex"),
+        Invoice(3, "Suministros AC",   870.25,  "acme"),
+        Invoice(4, "Logística GX",    18900.00, "globex"),
+        Invoice(5, "Auditoría AC",     3200.00, "acme"),
+    ]
+
+    def get_invoices(tenant_id: str) -> List[Invoice]:
+        """Retorna SOLO las facturas del tenant indicado."""
+        # Sin este filtro, globex ve facturas de acme y viceversa
+        return _db  # BUG: falta el filtro — corrígelo
+  tests: |
+    acme_invoices = get_invoices("acme")
+    globex_invoices = get_invoices("globex")
+
+    assert len(acme_invoices) == 3, f"ACME debe tener 3 facturas, tiene {len(acme_invoices)}"
+    assert len(globex_invoices) == 2, f"Globex debe tener 2 facturas, tiene {len(globex_invoices)}"
+    assert all(inv.tenant_id == "acme" for inv in acme_invoices), "ACME recibe facturas ajenas"
+    assert all(inv.tenant_id == "globex" for inv in globex_invoices), "Globex recibe facturas ajenas"
+hint_md: |
+  `return [inv for inv in _db if inv.tenant_id == tenant_id]`
+solution_md: |
+  El filtro por tenant_id es la versión SQLite del Row-Level Security (RLS)
+  de Postgres. En Postgres el filtro lo impone la DB; aquí lo impones en el
+  repo. La regla: ningún repo devuelve filas sin `WHERE tenant_id = :tid`.

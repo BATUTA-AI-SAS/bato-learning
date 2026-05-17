@@ -1,0 +1,9 @@
+slug: observabilidad
+title: "¿Qué es la observabilidad?"
+analogy_md: |
+  Es poder ver qué está pasando dentro de tu sistema en producción, como los reportes de
+  auditoría de ACME: logs (qué pasó), métricas (cuánto tardó) y trazas (por qué falló).
+example_md: |
+  ```python
+  logger.info("factura_creada", extra={"id": factura.id, "tenant": tenant_id})
+  ```

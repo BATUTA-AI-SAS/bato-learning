@@ -1,0 +1,314 @@
+- slug: inner_vs_left_join
+  title: "INNER JOIN vs LEFT JOIN: clientes con y sin facturas"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes dos tablas: `client` y `invoice`. Algunos clientes tienen facturas;
+    uno no tiene ninguna.
+
+    Escribe dos queries:
+    1. `with_invoices`: usando `INNER JOIN`, devuelve pares `(client_name, vendor_name, total_eur)`
+       donde exista la factura. Ordena por `total_eur DESC`.
+    2. `without_invoices`: usando `LEFT JOIN`, devuelve los nombres de clientes que
+       NO tienen ninguna factura (la columna `invoice.id` es `NULL`).
+
+    Guarda los resultados en `with_invoices` y `without_invoices`.
+  hint: |
+    Para `without_invoices`: `LEFT JOIN invoice ON ... WHERE invoice.id IS NULL`.
+    Recuerda que el filtro `WHERE tenant_id = 'acme'` debe aplicarse en ambas queries.
+  starter: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.executescript("""
+        CREATE TABLE client (id INTEGER PRIMARY KEY, tenant_id TEXT, name TEXT);
+        CREATE TABLE invoice (id INTEGER PRIMARY KEY, tenant_id TEXT,
+                              client_id INTEGER, vendor_name TEXT, total_eur REAL);
+        INSERT INTO client  VALUES
+            (1,'acme','Globex Logistics'),
+            (2,'acme','Initech Audit'),
+            (3,'acme','TiendaBox Retail');  -- sin facturas
+        INSERT INTO invoice VALUES
+            (1,'acme',1,'Siemens GmbH',9100.50),
+            (2,'acme',1,'Bosch AG',4820.00),
+            (3,'acme',2,'DHL Express',7200.00);
+    """)
+
+    # query 1: INNER JOIN (clientes con facturas)
+    cur.execute("""-- escribe tu INNER JOIN aquí""")
+    with_invoices = cur.fetchall()
+
+    # query 2: LEFT JOIN (clientes SIN facturas)
+    cur.execute("""-- escribe tu LEFT JOIN aquí""")
+    without_invoices = cur.fetchall()
+
+    print("with_invoices:", with_invoices)
+    print("without_invoices:", without_invoices)
+  test: |
+    assert len(with_invoices) == 3, (
+        f"INNER JOIN debería devolver 3 filas (3 facturas), obtuve {len(with_invoices)}"
+    )
+    flat_wi = [str(r) for r in with_invoices]
+    assert any("Siemens" in s for s in flat_wi), "Siemens GmbH debería estar"
+    assert any("Bosch" in s for s in flat_wi), "Bosch AG debería estar"
+    assert any("DHL" in s for s in flat_wi), "DHL Express debería estar"
+    # verificar orden DESC por total_eur
+    amounts = []
+    for r in with_invoices:
+        for item in r:
+            try:
+                v = float(item)
+                if v > 1000:
+                    amounts.append(v)
+                    break
+            except (TypeError, ValueError):
+                pass
+    assert amounts == sorted(amounts, reverse=True), f"debería estar ordenado DESC: {amounts}"
+
+    assert len(without_invoices) == 1, (
+        f"solo TiendaBox no tiene facturas, obtuve {len(without_invoices)} filas"
+    )
+    assert any("TiendaBox" in str(r) for r in without_invoices), "TiendaBox debería aparecer"
+    print("ok")
+  solution: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.executescript("""
+        CREATE TABLE client (id INTEGER PRIMARY KEY, tenant_id TEXT, name TEXT);
+        CREATE TABLE invoice (id INTEGER PRIMARY KEY, tenant_id TEXT,
+                              client_id INTEGER, vendor_name TEXT, total_eur REAL);
+        INSERT INTO client VALUES
+            (1,'acme','Globex Logistics'),(2,'acme','Initech Audit'),(3,'acme','TiendaBox Retail');
+        INSERT INTO invoice VALUES
+            (1,'acme',1,'Siemens GmbH',9100.50),(2,'acme',1,'Bosch AG',4820.00),(3,'acme',2,'DHL Express',7200.00);
+    """)
+
+    cur.execute("""
+        SELECT c.name, i.vendor_name, i.total_eur
+        FROM invoice i INNER JOIN client c ON c.id = i.client_id
+        WHERE i.tenant_id = 'acme'
+        ORDER BY i.total_eur DESC
+    """)
+    with_invoices = cur.fetchall()
+
+    cur.execute("""
+        SELECT c.name
+        FROM client c LEFT JOIN invoice i ON i.client_id = c.id AND i.tenant_id = 'acme'
+        WHERE c.tenant_id = 'acme' AND i.id IS NULL
+    """)
+    without_invoices = cur.fetchall()
+
+- slug: group_by_aggregation
+  title: "GROUP BY: total facturado y promedio por cliente"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Usando las mismas tres tablas del ejercicio anterior (el setup está incluido),
+    escribe una query que calcule por cada cliente de ACME:
+    - `client_name`: nombre del cliente
+    - `invoice_count`: número de facturas
+    - `total_invoiced`: suma total de `total_eur`
+    - `avg_invoice`: promedio de `total_eur` (redondea a 2 decimales con `ROUND(...)`)
+
+    Filtra solo los clientes que tienen **al menos 2 facturas** (`HAVING`).
+    Ordena por `total_invoiced DESC`.
+    Guarda el resultado en `stats`.
+  hint: |
+    `GROUP BY c.id, c.name` + `HAVING COUNT(i.id) >= 2`.
+    `ROUND(AVG(i.total_eur), 2)` para redondear.
+  starter: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.executescript("""
+        CREATE TABLE client (id INTEGER PRIMARY KEY, tenant_id TEXT, name TEXT);
+        CREATE TABLE invoice (id INTEGER PRIMARY KEY, tenant_id TEXT,
+                              client_id INTEGER, vendor_name TEXT, total_eur REAL);
+        INSERT INTO client VALUES
+            (1,'acme','Globex Logistics'),(2,'acme','Initech Audit'),(3,'acme','TiendaBox Retail');
+        INSERT INTO invoice VALUES
+            (1,'acme',1,'Siemens GmbH',9100.50),
+            (2,'acme',1,'Bosch AG',4820.00),
+            (3,'acme',2,'DHL Express',7200.00),
+            (4,'acme',1,'Repsol SA',3500.00);
+    """)
+
+    cur.execute("""
+        -- escribe tu query con GROUP BY y HAVING aquí
+    """)
+    stats = cur.fetchall()
+    print(stats)
+  test: |
+    assert len(stats) == 1, (
+        f"solo Globex tiene >= 2 facturas (tiene 3), obtuve {len(stats)} filas"
+    )
+    row = stats[0]
+    row_str = str(row)
+    assert "Globex" in row_str, "el resultado debería ser de Globex Logistics"
+    # buscar count=3, total≈17420.5, avg≈5806.83
+    nums = []
+    for item in row:
+        try:
+            nums.append(float(item))
+        except (TypeError, ValueError):
+            pass
+    counts = [n for n in nums if n < 100]
+    totals = [n for n in nums if n > 10000]
+    avgs   = [n for n in nums if 1000 < n < 10000]
+    assert any(c == 3.0 for c in counts), f"invoice_count debería ser 3, obtuve {counts}"
+    assert any(abs(t - 17420.5) < 0.1 for t in totals), f"total debería ser ~17420.5, obtuve {totals}"
+    assert any(abs(a - 5806.83) < 1.0 for a in avgs), f"avg debería ser ~5806.83, obtuve {avgs}"
+    print("ok")
+  solution: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.executescript("""
+        CREATE TABLE client (id INTEGER PRIMARY KEY, tenant_id TEXT, name TEXT);
+        CREATE TABLE invoice (id INTEGER PRIMARY KEY, tenant_id TEXT,
+                              client_id INTEGER, vendor_name TEXT, total_eur REAL);
+        INSERT INTO client VALUES
+            (1,'acme','Globex Logistics'),(2,'acme','Initech Audit'),(3,'acme','TiendaBox Retail');
+        INSERT INTO invoice VALUES
+            (1,'acme',1,'Siemens GmbH',9100.50),(2,'acme',1,'Bosch AG',4820.00),
+            (3,'acme',2,'DHL Express',7200.00),(4,'acme',1,'Repsol SA',3500.00);
+    """)
+
+    cur.execute("""
+        SELECT c.name, COUNT(i.id), SUM(i.total_eur), ROUND(AVG(i.total_eur), 2)
+        FROM invoice i INNER JOIN client c ON c.id = i.client_id
+        WHERE i.tenant_id = 'acme'
+        GROUP BY c.id, c.name
+        HAVING COUNT(i.id) >= 2
+        ORDER BY SUM(i.total_eur) DESC
+    """)
+    stats = cur.fetchall()
+
+- slug: cte_pending_balance
+  title: "CTE: saldo pendiente por cliente con pagos parciales"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes tres tablas: `client`, `invoice` y `payment`.
+    Los pagos son parciales — una factura puede tener varios pagos que juntos
+    pueden no cubrir el total.
+
+    Escribe una query con **dos CTEs** que calcule el saldo pendiente por cliente:
+
+    CTE 1 — `paid_per_invoice`: suma de pagos agrupada por `invoice_id`.
+    CTE 2 — `balance`: para cada factura, calcula `pending = total_eur - COALESCE(paid, 0)`.
+    Query final: `client_name`, `total_invoiced`, `total_paid`, `total_pending`
+    agrupados por cliente, ordenados por `total_pending DESC`.
+
+    Guarda el resultado en `balance_report`.
+  hint: |
+    `WITH paid AS (...), balance AS (...) SELECT ...`
+    `COALESCE(p.paid_amount, 0)` maneja las facturas sin ningún pago (NULL → 0).
+  starter: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.executescript("""
+        CREATE TABLE client (id INTEGER PRIMARY KEY, tenant_id TEXT, name TEXT);
+        CREATE TABLE invoice (id INTEGER PRIMARY KEY, tenant_id TEXT,
+                              client_id INTEGER, total_eur REAL, paid INTEGER DEFAULT 0);
+        CREATE TABLE payment (id INTEGER PRIMARY KEY, tenant_id TEXT,
+                              invoice_id INTEGER, amount_eur REAL);
+        INSERT INTO client  VALUES (1,'acme','Globex Logistics'),(2,'acme','Initech Audit');
+        INSERT INTO invoice VALUES
+            (1,'acme',1,9100.50,0),(2,'acme',1,4820.00,0),(3,'acme',2,7200.00,0);
+        INSERT INTO payment VALUES
+            (1,'acme',1,5000.00),(2,'acme',1,4100.50),(3,'acme',3,7200.00);
+    """)
+
+    cur.execute("""
+        WITH
+        paid_per_invoice AS (
+            -- tu CTE 1 aquí
+        ),
+        balance AS (
+            -- tu CTE 2 aquí
+        )
+        -- query final aquí
+    """)
+    balance_report = cur.fetchall()
+    print(balance_report)
+  test: |
+    assert len(balance_report) == 2, f"debería haber 2 clientes, obtuve {len(balance_report)}"
+    rows_str = [str(r) for r in balance_report]
+    # Globex: invoiced=13920.5, paid=9100.5, pending=4820.0 (factura 2 sin pago)
+    globex_row = next((r for r in balance_report if "Globex" in str(r)), None)
+    assert globex_row is not None, "Globex Logistics debería estar en el resultado"
+    nums_globex = []
+    for item in globex_row:
+        try:
+            nums_globex.append(float(item))
+        except (TypeError, ValueError):
+            pass
+    assert any(abs(n - 4820.0) < 0.1 for n in nums_globex), (
+        f"el pending de Globex debería ser 4820.0, nums: {nums_globex}"
+    )
+    # Initech: invoiced=7200, paid=7200, pending=0
+    initech_row = next((r for r in balance_report if "Initech" in str(r)), None)
+    assert initech_row is not None, "Initech Audit debería estar en el resultado"
+    nums_initech = []
+    for item in initech_row:
+        try:
+            nums_initech.append(float(item))
+        except (TypeError, ValueError):
+            pass
+    assert any(n == 0.0 for n in nums_initech), (
+        f"el pending de Initech debería ser 0, nums: {nums_initech}"
+    )
+    # orden: Globex (pending=4820) primero, Initech (pending=0) segundo
+    assert "Globex" in str(balance_report[0]), "Globex debería ser el primero (mayor pending)"
+    print("ok")
+  solution: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.executescript("""
+        CREATE TABLE client (id INTEGER PRIMARY KEY, tenant_id TEXT, name TEXT);
+        CREATE TABLE invoice (id INTEGER PRIMARY KEY, tenant_id TEXT,
+                              client_id INTEGER, total_eur REAL, paid INTEGER DEFAULT 0);
+        CREATE TABLE payment (id INTEGER PRIMARY KEY, tenant_id TEXT,
+                              invoice_id INTEGER, amount_eur REAL);
+        INSERT INTO client  VALUES (1,'acme','Globex Logistics'),(2,'acme','Initech Audit');
+        INSERT INTO invoice VALUES
+            (1,'acme',1,9100.50,0),(2,'acme',1,4820.00,0),(3,'acme',2,7200.00,0);
+        INSERT INTO payment VALUES
+            (1,'acme',1,5000.00),(2,'acme',1,4100.50),(3,'acme',3,7200.00);
+    """)
+
+    cur.execute("""
+        WITH
+        paid_per_invoice AS (
+            SELECT invoice_id, SUM(amount_eur) AS paid_amount
+            FROM payment WHERE tenant_id = 'acme'
+            GROUP BY invoice_id
+        ),
+        balance AS (
+            SELECT i.id, i.client_id, i.total_eur,
+                   COALESCE(p.paid_amount, 0) AS paid_amount,
+                   i.total_eur - COALESCE(p.paid_amount, 0) AS pending
+            FROM invoice i
+            LEFT JOIN paid_per_invoice p ON p.invoice_id = i.id
+            WHERE i.tenant_id = 'acme'
+        )
+        SELECT c.name,
+               SUM(b.total_eur)   AS total_invoiced,
+               SUM(b.paid_amount) AS total_paid,
+               SUM(b.pending)     AS total_pending
+        FROM balance b
+        JOIN client c ON c.id = b.client_id
+        GROUP BY c.id, c.name
+        ORDER BY total_pending DESC
+    """)
+    balance_report = cur.fetchall()

@@ -1,0 +1,47 @@
+slug: output-guardrails
+title: "El agente alucina números — valida la respuesta"
+kind: code
+phase: PH03
+ord: 46
+trains_skill: guardrails
+concepts_introduced: [output-guardrails, pydantic-validation, retry]
+concepts_reinforced: [pydantic, llm-api, agent-loop]
+xp: 20
+est_seconds: 180
+scenario_md: |
+  El agente de ACME a veces devuelve "aprox. $12K" en vez de un número exacto.
+  El CFO necesita datos estructurados. Implementa un guardrail que fuerza
+  al LLM a retornar JSON válido y lo reintenta si falla.
+payload:
+  starter: |
+    from pydantic import BaseModel, Field
+    from anthropic import AsyncAnthropic
+    import json
+
+    client = AsyncAnthropic()
+
+    class InvoiceSummary(BaseModel):
+        total_amount: float = Field(ge=0)
+        invoice_count: int = Field(ge=0)
+        currency: str = "EUR"
+
+    async def get_structured_summary(context: str) -> InvoiceSummary:
+        """Llama a Claude y valida la respuesta como InvoiceSummary."""
+        # max 2 reintentos si la validación falla
+        ...
+  tests: |
+    import asyncio
+    result = asyncio.run(get_structured_summary(
+        "ACME tuvo 12 facturas por un total de 48500 EUR en marzo."
+    ))
+    assert isinstance(result, InvoiceSummary)
+    assert result.invoice_count == 12
+    assert result.total_amount == 48500.0
+hint_md: |
+  Pide a Claude que responda SOLO con JSON que siga este esquema. Parsea con
+  `InvoiceSummary.model_validate_json(text)`. Si lanza `ValidationError`,
+  reintenta con un mensaje adicional explicando el error.
+solution_md: |
+  Los LLMs no son determinísticos: a veces formatean mal el JSON. El patrón
+  correcto es validate-and-retry (máx 2-3 veces). Si falla siempre, el
+  problema está en el schema o el prompt, no en el número de reintentos.

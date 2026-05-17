@@ -1,0 +1,73 @@
+slug: boss-production-service
+title: "BOSS: Servicio completo de ACME en producción"
+kind: boss
+phase: PH02
+ord: 40
+trains_skill: production-service
+xp: 50
+est_seconds: 600
+scenario_md: |
+  Has llegado al final del taller. El CFO de ACME necesita el sistema
+  corriendo hoy: auth, multitenancy, tests pasando y deploy con HTTPS.
+  Demuestra que integras todo lo aprendido en Fase 2.
+payload:
+  steps:
+    - kind: multi_choice
+      title: "Aislamiento de tenants"
+      scenario_md: |
+        Un dev olvidó el filtro tenant_id en el repo de facturas. Un usuario
+        de Globex puede ver facturas de ACME. ¿Cuál es la corrección mínima?
+      payload:
+        options:
+          - text: "Añadir autenticación más fuerte (2FA)"
+            correct: false
+            feedback: "Autenticación verifica identidad. El problema es autorización y aislamiento de datos, no fuerza del login."
+          - text: "Añadir `WHERE tenant_id = :tid` en la query del repo"
+            correct: true
+            feedback: "Correcto. El filtro va en la capa repo, más cerca de la DB. Cada query que devuelve filas debe incluirlo."
+          - text: "Cifrar los datos de cada tenant con una clave distinta"
+            correct: false
+            feedback: "Cifrado protege contra acceso externo a la DB, no contra queries sin filtro dentro de la misma app."
+
+    - kind: order_steps
+      title: "Pipeline de release"
+      scenario_md: |
+        El equipo de ACME va a lanzar la feature de aprobación de facturas.
+        Ordena los pasos del pipeline completo desde el código hasta producción.
+      payload:
+        steps:
+          - "Merge del PR a `main` tras code review aprobado"
+          - "Abrir un PR con la descripción del cambio y el test plan"
+          - "CI corre lint + tests (deben pasar en verde)"
+          - "Deploy automático a staging + smoke test manual del equipo"
+          - "Deploy a producción con gate de aprobación manual"
+          - "Escribir y pasar los tests de la nueva feature en local"
+        correct_order: [5, 1, 0, 2, 3, 4]
+
+    - kind: code
+      title: "Función de autorización"
+      scenario_md: |
+        Implementa `can_access(user_role, required_role)` que retorna True
+        si el rol del usuario es suficiente para acceder al recurso.
+        Jerarquía: admin > manager > viewer.
+      payload:
+        starter: |
+          ROLE_HIERARCHY = {"admin": 3, "manager": 2, "viewer": 1}
+
+          def can_access(user_role: str, required_role: str) -> bool:
+              """Retorna True si user_role tiene nivel >= required_role."""
+              ...
+        tests: |
+          assert can_access("admin", "viewer") is True
+          assert can_access("admin", "admin") is True
+          assert can_access("viewer", "admin") is False
+          assert can_access("manager", "viewer") is True
+          assert can_access("viewer", "manager") is False
+
+hint_md: |
+  Para el boss necesitas: (1) filtro tenant_id en repo, (2) orden pipeline correcto,
+  (3) comparar niveles numéricos de ROLE_HIERARCHY.
+solution_md: |
+  Auth + multitenancy + CI/CD + RBAC son las cuatro columnas de un servicio
+  production-ready. Sin uno de los cuatro, el servicio tiene una grieta.
+  ACME ahora tiene los cuatro — y el equipo sabe por qué cada uno existe.

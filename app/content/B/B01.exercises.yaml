@@ -1,0 +1,218 @@
+- slug: read-http-log
+  title: "Diagnóstica este log de request fallida"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente diccionario representa el log de una request HTTP que falló.
+    Analiza los campos y completa la función `diagnose_request` para que devuelva
+    una tupla `(error_side, fix_hint)`:
+
+    - `error_side`: `"client"` si es error 4xx, `"server"` si es 5xx.
+    - `fix_hint`: una string corta con la causa probable según el status y el header.
+
+    El log es:
+    ```python
+    log = {
+        "method": "POST",
+        "path": "/api/exercises/7/pyodide",
+        "status": 422,
+        "request_content_type": "application/x-www-form-urlencoded",
+        "response_body": '{"detail":[{"loc":["body"],"msg":"value is not a valid dict"}]}'
+    }
+    ```
+
+    Casos que tu función debe cubrir:
+    - status 422 + content_type != "application/json" → `("client", "send Content-Type: application/json")`
+    - status 401 → `("client", "missing or invalid credentials")`
+    - status 403 → `("client", "authenticated but not authorized")`
+    - status 404 → `("client", "resource not found")`
+    - status 500 → `("server", "internal error, retry with backoff")`
+    - cualquier otro 4xx → `("client", "check request")`
+    - cualquier otro 5xx → `("server", "server error")`
+  hint: |
+    Empieza por el rango: `status // 100` te da 4 para 4xx y 5 para 5xx.
+    Para el caso 422, mira si `request_content_type` no es `"application/json"`.
+  starter: |
+    def diagnose_request(log: dict) -> tuple[str, str]:
+        status = log["status"]
+        content_type = log.get("request_content_type", "")
+        # completa la lógica aquí
+        ...
+
+    log = {
+        "method": "POST",
+        "path": "/api/exercises/7/pyodide",
+        "status": 422,
+        "request_content_type": "application/x-www-form-urlencoded",
+        "response_body": '{"detail":[{"loc":["body"],"msg":"value is not a valid dict"}]}'
+    }
+    result = diagnose_request(log)
+    print(result)
+  test: |
+    def diagnose_request(log: dict) -> tuple[str, str]:
+        status = log["status"]
+        content_type = log.get("request_content_type", "")
+        if status == 422 and content_type != "application/json":
+            return ("client", "send Content-Type: application/json")
+        if status == 401:
+            return ("client", "missing or invalid credentials")
+        if status == 403:
+            return ("client", "authenticated but not authorized")
+        if status == 404:
+            return ("client", "resource not found")
+        if status == 500:
+            return ("server", "internal error, retry with backoff")
+        if 400 <= status < 500:
+            return ("client", "check request")
+        if 500 <= status < 600:
+            return ("server", "server error")
+        return ("unknown", "")
+
+    cases = [
+        ({"status": 422, "request_content_type": "application/x-www-form-urlencoded"},
+         ("client", "send Content-Type: application/json")),
+        ({"status": 401, "request_content_type": "application/json"},
+         ("client", "missing or invalid credentials")),
+        ({"status": 403, "request_content_type": "application/json"},
+         ("client", "authenticated but not authorized")),
+        ({"status": 404, "request_content_type": ""},
+         ("client", "resource not found")),
+        ({"status": 500, "request_content_type": "application/json"},
+         ("server", "internal error, retry with backoff")),
+        ({"status": 503, "request_content_type": ""},
+         ("server", "server error")),
+    ]
+    for log_data, expected in cases:
+        got = diagnose_request(log_data)
+        assert got == expected, f"Para status {log_data['status']} esperaba {expected}, obtuve {got}"
+    print("ok")
+  solution: |
+    def diagnose_request(log: dict) -> tuple[str, str]:
+        status = log["status"]
+        content_type = log.get("request_content_type", "")
+        if status == 422 and content_type != "application/json":
+            return ("client", "send Content-Type: application/json")
+        if status == 401:
+            return ("client", "missing or invalid credentials")
+        if status == 403:
+            return ("client", "authenticated but not authorized")
+        if status == 404:
+            return ("client", "resource not found")
+        if status == 500:
+            return ("server", "internal error, retry with backoff")
+        if 400 <= status < 500:
+            return ("client", "check request")
+        if 500 <= status < 600:
+            return ("server", "server error")
+        return ("unknown", "")
+
+    log = {
+        "method": "POST",
+        "path": "/api/exercises/7/pyodide",
+        "status": 422,
+        "request_content_type": "application/x-www-form-urlencoded",
+        "response_body": '{"detail":[{"loc":["body"],"msg":"value is not a valid dict"}]}'
+    }
+    result = diagnose_request(log)
+    print(result)
+
+- slug: build-webhook-validator
+  title: "Valida un webhook payload de Siigo"
+  runner: pyodide
+  kind: code
+  prompt: |
+    ACME Manufacturing recibe facturas de Siigo vía webhook. Cada payload llega
+    como un dict con estos campos obligatorios:
+
+    - `event_type` (str): debe ser `"invoice.created"` o `"invoice.updated"`.
+    - `invoice_id` (str): no puede ser vacío.
+    - `tenant` (str): debe ser `"acme"` en este entorno.
+    - `amount` (float): debe ser > 0.
+
+    Escribe la función `validate_webhook_payload(payload: dict) -> tuple[int, str]`
+    que devuelve un status HTTP y un mensaje:
+    - `(200, "ok")` si todo es válido.
+    - `(400, "<descripción del primer campo inválido>")` si falta un campo o tiene valor inválido.
+    - `(422, "unknown event_type: <valor>")` si el event_type no está en la lista.
+
+    Prueba con:
+    ```python
+    good = {"event_type": "invoice.created", "invoice_id": "INV-001",
+            "tenant": "acme", "amount": 4820.0}
+    bad_amount = {"event_type": "invoice.created", "invoice_id": "INV-002",
+                  "tenant": "acme", "amount": -10.0}
+    bad_event = {"event_type": "invoice.deleted", "invoice_id": "INV-003",
+                 "tenant": "acme", "amount": 100.0}
+    ```
+  hint: |
+    Itera sobre los campos requeridos primero. Si alguno falta o está vacío,
+    devuelves (400, ...) inmediatamente. Luego valida el event_type.
+  starter: |
+    VALID_EVENT_TYPES = {"invoice.created", "invoice.updated"}
+
+    def validate_webhook_payload(payload: dict) -> tuple[int, str]:
+        # valida campos obligatorios
+        # valida event_type
+        # valida amount
+        ...
+
+    good = {"event_type": "invoice.created", "invoice_id": "INV-001",
+            "tenant": "acme", "amount": 4820.0}
+    print(validate_webhook_payload(good))
+  test: |
+    VALID_EVENT_TYPES = {"invoice.created", "invoice.updated"}
+
+    def validate_webhook_payload(payload: dict) -> tuple[int, str]:
+        required = ["event_type", "invoice_id", "tenant", "amount"]
+        for field in required:
+            if field not in payload:
+                return (400, f"missing field: {field}")
+        if not payload["invoice_id"]:
+            return (400, "invoice_id cannot be empty")
+        if payload["event_type"] not in VALID_EVENT_TYPES:
+            return (422, f"unknown event_type: {payload['event_type']}")
+        if payload["amount"] <= 0:
+            return (400, "amount must be > 0")
+        return (200, "ok")
+
+    good = {"event_type": "invoice.created", "invoice_id": "INV-001",
+            "tenant": "acme", "amount": 4820.0}
+    bad_amount = {"event_type": "invoice.created", "invoice_id": "INV-002",
+                  "tenant": "acme", "amount": -10.0}
+    bad_event = {"event_type": "invoice.deleted", "invoice_id": "INV-003",
+                 "tenant": "acme", "amount": 100.0}
+    missing_field = {"event_type": "invoice.created", "tenant": "acme", "amount": 50.0}
+
+    assert validate_webhook_payload(good) == (200, "ok"), "payload válido debe dar 200"
+    status, msg = validate_webhook_payload(bad_amount)
+    assert status == 400 and "amount" in msg, f"amount negativo debe dar 400, obtuve ({status}, {msg})"
+    status, msg = validate_webhook_payload(bad_event)
+    assert status == 422 and "invoice.deleted" in msg, f"evento inválido debe dar 422, obtuve ({status}, {msg})"
+    status, msg = validate_webhook_payload(missing_field)
+    assert status == 400 and "invoice_id" in msg, f"campo faltante debe dar 400, obtuve ({status}, {msg})"
+    print("ok")
+  solution: |
+    VALID_EVENT_TYPES = {"invoice.created", "invoice.updated"}
+
+    def validate_webhook_payload(payload: dict) -> tuple[int, str]:
+        required = ["event_type", "invoice_id", "tenant", "amount"]
+        for field in required:
+            if field not in payload:
+                return (400, f"missing field: {field}")
+        if not payload["invoice_id"]:
+            return (400, "invoice_id cannot be empty")
+        if payload["event_type"] not in VALID_EVENT_TYPES:
+            return (422, f"unknown event_type: {payload['event_type']}")
+        if payload["amount"] <= 0:
+            return (400, "amount must be > 0")
+        return (200, "ok")
+
+    good = {"event_type": "invoice.created", "invoice_id": "INV-001",
+            "tenant": "acme", "amount": 4820.0}
+    bad_amount = {"event_type": "invoice.created", "invoice_id": "INV-002",
+                  "tenant": "acme", "amount": -10.0}
+    bad_event = {"event_type": "invoice.deleted", "invoice_id": "INV-003",
+                 "tenant": "acme", "amount": 100.0}
+    print(validate_webhook_payload(good))
+    print(validate_webhook_payload(bad_amount))
+    print(validate_webhook_payload(bad_event))

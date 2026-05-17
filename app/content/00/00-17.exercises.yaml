@@ -1,0 +1,115 @@
+- slug: json-loads-dumps
+  title: "Parsear y serializar JSON"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes un string JSON con datos de una factura de ACME.
+    Completa las dos tareas:
+
+    1. Parsea `RAW_JSON` con `json.loads` y guárdalo en `invoice`.
+    2. Añade la clave `"processed"` con valor `True` al diccionario.
+    3. Convierte el diccionario de vuelta a string JSON con `json.dumps`
+       e imprímelo con `indent=2`.
+  hint: |
+    `json.loads(texto)` → dict. Luego `dict["clave"] = valor`. Luego `json.dumps(dict, indent=2)`.
+  starter: |
+    import json
+
+    RAW_JSON = '{"id": "INV-001", "vendor": "ACME", "amount": 4820.50, "paid": false}'
+
+    # 1. parsea RAW_JSON a dict
+    invoice = None  # reemplaza esto
+
+    # 2. añade "processed": True
+    # tu código aquí
+
+    # 3. convierte a JSON con indent=2 e imprime
+    # tu código aquí
+  test: |
+    assert invoice is not None, "invoice debe ser un dict, no None"
+    assert isinstance(invoice, dict), "invoice debe ser un dict"
+    assert invoice["vendor"] == "ACME", "vendor debe ser ACME"
+    assert invoice["amount"] == 4820.50, "amount debe ser 4820.50"
+    assert invoice["paid"] is False, "paid debe ser False (Python bool)"
+    assert invoice.get("processed") is True, "debe existir la clave 'processed' con valor True"
+
+    out = __cap.getvalue().strip()
+    assert '"processed": true' in out, "el JSON impreso debe contener 'processed: true'"
+    assert '"vendor": "ACME"' in out, "el JSON impreso debe contener el vendor"
+    print("ok")
+  solution: |
+    import json
+
+    RAW_JSON = '{"id": "INV-001", "vendor": "ACME", "amount": 4820.50, "paid": false}'
+
+    invoice = json.loads(RAW_JSON)
+    invoice["processed"] = True
+    print(json.dumps(invoice, indent=2))
+
+- slug: json-status-filter
+  title: "Filtrar facturas desde JSON"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes `PAYLOAD` como string JSON con una lista de facturas.
+    Escribe la función `get_overdue(payload_str)` que:
+    - Parsea el JSON.
+    - Devuelve una lista con los `"id"` de las facturas donde `"paid"` es `false`.
+
+    Imprime el resultado al llamar la función con `PAYLOAD`.
+  hint: |
+    Después de `json.loads`, tienes un dict. Las facturas están en `data["invoices"]`.
+    Itera con `for` y filtra por `inv["paid"] is False`.
+  starter: |
+    import json
+
+    PAYLOAD = """
+    {
+      "period": "2026-04",
+      "invoices": [
+        {"id": "INV-001", "vendor": "ACME",    "amount": 4820.50, "paid": true},
+        {"id": "INV-002", "vendor": "Globex",  "amount": 1500.00, "paid": false},
+        {"id": "INV-003", "vendor": "Initech", "amount": 3100.75, "paid": true},
+        {"id": "INV-004", "vendor": "ACME",    "amount": 800.00,  "paid": false}
+      ]
+    }
+    """
+
+
+    def get_overdue(payload_str: str) -> list[str]:
+        # completa aquí
+        pass
+
+
+    print(get_overdue(PAYLOAD))
+  test: |
+    result = get_overdue(PAYLOAD)
+    assert isinstance(result, list), "debe devolver una lista"
+    assert len(result) == 2, f"esperaba 2 ids, obtuve {len(result)}: {result}"
+    assert "INV-002" in result, "INV-002 debe estar en la lista (paid: false)"
+    assert "INV-004" in result, "INV-004 debe estar en la lista (paid: false)"
+    assert "INV-001" not in result, "INV-001 no debe estar (paid: true)"
+    assert "INV-003" not in result, "INV-003 no debe estar (paid: true)"
+    print("ok")
+  solution: |
+    import json
+
+    PAYLOAD = """
+    {
+      "period": "2026-04",
+      "invoices": [
+        {"id": "INV-001", "vendor": "ACME",    "amount": 4820.50, "paid": true},
+        {"id": "INV-002", "vendor": "Globex",  "amount": 1500.00, "paid": false},
+        {"id": "INV-003", "vendor": "Initech", "amount": 3100.75, "paid": true},
+        {"id": "INV-004", "vendor": "ACME",    "amount": 800.00,  "paid": false}
+      ]
+    }
+    """
+
+
+    def get_overdue(payload_str: str) -> list[str]:
+        data = json.loads(payload_str)
+        return [inv["id"] for inv in data["invoices"] if inv["paid"] is False]
+
+
+    print(get_overdue(PAYLOAD))

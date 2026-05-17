@@ -1,0 +1,266 @@
+# E05 — Ejercicios: Temporal, determinismo, schedules
+# runner: backend — requieren temporalio; no disponible en Pyodide.
+# El ejercicio 1 (AST) sí corre en pyodide (stdlib ast).
+
+- slug: e05_ast_detector
+  title: "Detector AST de violaciones de determinismo"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente módulo `workflow_bad.py` contiene **tres violaciones** de las
+    reglas de determinismo de Temporal. Escribe la función `find_violations(source: str) -> list[str]`
+    que recibe el source code como string y devuelve los nombres de las llamadas
+    prohibidas que encontró (`"datetime.now"`, `"datetime.utcnow"`, `"random.random"`,
+    `"uuid.uuid4"`, etc.).
+
+    Usa el módulo `ast` de la stdlib. La función debe retornar una lista con cada
+    hallazgo como string, sin duplicados, ordenada alfabéticamente.
+
+    Código de prueba que debe analizar:
+    ```python
+    source = '''
+    import uuid, random
+    from datetime import datetime
+
+    async def run(self, tenant_id):
+        ts = datetime.now().isoformat()
+        uid = uuid.uuid4()
+        x = random.random()
+        result = await workflow.execute_activity(do_something, args=[tenant_id])
+        return result
+    '''
+    ```
+  hint: |
+    - `ast.parse(source)` devuelve un árbol. `ast.walk(tree)` itera todos los nodos.
+    - Busca nodos `ast.Call`. Un `Call` tiene `.func` que puede ser `ast.Attribute`
+      (para `datetime.now()`) o `ast.Name` (para nombres simples).
+    - Para `datetime.now()`: `call.func` es `Attribute` con `.attr == "now"` y
+      `.value.id == "datetime"`.
+    - Para `uuid.uuid4()`: `.attr == "uuid4"` y `.value.id == "uuid"`.
+    - Para `random.random()`: `.attr == "random"` y `.value.id == "random"`.
+  starter: |
+    import ast
+
+    FORBIDDEN = {
+        ("datetime", "now"),
+        ("datetime", "utcnow"),
+        ("uuid", "uuid4"),
+        ("random", "random"),
+        ("random", "randint"),
+        ("random", "choice"),
+    }
+
+    def find_violations(source: str) -> list[str]:
+        tree = ast.parse(source)
+        found = set()
+        for node in ast.walk(tree):
+            # completa aquí
+            pass
+        return sorted(found)
+  test: |
+    source = """
+    import uuid, random
+    from datetime import datetime
+
+    async def run(self, tenant_id):
+        ts = datetime.now().isoformat()
+        uid = uuid.uuid4()
+        x = random.random()
+        result = await workflow.execute_activity(do_something, args=[tenant_id])
+        return result
+    """
+    result = find_violations(source)
+    assert isinstance(result, list), "debe devolver lista"
+    assert "datetime.now" in result, f"debe detectar datetime.now; got {result}"
+    assert "uuid.uuid4" in result, f"debe detectar uuid.uuid4; got {result}"
+    assert "random.random" in result, f"debe detectar random.random; got {result}"
+    assert len(result) == 3, f"exactamente 3 violaciones; got {result}"
+    assert result == sorted(result), "debe estar ordenada"
+    print("ok")
+  solution: |
+    import ast
+
+    FORBIDDEN = {
+        ("datetime", "now"),
+        ("datetime", "utcnow"),
+        ("uuid", "uuid4"),
+        ("random", "random"),
+        ("random", "randint"),
+        ("random", "choice"),
+    }
+
+    def find_violations(source: str) -> list[str]:
+        tree = ast.parse(source)
+        found = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                func = node.func
+                if isinstance(func, ast.Attribute):
+                    obj = getattr(func.value, "id", None)
+                    method = func.attr
+                    if (obj, method) in FORBIDDEN:
+                        found.add(f"{obj}.{method}")
+        return sorted(found)
+
+- slug: e05_heartbeat_activity
+  title: "Activity con heartbeat en background"
+  runner: backend
+  kind: code
+  prompt: |
+    Completa la función `run_closing_agent` (activity Temporal) para el caso
+    **F-FIN-03 (cierre mensual)**. Debe:
+
+    1. Lanzar una coroutine de heartbeat que llame `activity.heartbeat({"stage": "closing", "tenant": tenant_id})`
+       cada 20 segundos.
+    2. Simular el trabajo del agente con `await asyncio.sleep(0.1)` (en producción
+       sería la llamada a LangGraph).
+    3. Retornar `{"tenant_id": tenant_id, "period": period, "status": "closed"}`.
+    4. Garantizar que la tarea de heartbeat se cancela aunque la activity falle
+       (usar `finally`).
+  hint: |
+    - `asyncio.create_task(...)` lanza la coroutine sin esperar.
+    - La coroutine de heartbeat es un `while True` con `await asyncio.sleep(20)`.
+    - El bloque `try / finally` garantiza `task.cancel()` incluso en excepción.
+  starter: |
+    import asyncio
+    from temporalio import activity
+
+    @activity.defn
+    async def run_closing_agent(tenant_id: str, period: str) -> dict:
+        async def _heartbeat() -> None:
+            while True:
+                # emite heartbeat
+                await asyncio.sleep(20)
+
+        task = asyncio.create_task(_heartbeat())
+        try:
+            # simula trabajo
+            pass
+        finally:
+            pass  # cancela la tarea
+  test: |
+    import asyncio
+    from unittest.mock import patch, MagicMock
+
+    heartbeat_calls = []
+
+    def mock_heartbeat(data):
+        heartbeat_calls.append(data)
+
+    with patch("temporalio.activity.heartbeat", side_effect=mock_heartbeat):
+        result = asyncio.run(run_closing_agent("acme", "2026-04"))
+
+    assert result == {"tenant_id": "acme", "period": "2026-04", "status": "closed"}, \
+        f"resultado incorrecto: {result}"
+    assert len(heartbeat_calls) >= 1, "debe llamar heartbeat al menos una vez"
+    assert heartbeat_calls[0].get("tenant") == "acme", "heartbeat debe incluir tenant_id"
+    print("ok")
+  solution: |
+    import asyncio
+    from temporalio import activity
+
+    @activity.defn
+    async def run_closing_agent(tenant_id: str, period: str) -> dict:
+        async def _heartbeat() -> None:
+            while True:
+                activity.heartbeat({"stage": "closing", "tenant": tenant_id})
+                await asyncio.sleep(20)
+
+        task = asyncio.create_task(_heartbeat())
+        try:
+            await asyncio.sleep(0.1)
+            return {"tenant_id": tenant_id, "period": period, "status": "closed"}
+        finally:
+            task.cancel()
+
+- slug: e05_idempotency_key
+  title: "Idempotency key multitenant"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Escribe la función `make_idempotency_key(kind: str, tenant_id: str, period: str) -> str`
+    que produce una clave con el formato `"{kind}:{tenant_id}:{period}"`.
+
+    Luego escribe `assert_no_duplicates(keys: list[str]) -> bool` que retorna `True`
+    si todos los elementos de la lista son únicos, `False` si hay algún duplicado.
+
+    Reglas duras:
+    - La clave nunca puede ser igual para dos tenants distintos con el mismo período.
+    - La clave nunca puede ser igual para el mismo tenant con períodos distintos.
+  hint: |
+    - `make_idempotency_key("audit", "acme", "2026-04")` → `"audit:acme:2026-04"`.
+    - Para detectar duplicados: `len(keys) != len(set(keys))`.
+  starter: |
+    def make_idempotency_key(kind: str, tenant_id: str, period: str) -> str:
+        pass
+
+    def assert_no_duplicates(keys: list[str]) -> bool:
+        pass
+  test: |
+    k1 = make_idempotency_key("audit", "acme", "2026-04")
+    k2 = make_idempotency_key("audit", "globex", "2026-04")
+    k3 = make_idempotency_key("audit", "acme", "2026-03")
+
+    assert k1 == "audit:acme:2026-04", f"clave incorrecta: {k1}"
+    assert k1 != k2, "tenants distintos deben producir claves distintas"
+    assert k1 != k3, "períodos distintos deben producir claves distintas"
+
+    assert assert_no_duplicates([k1, k2, k3]) is True
+    assert assert_no_duplicates([k1, k1, k2]) is False
+    print("ok")
+  solution: |
+    def make_idempotency_key(kind: str, tenant_id: str, period: str) -> str:
+        return f"{kind}:{tenant_id}:{period}"
+
+    def assert_no_duplicates(keys: list[str]) -> bool:
+        return len(keys) == len(set(keys))
+
+- slug: e05_workflow_diagnosis
+  title: "Diagnóstico: workflow con múltiples violaciones"
+  runner: pyodide
+  kind: debug
+  prompt: |
+    El siguiente workflow tiene **cuatro problemas**. Identifícalos y escribe
+    `fixes: list[str]` donde cada elemento es una descripción del arreglo
+    (e.g., `"mover datetime.now() a una activity"`).
+
+    ```python
+    import random
+    from datetime import datetime
+    from temporalio import workflow
+
+    @workflow.defn
+    class BadAuditWorkflow:
+        @workflow.run
+        async def run(self, tenant_id: str) -> dict:
+            run_id = random.randint(1000, 9999)          # línea 9
+            ts = datetime.now().isoformat()              # línea 10
+            import httpx                                  # línea 11
+            data = httpx.get("http://erp/data").json()   # línea 12
+            return {"run_id": run_id, "ts": ts, "data": data}
+    ```
+
+    Escribe `fixes` como lista de strings, uno por problema.
+    Los tests solo verifican que `len(fixes) == 4`.
+  hint: |
+    Pista 1: `random.randint` en workflow code.
+    Pista 2: `datetime.now()` en workflow code.
+    Pista 3: `import` dinámico dentro de la función (viola el patrón de imports).
+    Pista 4: IO de red (`httpx.get`) directamente en el workflow.
+  starter: |
+    fixes = [
+        # describe cada arreglo
+    ]
+  test: |
+    assert isinstance(fixes, list), "fixes debe ser lista"
+    assert len(fixes) == 4, f"deben ser exactamente 4 arreglos; tienes {len(fixes)}"
+    assert all(isinstance(f, str) and len(f) > 5 for f in fixes), \
+        "cada fix debe ser una descripción no vacía"
+    print("ok")
+  solution: |
+    fixes = [
+        "mover random.randint() a una activity; el workflow no puede usar random",
+        "mover datetime.now() a una activity; el workflow no puede leer tiempo real",
+        "mover el import httpx fuera de la función o usar unsafe.imports_passed_through()",
+        "mover httpx.get() a una activity; el workflow no puede hacer IO de red",
+    ]

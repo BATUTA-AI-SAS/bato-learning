@@ -1,0 +1,251 @@
+- slug: poc-design-andina
+  title: "Diseña el POC para Constructora Andina"
+  runner: pyodide
+  kind: design
+  prompt: |
+    El gerente Carlos Mendoza vio la demo y dijo: «me convence, pero quiero
+    ver cómo funciona con nuestros datos antes de firmar». Diseña el POC
+    para Constructora Andina con los cuatro componentes obligatorios.
+
+    Restricciones:
+    - El POC no puede durar más de 14 días calendario.
+    - El success criteria tiene que ser verificable por Héctor sin
+      conocimiento técnico.
+    - El precio del POC es 0 USD (es tu primer cliente de construcción).
+    - Debe incluir un compromiso escrito del cliente antes de empezar.
+  hint: |
+    El success criteria debe ser un número que Héctor pueda verificar
+    mirando el reporte: «el agente matcheó X % de las transacciones».
+    No uses criterios como «el agente funciona bien».
+  starter: |
+    poc = {
+        "use_case": "",       # 1 sola función del agente
+        "input_data": {
+            "description": "",  # qué provee el cliente
+            "format": "",       # CSV, PDF, etc.
+            "deadline_day": 0   # día del POC en que debe entregarlo
+        },
+        "success_criteria": {
+            "description": "",  # criterio verificable por el cliente
+            "threshold": "",    # número concreto
+            "verified_by": ""   # quién verifica (Héctor, Carlos, etc.)
+        },
+        "duration_days": 0,
+        "price_usd": 0,
+        "client_commitment": ""  # qué firma o acuerda el cliente antes de empezar
+    }
+  test: |
+    assert isinstance(poc, dict)
+
+    assert poc["use_case"] != "", "use_case no puede estar vacío"
+    assert len(poc["use_case"]) > 10, "use_case debe describir la función específica"
+
+    inp = poc["input_data"]
+    assert inp["description"] != "", "input_data.description no puede estar vacío"
+    assert inp["deadline_day"] > 0, "deadline_day debe ser > 0"
+    assert inp["deadline_day"] <= 5, \
+        "Los datos deben llegar en los primeros 5 días del POC para tener tiempo de procesar"
+
+    sc = poc["success_criteria"]
+    assert sc["description"] != "", "success_criteria.description no puede estar vacío"
+    assert sc["threshold"] != "", "threshold no puede estar vacío — debe ser un número"
+    assert sc["verified_by"] != "", "verified_by no puede estar vacío"
+    # No debe contener subjetividades
+    vague_words = ["bien", "correcto", "funciona", "bueno", "satisfactorio"]
+    for vw in vague_words:
+        assert vw not in sc["description"].lower(), \
+            f"'{vw}' en success_criteria es subjetivo. Usa un número verificable."
+
+    assert poc["duration_days"] <= 14, "El POC no puede durar más de 14 días"
+    assert poc["duration_days"] > 0, "duration_days debe ser > 0"
+    assert poc["price_usd"] == 0, "Para Andina el POC es gratuito (primer caso del vertical)"
+    assert poc["client_commitment"] != "", \
+        "El cliente debe asumir un compromiso antes de empezar el POC"
+    print("ok")
+  solution: |
+    poc = {
+        "use_case": "Conciliación bancaria de 1 mes de transacciones de las 3 cuentas activas (Bancolombia, BBVA, Banco de Occidente) contra el libro contable de Siigo.",
+        "input_data": {
+            "description": "CSV/PDF de extractos bancarios de las 3 cuentas del mes de marzo 2026 + export CSV del libro contable Siigo del mismo período.",
+            "format": "CSV o PDF descargado del portal bancario + CSV de Siigo",
+            "deadline_day": 3
+        },
+        "success_criteria": {
+            "description": "El agente matchea de forma automática al menos el 85 % de las transacciones del mes sin intervención manual. Las excepciones se presentan en una tabla ordenada por monto.",
+            "threshold": "≥ 85 % de match automático (meta aspiracional: ≥ 90 %)",
+            "verified_by": "Héctor Rivas — puede verificar contando las filas matcheadas vs el total en el reporte"
+        },
+        "duration_days": 10,
+        "price_usd": 0,
+        "client_commitment": "Email de confirmación firmado por Carlos Mendoza antes del kick-off indicando que si el POC cumple los criterios, avanzan a contrato en los 5 días siguientes."
+    }
+  hints:
+    - "success_criteria.threshold debe ser un porcentaje o un número, no una descripción."
+    - "El compromiso del cliente puede ser un email simple, no necesita ser un documento legal."
+
+- slug: demo-script-outline
+  title: "Estructura el guion de la demo en 3 actos"
+  runner: pyodide
+  kind: design
+  prompt: |
+    La demo con Carlos y Héctor dura 30 minutos. Escribe el guion de los
+    tres actos con el contenido específico para el caso Andina.
+    Cada acto tiene duración asignada y un objetivo concreto.
+  hint: |
+    Acto 1 usa datos del discovery: 847 transacciones, 2 días/mes, 3 bancos.
+    Acto 3 cierra con la pregunta: «¿esto resuelve lo que me contaste?»
+  starter: |
+    demo_script = {
+        "act_1": {
+            "name": "El antes",
+            "duration_min": 0,
+            "objective": "",
+            "content": ""   # qué muestras / dices
+        },
+        "act_2": {
+            "name": "El agente corriendo",
+            "duration_min": 0,
+            "objective": "",
+            "content": ""
+        },
+        "act_3": {
+            "name": "El después y propuesta de valor",
+            "duration_min": 0,
+            "objective": "",
+            "content": ""
+        },
+        "closing_question": ""  # pregunta de cierre del Acto 3
+    }
+  test: |
+    assert isinstance(demo_script, dict)
+    total_min = sum(demo_script[f"act_{i}"]["duration_min"] for i in [1,2,3])
+    assert total_min <= 30, f"La demo total es {total_min} min, debe ser ≤ 30 min"
+    assert total_min >= 25, f"La demo total es {total_min} min, muy corta — mínimo 25 min"
+
+    for act in ["act_1", "act_2", "act_3"]:
+        a = demo_script[act]
+        assert a["duration_min"] > 0, f"{act}.duration_min debe ser > 0"
+        assert a["objective"] != "", f"{act}.objective no puede estar vacío"
+        assert a["content"] != "", f"{act}.content no puede estar vacío"
+
+    # Acto 1 no debe mencionar el producto
+    act1_content = demo_script["act_1"]["content"].lower()
+    product_words = ["agente", "api", "modelo", "demo del producto"]
+    for pw in product_words:
+        assert pw not in act1_content, \
+            f"Acto 1 no debe mencionar el producto (encontré '{pw}'). Solo el problema del cliente."
+
+    # La pregunta de cierre debe ser una pregunta
+    closing = demo_script["closing_question"]
+    assert "?" in closing, "closing_question debe terminar en '?'"
+    assert closing != "", "closing_question no puede estar vacío"
+    print("ok")
+  solution: |
+    demo_script = {
+        "act_1": {
+            "name": "El antes",
+            "duration_min": 5,
+            "objective": "Hacer que el cliente reconozca su propio problema — crear empatía antes de mostrar la solución.",
+            "content": "Mostrar un Excel con 847 filas simulando el extracto de marzo. Columna manual 'estado' con muchas celdas vacías. 'Héctor, esto es lo que describiste: tres PDFs distintos, dos días de trabajo, y este cargo duplicado de $1.8M COP que pasó en febrero...'"
+        },
+        "act_2": {
+            "name": "El agente corriendo",
+            "duration_min": 15,
+            "objective": "Demostrar que el agente resuelve el problema específico de Andina, en su lenguaje.",
+            "content": "Ejecutar el agente sobre los 847 movimientos sintéticos. Mostrar el output: tabla de matches con 803 automáticos (91 %). Señalar las 44 excepciones ordenadas por monto. 'La más grande es esta: $4.8M COP de Bancolombia sin asiento en Siigo. El agente dice que probablemente es el pago a Vargas Suministros del 15 de febrero, con 87% de confianza.'"
+        },
+        "act_3": {
+            "name": "El después y propuesta de valor",
+            "duration_min": 10,
+            "objective": "Cuantificar el valor entregado y abrir la puerta al POC.",
+            "content": "Resumen: 4 minutos de procesamiento vs 2 días. 803/847 transacciones sin tocar. Héctor revisa solo las 44 excepciones — estimado 20 min. '14 horas libres por mes. Y el duplicado de $1.8M se habría detectado el día del cierre, no 40 días después.'"
+        },
+        "closing_question": "¿Esto resuelve lo que me describiste? ¿Tiene sentido hacer un POC con los datos reales de marzo para que lo veas funcionando con sus propios extractos?"
+    }
+  hints:
+    - "Acto 1: usa solo el problema — no menciones el agente ni el producto."
+    - "Acto 2: habla en lenguaje del contador, no en lenguaje técnico."
+
+- slug: poc-scope-creep
+  title: "Detecta y responde al scope creep en el POC"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Estás en el Día 6 del POC de Andina. Héctor manda un email con 3 solicitudes
+    nuevas. Clasifica cada una como IN_SCOPE (ya está en el acuerdo del POC),
+    OUT_SCOPE_PHASE2 (válida pero para el contrato de producción), o
+    OUT_SCOPE_REJECT (fuera del servicio por completo).
+
+    El scope del POC original: conciliación de 3 cuentas bancarias vs libro
+    Siigo, 1 mes de datos, reporte en PDF.
+  hint: |
+    Cualquier cosa que no esté explícitamente en el scope original del POC es
+    OUT_SCOPE. La pregunta es si irá a la Fase 2 del contrato o si está fuera
+    del servicio completamente.
+  starter: |
+    requests = [
+        {
+            "id": 1,
+            "request": "¿Pueden agregar al reporte la columna del saldo acumulado por cuenta?",
+            "classification": "",  # IN_SCOPE | OUT_SCOPE_PHASE2 | OUT_SCOPE_REJECT
+            "response_draft": ""
+        },
+        {
+            "id": 2,
+            "request": "¿También pueden hacer esto con las facturas de proveedores en Siigo?",
+            "classification": "",
+            "response_draft": ""
+        },
+        {
+            "id": 3,
+            "request": "¿Pueden entrenar a Lina (la auxiliar contable) en Excel para interpretar el reporte?",
+            "classification": "",
+            "response_draft": ""
+        }
+    ]
+  test: |
+    assert isinstance(requests, list) and len(requests) == 3
+
+    for r in requests:
+        assert r["classification"] in ["IN_SCOPE", "OUT_SCOPE_PHASE2", "OUT_SCOPE_REJECT"], \
+            f"Request {r['id']}: classification debe ser IN_SCOPE, OUT_SCOPE_PHASE2 o OUT_SCOPE_REJECT"
+        assert r["response_draft"] != "", f"Request {r['id']}: response_draft no puede estar vacío"
+
+    r1 = next(r for r in requests if r["id"] == 1)
+    # Saldo acumulado es una mejora del reporte — fuera del scope del POC pero va a Fase 2
+    assert r1["classification"] in ["OUT_SCOPE_PHASE2", "IN_SCOPE"], \
+        "Request 1: columna de saldo es una mejora del reporte. OUT_SCOPE_PHASE2 es la clasificación más defensiva; IN_SCOPE es aceptable si el reporte ya lo puede calcular fácilmente."
+
+    r2 = next(r for r in requests if r["id"] == 2)
+    assert r2["classification"] == "OUT_SCOPE_PHASE2", \
+        "Request 2: facturas de proveedores es un caso de uso completamente nuevo (F-CTA-02). Definitivamente OUT_SCOPE_PHASE2."
+
+    r3 = next(r for r in requests if r["id"] == 3)
+    # Training en Excel de la auxiliar: fuera del servicio de agente IA
+    assert r3["classification"] == "OUT_SCOPE_REJECT", \
+        "Request 3: capacitación en Excel no es parte del servicio de agentes IA. OUT_SCOPE_REJECT."
+    print("ok")
+  solution: |
+    requests = [
+        {
+            "id": 1,
+            "request": "¿Pueden agregar al reporte la columna del saldo acumulado por cuenta?",
+            "classification": "OUT_SCOPE_PHASE2",
+            "response_draft": "Esa mejora la incluimos en el contrato de producción como parte del reporte estándar. Para el POC nos quedamos con el formato acordado; así validamos el matching sin variables adicionales."
+        },
+        {
+            "id": 2,
+            "request": "¿También pueden hacer esto con las facturas de proveedores en Siigo?",
+            "classification": "OUT_SCOPE_PHASE2",
+            "response_draft": "Eso es exactamente la Fase 2 que mencionamos. Terminemos el POC de conciliación bancaria primero y presentamos la propuesta de auditoría de facturas en el siguiente QBR."
+        },
+        {
+            "id": 3,
+            "request": "¿Pueden entrenar a Lina en Excel para interpretar el reporte?",
+            "classification": "OUT_SCOPE_REJECT",
+            "response_draft": "La capacitación en herramientas de office no es parte de nuestro servicio. La documentación de usuario que entregamos al go-live explica cómo leer el reporte del agente; eso sí está incluido."
+        }
+    ]
+  hints:
+    - "OUT_SCOPE_PHASE2 es la respuesta correcta cuando la solicitud es válida pero no está en el POC actual."
+    - "La respuesta al scope creep siempre reconoce la solicitud como válida — nunca 'eso no lo hacemos'."

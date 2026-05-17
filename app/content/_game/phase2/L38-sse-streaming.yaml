@@ -1,0 +1,44 @@
+slug: sse-streaming
+title: "El stream de tokens del LLM llega al browser"
+kind: code
+phase: PH02
+ord: 38
+trains_skill: sse-streaming
+xp: 25
+est_seconds: 180
+scenario_md: |
+  El tutor de ACME usa un LLM que responde token a token. Sin streaming
+  el usuario ve una pantalla en blanco por 4 segundos. Con SSE cada token
+  aparece al instante. Implementa el generador que produce los eventos SSE.
+payload:
+  starter: |
+    from typing import Generator
+
+    def stream_tokens(tokens: list[str]) -> Generator[str, None, None]:
+        """
+        Genera eventos SSE para cada token.
+        Formato SSE: cada evento es 'data: <contenido>\\n\\n'
+        El último evento debe ser 'data: [DONE]\\n\\n'
+        """
+        # Itera sobre tokens y yielda el formato SSE correcto
+        # Al terminar, yielda el evento final [DONE]
+        ...
+
+    # Simula tokens del LLM
+    sample_tokens = ["La", " factura", " de", " ACME", " es", " válida."]
+    events = list(stream_tokens(sample_tokens))
+  tests: |
+    assert len(events) == len(sample_tokens) + 1, \
+        f"Esperaba {len(sample_tokens)+1} eventos (tokens + [DONE]), obtuve {len(events)}"
+    for i, token in enumerate(sample_tokens):
+        expected = f"data: {token}\n\n"
+        assert events[i] == expected, f"Evento {i} incorrecto: {repr(events[i])}"
+    assert events[-1] == "data: [DONE]\n\n", f"Último evento incorrecto: {repr(events[-1])}"
+hint_md: |
+  `yield f"data: {token}\n\n"` para cada token.
+  Después del loop: `yield "data: [DONE]\n\n"`.
+solution_md: |
+  SSE es HTTP chunked con un formato simple: `data: ...\n\n`. El browser
+  lo lee con `EventSource`. El servidor puede cerrar la conexión o mantenerla
+  abierta. `[DONE]` es convención de OpenAI — el browser escucha ese evento
+  y cierra la conexión por su lado.

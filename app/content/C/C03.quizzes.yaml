@@ -1,0 +1,80 @@
+- slug: pg-dump-format
+  question: |
+    Ejecutas `pg_dump --username=batuta --dbname=batuta --file=backup.dump`.
+    ¿Qué formato tiene el archivo resultante y qué limitación tiene frente a
+    `--format=custom`?
+  explanation: |
+    Sin `--format`, `pg_dump` produce SQL plano (texto): un archivo `.sql` con
+    `CREATE TABLE`, `INSERT INTO`, etc. Este formato es legible pero voluminoso,
+    no comprimido, y no permite restauración selectiva por tabla. `--format=custom`
+    produce un archivo binario comprimido que permite `pg_restore --table=invoice`
+    para restaurar solo esa tabla, y admite paralelismo con `pg_restore --jobs=N`.
+    Para backups de producción, siempre `--format=custom --compress=9`.
+  options:
+    - text: "SQL plano (texto), sin compresión y sin restauración selectiva por tabla."
+      correct: true
+      feedback: "Correcto. El default es SQL plano. Usa --format=custom para backups de producción."
+    - text: "Binario comprimido equivalente a --format=custom."
+      correct: false
+      feedback: "El default NO es binario. Sin --format, pg_dump produce SQL plano sin compresión."
+    - text: "No genera ningún archivo: el default de pg_dump escribe en stdout."
+      correct: false
+      feedback: "Con --file, sí escribe en el archivo indicado. Sin --file, escribe en stdout — pero el formato sigue siendo SQL plano."
+    - text: "Formato tar, que permite compresión pero no restauración selectiva."
+      correct: false
+      feedback: "--format=tar es otra opción, pero no es el default. El default sin --format es SQL plano."
+
+- slug: rpo-restore-drill
+  question: |
+    El equipo de BATUTA tiene backups diarios de Postgres con `pg_dump`. Nunca
+    han ejecutado un restore drill. El servidor principal falla el día 15 de
+    mayo. ¿Cuál es el estado real de su capacidad de recuperación?
+  explanation: |
+    Tener un archivo de backup no implica poder restaurar. Los archivos de
+    backup pueden estar corruptos, el proceso de restore puede fallar por
+    diferencias de versión o de permisos, y el equipo puede no recordar los
+    pasos bajo presión de un incidente. El **restore drill** — ejecutar el
+    restore completo en un ambiente de staging y verificar los datos — es lo
+    que convierte un «tengo backup» en «puedo recuperarme». Sin el drill,
+    el RPO efectivo es desconocido, no 24 horas.
+  options:
+    - text: "Pueden restaurar con RPO de 24 horas porque los backups diarios existen."
+      correct: false
+      feedback: "La existencia del backup no garantiza la capacidad de restore. Sin el drill, el RPO real es desconocido."
+    - text: "RPO desconocido: el backup existe pero su restaurabilidad no ha sido verificada."
+      correct: true
+      feedback: "Correcto. Un backup sin drill es una promesa no verificada. El drill es el único criterio de aceptación válido."
+    - text: "No importa: pg_dump es una herramienta estándar y fiable, el restore siempre funciona."
+      correct: false
+      feedback: "pg_dump es fiable, pero el restore puede fallar por diferencias de versión, permisos de roles, o corrupción del archivo. El drill lo detecta antes de un incidente real."
+    - text: "Pueden restaurar, pero tardarán más porque no tienen el procedimiento documentado."
+      correct: false
+      feedback: "No es solo un problema de tiempo. Sin el drill, no saben si el restore funciona. Pueden descubrir el problema durante el incidente, cuando ya es tarde."
+
+- slug: set-local-backup-tenant
+  question: |
+    Un cliente de BATUTA (Cooperativa Popular de Crédito) requiere que sus datos
+    de transacciones estén disponibles para auditoría regulatoria durante 7 años.
+    Tienes backups rolling de 30 días. ¿Qué ajuste a la política de backup cubre
+    este requisito?
+  explanation: |
+    Los 30 días de retención rolling cubren la operación diaria (restaurar ante un
+    fallo reciente), pero no el requisito de 7 años. La solución es una política
+    de dos niveles: retención rolling de 30 días para operación + archivado de un
+    backup mensual retenido 7 años (84 meses) en almacenamiento de largo plazo.
+    El backup mensual puede ser el último backup del mes, almacenado en un bucket
+    o Storage Box con retención configurada. Esta política se documenta en el
+    contrato de servicio con el cliente.
+  options:
+    - text: "Aumentar la retención rolling de 30 a 2 555 días (7 años)."
+      correct: false
+      feedback: "Mantener 2 555 backups diarios es costoso e innecesario. Lo que se necesita es 1 backup mensual archivado, no todos los diarios."
+    - text: "La política actual es suficiente porque Postgres guarda los datos indefinidamente."
+      correct: false
+      feedback: "Postgres guarda los datos mientras la BD esté activa. Los backups son para recuperar ante fallo. Sin backup de largo plazo, una pérdida de datos en la BD no tiene recuperación histórica."
+    - text: "Añadir un backup mensual archivado durante 7 años (84 meses), además del rolling de 30 días."
+      correct: true
+      feedback: "Correcto. Dos niveles: rolling 30 días para operación + mensual archivado 7 años para cumplimiento regulatorio."
+    - text: "No es necesario: los requisitos regulatorios aplican al cliente, no al proveedor de servicio."
+      correct: false
+      feedback: "Si BATUTA aloja los datos del cliente y esos datos son objeto de auditoría regulatoria, el SLA de BATUTA debe cubrir los requisitos del cliente. El contrato debe especificarlo."

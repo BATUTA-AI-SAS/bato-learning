@@ -1,0 +1,83 @@
+- slug: stride-category
+  question: |
+    El agente de auditoría de ACME tiene acceso a `send_email` con scope de admin.
+    Un usuario con scope `read:invoices` activa el agente. El agente envía un email
+    al proveedor de ACME con datos financieros sin que el usuario lo pidiera.
+    ¿Qué categoría STRIDE describe mejor esta amenaza?
+  explanation: |
+    Es Elevation of Privilege (E) en su forma de «Confused Deputy». El agente
+    actúa con los privilegios de la API key de servicio (admin + send:email) aunque
+    el usuario que lo activó solo tiene `read:invoices`. El agente «confunde» quién
+    es su principal (el usuario con scope limitado) y actúa con más autoridad de la
+    que debería tener para esa sesión. La mitigación es la intersección de scopes:
+    el scope efectivo del agente = intersección(scope_servicio, scope_usuario).
+  options:
+    - text: "Information Disclosure (I) — el email expone datos financieros."
+      correct: false
+      feedback: "La exposición de datos es una consecuencia, no la categoría de la amenaza. La causa raíz es que el agente actuó con más privilegios de los que el usuario activador tiene — eso es Elevation of Privilege / Confused Deputy."
+    - text: "Elevation of Privilege (E) — Confused Deputy: el agente actúa con scopes que el usuario activador no tiene."
+      correct: true
+      feedback: "Correcto. Confused Deputy es una forma especial de Elevation of Privilege donde el agente (el deputy) tiene más privilegios que el usuario que lo invocó (el principal). La intersección de scopes es la mitigación."
+    - text: "Spoofing (S) — el agente se hace pasar por el usuario al enviar el email."
+      correct: false
+      feedback: "Spoofing es suplantación de identidad — hacerse pasar por otra entidad. Aquí el agente actúa con su propia identidad pero con privilegios excesivos."
+    - text: "Tampering (T) — el email modifica datos del proveedor."
+      correct: false
+      feedback: "Tampering es modificación no autorizada de datos en tránsito o almacenados. El envío de un email no es tampering — es un side-effect de privilege escalation."
+
+- slug: threat-prioritization
+  question: |
+    Tienes dos amenazas en tu backlog:
+    - Amenaza A: «Atacante de nación-estado compromete el data center de Anthropic»
+      Probabilidad: 1 (muy baja). Impacto: 5 (catastrófico). Score P×I: 5.
+    - Amenaza B: «BOLA: endpoint /invoices/{id} sin filtro tenant_id»
+      Probabilidad: 5 (casi seguro en prod sin control). Impacto: 5. Score P×I: 25.
+
+    ¿Cuál debes mitigar primero y por qué?
+  explanation: |
+    La amenaza B tiene score 25 vs 5. A pesar de que A parece más «impresionante»
+    (ataque de nación-estado), la probabilidad extremadamente baja la hace baja
+    prioridad vs BOLA, que es un error de código que cualquier desarrollador comete
+    y cualquier script de IDOR automatizado encontraría en minutos. El threat modeling
+    con P×I explícito previene el sesgo de «lo más llamativo vs lo más probable».
+  options:
+    - text: "Amenaza A primero, porque su impacto catastrófico hace inviable el negocio si ocurre."
+      correct: false
+      feedback: "El impacto solo no determina la prioridad. Con probabilidad 1, el score es 5. Invertir semanas en defender un escenario de probabilidad 1 mientras BOLA (score 25) queda expuesto es una mala priorización de seguridad."
+    - text: "Amenaza B primero. Score 25 vs 5. BOLA es un error de código que cualquier atacante automatizado encuentra."
+      correct: true
+      feedback: "Correcto. El score P×I es el mecanismo anti-sesgo del threat modeling. La probabilidad importa tanto como el impacto. BOLA es la vulnerabilidad más frecuente en APIs (API1:2023) y la que más datos reales ha filtrado."
+    - text: "Las dos al mismo tiempo, porque el impacto de A es tan alto que no puedes esperar."
+      correct: false
+      feedback: "Si tienes recursos para dos en paralelo, sí. Pero si el recurso es limitado (lo más frecuente), el score P×I prioriza B. Trabajar las dos en paralelo cuando B ya está bloqueando deploys no es gestión de riesgo — es parálisis."
+    - text: "Ninguna de las dos es urgente. Primero completa el backlog de features."
+      correct: false
+      feedback: "BOLA con probabilidad 5 e impacto 5 en un SaaS multitenant es crítico inmediato. El primer cliente que encuentre que puede leer facturas de otro tenant es el fin del negocio."
+
+- slug: insider-threat
+  question: |
+    Phoenix almacena trazas del agente que incluyen los textos de las facturas analizadas
+    (con montos, nombres de proveedores, y números de cuenta). Un empleado de soporte
+    del operador necesita acceso a Phoenix para depurar problemas. ¿Qué amenaza STRIDE
+    representa y cuál es la mitigación correcta?
+  explanation: |
+    Es Information Disclosure (I) con el actor «insider». El empleado tiene acceso
+    legítimo (para soporte), pero ese acceso expone datos confidenciales del cliente
+    (PII fiscal). La mitigación doble: PII scrubbing antes de enviar a Phoenix (los
+    datos sensibles se reemplazan por tokens como `[REDACTED_AMOUNT]`) + control de
+    acceso por rol en Phoenix (solo puede ver trazas de tenants que le corresponden).
+    Sin PII scrubbing, incluso un control de acceso perfecto es insuficiente: el
+    empleado ve los datos en el ejercicio legítimo de su función.
+  options:
+    - text: "No es una amenaza — los empleados son de confianza."
+      correct: false
+      feedback: "Los insiders son actores obligatorios en cualquier threat model. La amenaza no requiere malicia: un empleado de soporte con acceso a Phoenix puede ver datos de clientes accidentalmente, o ser comprometido por un atacante que roba sus credenciales."
+    - text: "Spoofing (S) — el empleado se hace pasar por el cliente."
+      correct: false
+      feedback: "El empleado accede con sus propias credenciales — no hay suplantación. La amenaza es que el acceso legítimo expone datos que no debería ver."
+    - text: "Information Disclosure (I). Mitigación: PII scrubbing antes de enviar a Phoenix + control de acceso por rol."
+      correct: true
+      feedback: "Correcto. PII scrubbing elimina los datos sensibles antes de que lleguen a Phoenix — incluso un acceso sin restricciones no expone nada. El control de acceso por rol es la segunda capa. Ambas son necesarias."
+    - text: "Denial of Service (D) — el empleado puede sobrecargar Phoenix."
+      correct: false
+      feedback: "Un insider podría causar DoS, pero la amenaza principal en este escenario es la exposición de PII del cliente al empleado de soporte — eso es Information Disclosure."

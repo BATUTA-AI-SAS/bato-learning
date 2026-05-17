@@ -1,0 +1,262 @@
+- slug: rest-route-designer
+  title: "Diseña las rutas REST para el módulo de auditoría"
+  runner: pyodide
+  kind: code
+  prompt: |
+    ACME Manufacturing necesita una API REST para gestionar ejecuciones de auditoría.
+    Implementa `design_routes(operations: list[str]) -> list[dict]` que dada
+    una lista de operaciones en lenguaje natural, devuelva la ruta REST correcta
+    para cada una.
+
+    Operaciones → ruta esperada (método + path):
+    - `"crear factura"` → `{"method": "POST", "path": "/invoices"}`
+    - `"listar facturas del período"` → `{"method": "GET", "path": "/invoices"}`
+    - `"obtener una factura por id"` → `{"method": "GET", "path": "/invoices/{id}"}`
+    - `"actualizar una factura"` → `{"method": "PATCH", "path": "/invoices/{id}"}`
+    - `"eliminar una factura"` → `{"method": "DELETE", "path": "/invoices/{id}"}`
+    - `"crear ejecución de auditoría"` → `{"method": "POST", "path": "/audits"}`
+    - `"listar hallazgos de una auditoría"` → `{"method": "GET", "path": "/audits/{id}/findings"}`
+  hint: |
+    Un diccionario `{operacion: resultado}` es la forma más directa.
+    Recuerda: el verbo va en `method`, el recurso (sustantivo) va en `path`.
+  starter: |
+    ROUTES = {
+        "crear factura": {"method": "POST", "path": "/invoices"},
+        "listar facturas del período": {"method": "GET", "path": "/invoices"},
+        # completa los demás casos
+    }
+
+    def design_routes(operations: list[str]) -> list[dict]:
+        return [ROUTES.get(op, {"method": "UNKNOWN", "path": "/unknown"}) for op in operations]
+
+    ops = ["crear factura", "eliminar una factura", "listar hallazgos de una auditoría"]
+    for op, route in zip(ops, design_routes(ops)):
+        print(f"{op!r:40s} → {route}")
+  test: |
+    ROUTES = {
+        "crear factura": {"method": "POST", "path": "/invoices"},
+        "listar facturas del período": {"method": "GET", "path": "/invoices"},
+        "obtener una factura por id": {"method": "GET", "path": "/invoices/{id}"},
+        "actualizar una factura": {"method": "PATCH", "path": "/invoices/{id}"},
+        "eliminar una factura": {"method": "DELETE", "path": "/invoices/{id}"},
+        "crear ejecución de auditoría": {"method": "POST", "path": "/audits"},
+        "listar hallazgos de una auditoría": {"method": "GET", "path": "/audits/{id}/findings"},
+    }
+
+    def design_routes(operations: list[str]) -> list[dict]:
+        return [ROUTES.get(op, {"method": "UNKNOWN", "path": "/unknown"}) for op in operations]
+
+    cases = [
+        ("crear factura", "POST", "/invoices"),
+        ("eliminar una factura", "DELETE", "/invoices/{id}"),
+        ("crear ejecución de auditoría", "POST", "/audits"),
+        ("listar hallazgos de una auditoría", "GET", "/audits/{id}/findings"),
+        ("actualizar una factura", "PATCH", "/invoices/{id}"),
+    ]
+    results = design_routes([c[0] for c in cases])
+    for (op, expected_m, expected_p), got in zip(cases, results):
+        assert got["method"] == expected_m, (
+            f"'{op}': método esperado {expected_m!r}, obtuve {got['method']!r}"
+        )
+        assert got["path"] == expected_p, (
+            f"'{op}': path esperado {expected_p!r}, obtuve {got['path']!r}"
+        )
+    print("ok")
+  solution: |
+    ROUTES = {
+        "crear factura": {"method": "POST", "path": "/invoices"},
+        "listar facturas del período": {"method": "GET", "path": "/invoices"},
+        "obtener una factura por id": {"method": "GET", "path": "/invoices/{id}"},
+        "actualizar una factura": {"method": "PATCH", "path": "/invoices/{id}"},
+        "eliminar una factura": {"method": "DELETE", "path": "/invoices/{id}"},
+        "crear ejecución de auditoría": {"method": "POST", "path": "/audits"},
+        "listar hallazgos de una auditoría": {"method": "GET", "path": "/audits/{id}/findings"},
+    }
+
+    def design_routes(operations: list[str]) -> list[dict]:
+        return [ROUTES.get(op, {"method": "UNKNOWN", "path": "/unknown"}) for op in operations]
+
+    ops = ["crear factura", "eliminar una factura", "listar hallazgos de una auditoría"]
+    for op, route in zip(ops, design_routes(ops)):
+        print(f"{op!r:40s} → {route}")
+
+- slug: api-type-selector
+  title: "Elige el estilo de API correcto para cada caso"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `select_api_style(requirements: dict) -> str` que dado un dict
+    de requisitos, devuelva el estilo de API más adecuado.
+
+    El dict tiene estas claves opcionales:
+    - `"realtime"` (bool): si la comunicación es en tiempo real
+    - `"bidirectional"` (bool): si el canal necesita ser bidireccional
+    - `"event_driven"` (bool): si el sistema externo notifica eventos al tuyo
+    - `"multiple_clients"` (bool): si hay muchos clientes con necesidades distintas de datos
+    - `"high_throughput_internal"` (bool): si es comunicación interna con volumen alto y latencia crítica
+
+    Reglas (en orden de prioridad):
+    1. `realtime=True` + `bidirectional=True` → `"websocket"`
+    2. `realtime=True` + `bidirectional=False` → `"sse"`
+    3. `event_driven=True` → `"webhook"`
+    4. `multiple_clients=True` → `"graphql"`
+    5. `high_throughput_internal=True` → `"grpc"`
+    6. Sin ninguna de las anteriores → `"rest"`
+  hint: |
+    Comprueba las condiciones en orden de prioridad usando `.get(key, False)`.
+    La última rama es el fallback `"rest"`.
+  starter: |
+    def select_api_style(requirements: dict) -> str:
+        realtime = requirements.get("realtime", False)
+        bidirectional = requirements.get("bidirectional", False)
+        # implementa el resto de las reglas
+        ...
+
+    casos = [
+        {"realtime": True, "bidirectional": True},
+        {"event_driven": True},
+        {"high_throughput_internal": True},
+        {},  # caso general
+    ]
+    for req in casos:
+        print(f"{req} → {select_api_style(req)}")
+  test: |
+    def select_api_style(requirements: dict) -> str:
+        realtime = requirements.get("realtime", False)
+        bidirectional = requirements.get("bidirectional", False)
+        if realtime and bidirectional:
+            return "websocket"
+        if realtime and not bidirectional:
+            return "sse"
+        if requirements.get("event_driven", False):
+            return "webhook"
+        if requirements.get("multiple_clients", False):
+            return "graphql"
+        if requirements.get("high_throughput_internal", False):
+            return "grpc"
+        return "rest"
+
+    cases = [
+        ({"realtime": True, "bidirectional": True}, "websocket"),
+        ({"realtime": True, "bidirectional": False}, "sse"),
+        ({"event_driven": True}, "webhook"),
+        ({"multiple_clients": True}, "graphql"),
+        ({"high_throughput_internal": True}, "grpc"),
+        ({}, "rest"),
+        ({"realtime": True}, "sse"),
+        ({"event_driven": True, "multiple_clients": True}, "webhook"),
+    ]
+    for req, expected in cases:
+        got = select_api_style(req)
+        assert got == expected, f"requirements={req} → esperaba {expected!r}, obtuve {got!r}"
+    print("ok")
+  solution: |
+    def select_api_style(requirements: dict) -> str:
+        realtime = requirements.get("realtime", False)
+        bidirectional = requirements.get("bidirectional", False)
+        if realtime and bidirectional:
+            return "websocket"
+        if realtime and not bidirectional:
+            return "sse"
+        if requirements.get("event_driven", False):
+            return "webhook"
+        if requirements.get("multiple_clients", False):
+            return "graphql"
+        if requirements.get("high_throughput_internal", False):
+            return "grpc"
+        return "rest"
+
+    casos = [
+        {"realtime": True, "bidirectional": True},
+        {"event_driven": True},
+        {"high_throughput_internal": True},
+        {},
+    ]
+    for req in casos:
+        print(f"{req} → {select_api_style(req)}")
+
+- slug: http-response-builder
+  title: "Construye la respuesta HTTP correcta para cada escenario"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `build_response(scenario: str, data: dict | None = None) -> dict`
+    que dado un escenario, devuelva el response HTTP correcto con
+    `{"status": int, "body": dict}`.
+
+    Escenarios:
+    - `"invoice_created"` → status 201, body incluye el campo `"id"` del data + `"status": "pending"`
+    - `"invoice_not_found"` → status 404, body `{"detail": "invoice not found"}`
+    - `"validation_error"` → status 422, body `{"detail": "missing required field: vendor_id"}`
+    - `"unauthorized"` → status 401, body `{"detail": "authentication required"}`
+    - `"rate_limited"` → status 429, body `{"detail": "rate limit exceeded", "retry_after": 60}`
+    - `"server_error"` → status 500, body `{"detail": "internal server error"}`
+  hint: |
+    Para `"invoice_created"`, el body combina el `data` recibido con `{"status": "pending"}`.
+    Usa `{**data, "status": "pending"}` si `data` no es None.
+  starter: |
+    def build_response(scenario: str, data: dict | None = None) -> dict:
+        # mapea cada escenario al status y body correctos
+        ...
+
+    print(build_response("invoice_created", {"id": "inv-042", "amount": 4820.0}))
+    print(build_response("invoice_not_found"))
+    print(build_response("rate_limited"))
+  test: |
+    def build_response(scenario: str, data: dict | None = None) -> dict:
+        if scenario == "invoice_created":
+            body = {**(data or {}), "status": "pending"}
+            return {"status": 201, "body": body}
+        if scenario == "invoice_not_found":
+            return {"status": 404, "body": {"detail": "invoice not found"}}
+        if scenario == "validation_error":
+            return {"status": 422, "body": {"detail": "missing required field: vendor_id"}}
+        if scenario == "unauthorized":
+            return {"status": 401, "body": {"detail": "authentication required"}}
+        if scenario == "rate_limited":
+            return {"status": 429, "body": {"detail": "rate limit exceeded", "retry_after": 60}}
+        if scenario == "server_error":
+            return {"status": 500, "body": {"detail": "internal server error"}}
+        return {"status": 400, "body": {"detail": "unknown scenario"}}
+
+    r = build_response("invoice_created", {"id": "inv-042", "amount": 4820.0})
+    assert r["status"] == 201, f"invoice_created debe dar 201, obtuve {r['status']}"
+    assert r["body"]["status"] == "pending", "body debe incluir status: pending"
+    assert r["body"]["id"] == "inv-042", "body debe preservar el id del data"
+
+    r = build_response("invoice_not_found")
+    assert r["status"] == 404 and "not found" in r["body"]["detail"]
+
+    r = build_response("rate_limited")
+    assert r["status"] == 429
+    assert r["body"].get("retry_after") == 60, "rate_limited debe incluir retry_after: 60"
+
+    r = build_response("validation_error")
+    assert r["status"] == 422 and "vendor_id" in r["body"]["detail"]
+
+    r = build_response("unauthorized")
+    assert r["status"] == 401
+
+    r = build_response("server_error")
+    assert r["status"] == 500
+    print("ok")
+  solution: |
+    def build_response(scenario: str, data: dict | None = None) -> dict:
+        if scenario == "invoice_created":
+            body = {**(data or {}), "status": "pending"}
+            return {"status": 201, "body": body}
+        if scenario == "invoice_not_found":
+            return {"status": 404, "body": {"detail": "invoice not found"}}
+        if scenario == "validation_error":
+            return {"status": 422, "body": {"detail": "missing required field: vendor_id"}}
+        if scenario == "unauthorized":
+            return {"status": 401, "body": {"detail": "authentication required"}}
+        if scenario == "rate_limited":
+            return {"status": 429, "body": {"detail": "rate limit exceeded", "retry_after": 60}}
+        if scenario == "server_error":
+            return {"status": 500, "body": {"detail": "internal server error"}}
+        return {"status": 400, "body": {"detail": "unknown scenario"}}
+
+    print(build_response("invoice_created", {"id": "inv-042", "amount": 4820.0}))
+    print(build_response("invoice_not_found"))
+    print(build_response("rate_limited"))

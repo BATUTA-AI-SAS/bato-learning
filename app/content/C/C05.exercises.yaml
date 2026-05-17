@@ -1,0 +1,313 @@
+- slug: create_and_insert
+  title: "Crea la tabla invoice e inserta facturas de ACME"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Usa `sqlite3` (ya disponible en Pyodide) para:
+
+    1. Crear una BD en memoria con `sqlite3.connect(":memory:")`.
+    2. Crear la tabla `invoice` con columnas:
+       - `id INTEGER PRIMARY KEY AUTOINCREMENT`
+       - `tenant_id TEXT NOT NULL`
+       - `vendor_name TEXT NOT NULL`
+       - `total_eur REAL NOT NULL`
+       - `period TEXT NOT NULL`
+       - `paid INTEGER NOT NULL DEFAULT 0`
+    3. Insertar las siguientes tres facturas de ACME (período 2026-04):
+       - Siemens GmbH, 4 820.00, no pagada
+       - Bosch AG, 9 100.50, no pagada
+       - DHL Express, 1 234.00, pagada (paid=1)
+    4. Hacer `con.commit()`.
+    5. Guardar en `result` la lista de filas devuelta por:
+       `SELECT id, vendor_name, total_eur FROM invoice ORDER BY total_eur DESC`
+
+    El resultado debe estar en la variable `result` como lista de tuplas.
+  hint: |
+    Usa `cur.execute(sql)` para crear la tabla, `cur.executemany(sql, data)` o tres
+    `cur.execute(sql, params)` para insertar. Usa `cur.fetchall()` para obtener el resultado.
+  starter: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+
+    # 1. crear tabla
+    cur.execute("""
+        CREATE TABLE invoice (
+            -- define las columnas aquí
+        )
+    """)
+
+    # 2. insertar las tres facturas
+
+    con.commit()
+
+    # 3. query y resultado
+    cur.execute("SELECT id, vendor_name, total_eur FROM invoice ORDER BY total_eur DESC")
+    result = cur.fetchall()
+    print(result)
+  test: |
+    assert isinstance(result, list), "result debe ser una lista"
+    assert len(result) == 3, f"esperaba 3 filas, obtuve {len(result)}"
+    # orden desc por total_eur
+    assert result[0][1] == "Bosch AG", f"la más cara debería ser Bosch AG, obtuve {result[0][1]}"
+    assert abs(result[0][2] - 9100.50) < 0.01
+    assert result[1][1] == "Siemens GmbH"
+    assert abs(result[1][2] - 4820.00) < 0.01
+    assert result[2][1] == "DHL Express"
+    assert abs(result[2][2] - 1234.00) < 0.01
+    print("ok")
+  solution: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+
+    cur.execute("""
+        CREATE TABLE invoice (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            tenant_id   TEXT NOT NULL,
+            vendor_name TEXT NOT NULL,
+            total_eur   REAL NOT NULL,
+            period      TEXT NOT NULL,
+            paid        INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+
+    cur.executemany(
+        "INSERT INTO invoice (tenant_id, vendor_name, total_eur, period, paid) VALUES (?,?,?,?,?)",
+        [
+            ("acme", "Siemens GmbH", 4820.00, "2026-04", 0),
+            ("acme", "Bosch AG",     9100.50, "2026-04", 0),
+            ("acme", "DHL Express",  1234.00, "2026-04", 1),
+        ]
+    )
+    con.commit()
+
+    cur.execute("SELECT id, vendor_name, total_eur FROM invoice ORDER BY total_eur DESC")
+    result = cur.fetchall()
+    print(result)
+
+- slug: select_where_filter
+  title: "SELECT con WHERE, AND y LIMIT"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes ya creada la BD de ACME con las siguientes facturas:
+
+    | id | tenant_id | vendor_name      | total_eur | period   | paid |
+    |----|-----------|------------------|-----------|----------|------|
+    |  1 | acme      | Siemens GmbH     | 4820.00   | 2026-04  | 0    |
+    |  2 | acme      | Bosch AG         | 9100.50   | 2026-04  | 0    |
+    |  3 | acme      | DHL Express      | 1234.00   | 2026-03  | 1    |
+    |  4 | globex    | Maersk           | 5500.00   | 2026-04  | 0    |
+    |  5 | acme      | Repsol SA        | 7200.00   | 2026-04  | 0    |
+
+    Escribe tres queries y guarda sus resultados en:
+    1. `unpaid_acme`: facturas NO pagadas de `acme`, ordenadas por `total_eur` DESC.
+    2. `top2`: las 2 facturas más caras de `acme` (pagadas o no), solo columnas `vendor_name` y `total_eur`.
+    3. `large`: facturas de cualquier tenant con `total_eur > 5000`, ordenadas por `total_eur` DESC.
+
+    El código de setup de la BD ya está incluido — escribe solo las queries.
+  hint: |
+    Para `unpaid_acme`: `WHERE tenant_id = 'acme' AND paid = 0`.
+    Para `top2`: `WHERE tenant_id = 'acme' ORDER BY total_eur DESC LIMIT 2`.
+    Para `large`: `WHERE total_eur > 5000`.
+  starter: |
+    import sqlite3
+
+    # --- setup (no modifiques esto) ---
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.executescript("""
+        CREATE TABLE invoice (
+            id INTEGER PRIMARY KEY, tenant_id TEXT, vendor_name TEXT,
+            total_eur REAL, period TEXT, paid INTEGER DEFAULT 0
+        );
+        INSERT INTO invoice VALUES
+            (1,'acme','Siemens GmbH',4820.00,'2026-04',0),
+            (2,'acme','Bosch AG',9100.50,'2026-04',0),
+            (3,'acme','DHL Express',1234.00,'2026-03',1),
+            (4,'globex','Maersk',5500.00,'2026-04',0),
+            (5,'acme','Repsol SA',7200.00,'2026-04',0);
+    """)
+    # --- escribe tus queries aquí ---
+
+    cur.execute("-- tu query 1: unpaid_acme")
+    unpaid_acme = cur.fetchall()
+
+    cur.execute("-- tu query 2: top2 (solo vendor_name, total_eur)")
+    top2 = cur.fetchall()
+
+    cur.execute("-- tu query 3: large (total_eur > 5000)")
+    large = cur.fetchall()
+
+    print("unpaid_acme:", unpaid_acme)
+    print("top2:", top2)
+    print("large:", large)
+  test: |
+    # unpaid_acme: facturas de acme sin pagar, desc por total_eur
+    vendors_unpaid = [r[0] if len(r) >= 1 else r for r in unpaid_acme]
+    # pueden ser tuples o rows — buscar por contenido
+    unpaid_flat = [str(r) for r in unpaid_acme]
+    assert any("Bosch" in s for s in unpaid_flat), "Bosch AG debería estar en unpaid_acme"
+    assert any("Siemens" in s for s in unpaid_flat), "Siemens GmbH debería estar en unpaid_acme"
+    assert any("Repsol" in s for s in unpaid_flat), "Repsol SA debería estar en unpaid_acme"
+    assert not any("DHL" in s for s in unpaid_flat), "DHL Express está pagada, no debería aparecer"
+    assert not any("Maersk" in s for s in unpaid_flat), "Maersk es de globex, no debería aparecer"
+    # verificar orden: el primero debería ser el más caro (9100.50)
+    first_amount = None
+    for r in unpaid_acme:
+        for item in r:
+            try:
+                v = float(item)
+                if v > 1000:
+                    first_amount = v
+                    break
+            except (TypeError, ValueError):
+                pass
+        if first_amount:
+            break
+    assert first_amount and abs(first_amount - 9100.50) < 0.01, (
+        f"el primero debería ser Bosch AG (9100.50), obtuve primer valor numérico {first_amount}"
+    )
+
+    # top2: solo 2 filas
+    assert len(top2) == 2, f"top2 debería tener 2 filas, tiene {len(top2)}"
+
+    # large: facturas con total_eur > 5000 de cualquier tenant
+    large_flat = [str(r) for r in large]
+    assert any("Bosch" in s for s in large_flat), "Bosch AG (9100.50) debería estar en large"
+    assert any("Maersk" in s or "5500" in s for s in large_flat), "Maersk (5500) debería estar"
+    assert not any("Siemens" in s for s in large_flat), "Siemens (4820) no supera 5000"
+    assert not any("DHL" in s for s in large_flat), "DHL (1234) no supera 5000"
+    print("ok")
+  solution: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.executescript("""
+        CREATE TABLE invoice (
+            id INTEGER PRIMARY KEY, tenant_id TEXT, vendor_name TEXT,
+            total_eur REAL, period TEXT, paid INTEGER DEFAULT 0
+        );
+        INSERT INTO invoice VALUES
+            (1,'acme','Siemens GmbH',4820.00,'2026-04',0),
+            (2,'acme','Bosch AG',9100.50,'2026-04',0),
+            (3,'acme','DHL Express',1234.00,'2026-03',1),
+            (4,'globex','Maersk',5500.00,'2026-04',0),
+            (5,'acme','Repsol SA',7200.00,'2026-04',0);
+    """)
+
+    cur.execute("""
+        SELECT vendor_name, total_eur FROM invoice
+        WHERE tenant_id = 'acme' AND paid = 0
+        ORDER BY total_eur DESC
+    """)
+    unpaid_acme = cur.fetchall()
+
+    cur.execute("""
+        SELECT vendor_name, total_eur FROM invoice
+        WHERE tenant_id = 'acme'
+        ORDER BY total_eur DESC
+        LIMIT 2
+    """)
+    top2 = cur.fetchall()
+
+    cur.execute("""
+        SELECT vendor_name, total_eur FROM invoice
+        WHERE total_eur > 5000
+        ORDER BY total_eur DESC
+    """)
+    large = cur.fetchall()
+
+- slug: update_and_delete
+  title: "UPDATE y DELETE con WHERE seguro"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes la misma BD de ACME del ejercicio anterior. Debes:
+
+    1. **Marcar como pagadas** todas las facturas de `acme` del período `2026-03`
+       (hay una: DHL Express, aunque ya está pagada — el UPDATE aplica igual).
+    2. **Borrar** todas las facturas de `acme` con `total_eur < 2000`.
+    3. Guardar en `remaining` el resultado de
+       `SELECT vendor_name, total_eur, paid FROM invoice WHERE tenant_id = 'acme' ORDER BY total_eur`.
+
+    Antes de cada UPDATE o DELETE, usa un `SELECT` de comprobación con los mismos
+    criterios del WHERE para ver cuántas filas afectarías — esto es buena práctica.
+    Guarda el conteo de filas afectadas por el DELETE en `deleted_count`
+    (usa `cur.rowcount` después del DELETE).
+  hint: |
+    `UPDATE invoice SET paid = 1 WHERE tenant_id = 'acme' AND period = '2026-03'`
+    `DELETE FROM invoice WHERE tenant_id = 'acme' AND total_eur < 2000`
+    Después del DELETE: `deleted_count = cur.rowcount`
+  starter: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.executescript("""
+        CREATE TABLE invoice (
+            id INTEGER PRIMARY KEY, tenant_id TEXT, vendor_name TEXT,
+            total_eur REAL, period TEXT, paid INTEGER DEFAULT 0
+        );
+        INSERT INTO invoice VALUES
+            (1,'acme','Siemens GmbH',4820.00,'2026-04',0),
+            (2,'acme','Bosch AG',9100.50,'2026-04',0),
+            (3,'acme','DHL Express',1234.00,'2026-03',1),
+            (4,'globex','Maersk',5500.00,'2026-04',0),
+            (5,'acme','Repsol SA',7200.00,'2026-04',0);
+    """)
+
+    # 1. UPDATE: marcar pagadas las de 2026-03 de acme
+
+    # 2. DELETE: borrar las de acme con total_eur < 2000
+    deleted_count = 0  # actualiza con cur.rowcount
+
+    con.commit()
+
+    # 3. resultado final
+    cur.execute("SELECT vendor_name, total_eur, paid FROM invoice WHERE tenant_id = 'acme' ORDER BY total_eur")
+    remaining = cur.fetchall()
+    print("remaining:", remaining)
+    print("deleted_count:", deleted_count)
+  test: |
+    assert deleted_count == 1, f"debería haberse borrado 1 fila (DHL Express 1234), obtuve {deleted_count}"
+    assert len(remaining) == 3, f"deberían quedar 3 facturas de acme, quedan {len(remaining)}"
+    # DHL Express no debería estar (fue borrada)
+    names = [r[0] for r in remaining]
+    assert "DHL Express" not in names, "DHL Express debería haber sido borrada (total_eur < 2000)"
+    assert "Siemens GmbH" in names
+    assert "Bosch AG" in names
+    assert "Repsol SA" in names
+    # orden por total_eur: Siemens(4820), Repsol(7200), Bosch(9100)
+    amounts = [r[1] for r in remaining]
+    assert amounts == sorted(amounts), f"no está ordenado por total_eur: {amounts}"
+    print("ok")
+  solution: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.executescript("""
+        CREATE TABLE invoice (
+            id INTEGER PRIMARY KEY, tenant_id TEXT, vendor_name TEXT,
+            total_eur REAL, period TEXT, paid INTEGER DEFAULT 0
+        );
+        INSERT INTO invoice VALUES
+            (1,'acme','Siemens GmbH',4820.00,'2026-04',0),
+            (2,'acme','Bosch AG',9100.50,'2026-04',0),
+            (3,'acme','DHL Express',1234.00,'2026-03',1),
+            (4,'globex','Maersk',5500.00,'2026-04',0),
+            (5,'acme','Repsol SA',7200.00,'2026-04',0);
+    """)
+
+    cur.execute("UPDATE invoice SET paid = 1 WHERE tenant_id = 'acme' AND period = '2026-03'")
+    cur.execute("DELETE FROM invoice WHERE tenant_id = 'acme' AND total_eur < 2000")
+    deleted_count = cur.rowcount
+    con.commit()
+
+    cur.execute("SELECT vendor_name, total_eur, paid FROM invoice WHERE tenant_id = 'acme' ORDER BY total_eur")
+    remaining = cur.fetchall()

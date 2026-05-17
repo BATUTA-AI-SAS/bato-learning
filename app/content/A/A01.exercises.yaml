@@ -1,0 +1,233 @@
+- slug: read-pyproject
+  title: "Leer e inspeccionar pyproject.toml"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente diccionario representa las dependencias de producción de un proyecto
+    (equivalente a lo que `pyproject.toml` declara bajo `[project].dependencies`).
+
+    Tu tarea:
+    1. Filtra solo las dependencias que empiezan con `"anthropic"` o `"sqlalchemy"`.
+    2. Guarda el resultado en una lista llamada `critical_deps`.
+    3. Imprime cada elemento de `critical_deps` en una línea separada.
+
+    ```python
+    dependencies: list[str] = [
+        "fastapi>=0.115",
+        "uvicorn[standard]>=0.32",
+        "jinja2>=3.1",
+        "sqlalchemy[asyncio]>=2.0.36",
+        "aiosqlite>=0.20",
+        "anthropic>=0.40",
+        "pydantic>=2.9",
+        "structlog>=24.4",
+    ]
+    ```
+  hint: |
+    Usa `str.startswith()` o la función `any()` con una condición sobre el nombre.
+    Para filtrar: una comprensión de lista `[x for x in deps if ...]` funciona bien.
+  starter: |
+    dependencies: list[str] = [
+        "fastapi>=0.115",
+        "uvicorn[standard]>=0.32",
+        "jinja2>=3.1",
+        "sqlalchemy[asyncio]>=2.0.36",
+        "aiosqlite>=0.20",
+        "anthropic>=0.40",
+        "pydantic>=2.9",
+        "structlog>=24.4",
+    ]
+
+    # filtra las dependencias críticas aquí
+    critical_deps: list[str] = []
+
+    for dep in critical_deps:
+        print(dep)
+  test: |
+    assert isinstance(critical_deps, list), "critical_deps debe ser una lista"
+    assert len(critical_deps) == 2, (
+        f"Deben ser 2 dependencias (anthropic y sqlalchemy), obtuve {len(critical_deps)}: {critical_deps}"
+    )
+    names = {d.split(">=")[0].split("[")[0] for d in critical_deps}
+    assert "anthropic" in names, "Falta anthropic en critical_deps"
+    assert "sqlalchemy" in names, "Falta sqlalchemy en critical_deps"
+    out = __cap.getvalue().strip().splitlines()
+    assert len(out) == 2, f"Deben imprimirse exactamente 2 líneas, imprimiste {len(out)}"
+    print("ok")
+  solution: |
+    dependencies: list[str] = [
+        "fastapi>=0.115",
+        "uvicorn[standard]>=0.32",
+        "jinja2>=3.1",
+        "sqlalchemy[asyncio]>=2.0.36",
+        "aiosqlite>=0.20",
+        "anthropic>=0.40",
+        "pydantic>=2.9",
+        "structlog>=24.4",
+    ]
+
+    critical_deps: list[str] = [
+        d for d in dependencies
+        if d.startswith("anthropic") or d.startswith("sqlalchemy")
+    ]
+
+    for dep in critical_deps:
+        print(dep)
+
+- slug: pycache-lifecycle
+  title: "Ciclo de vida del bytecode"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `pycache_path` debe devolver el path donde CPython guardaría el `.pyc`
+    de un archivo dado. El patrón es:
+
+    ```
+    {directorio_del_archivo}/__pycache__/{nombre_sin_extension}.cpython-312.pyc
+    ```
+
+    Ejemplo: para `"app/services/audit.py"` debe devolver
+    `"app/services/__pycache__/audit.cpython-312.pyc"`.
+
+    Implementa `pycache_path` usando solo operaciones de strings.
+    No uses `os.path` ni `pathlib` — el objetivo es entender la estructura.
+  hint: |
+    Necesitas separar el directorio del nombre del archivo. Puedes usar `str.rsplit("/", 1)`.
+    El nombre sin extensión se obtiene con `str.rsplit(".", 1)[0]`.
+  starter: |
+    def pycache_path(source_path: str) -> str:
+        """Devuelve el path del .pyc para un .py dado."""
+        # separa directorio y nombre del archivo
+        # construye el path de __pycache__
+        ...
+
+    # verifica tu implementación
+    print(pycache_path("app/services/audit.py"))
+    print(pycache_path("audit.py"))
+  test: |
+    result1 = pycache_path("app/services/audit.py")
+    assert result1 == "app/services/__pycache__/audit.cpython-312.pyc", (
+        f"Esperaba 'app/services/__pycache__/audit.cpython-312.pyc', obtuve {result1!r}"
+    )
+    result2 = pycache_path("audit.py")
+    assert result2 == "__pycache__/audit.cpython-312.pyc", (
+        f"Esperaba '__pycache__/audit.cpython-312.pyc', obtuve {result2!r}"
+    )
+    result3 = pycache_path("app/main.py")
+    assert result3 == "app/__pycache__/main.cpython-312.pyc", (
+        f"Esperaba 'app/__pycache__/main.cpython-312.pyc', obtuve {result3!r}"
+    )
+    print("ok")
+  solution: |
+    def pycache_path(source_path: str) -> str:
+        """Devuelve el path del .pyc para un .py dado."""
+        if "/" in source_path:
+            directory, filename = source_path.rsplit("/", 1)
+            name = filename.rsplit(".", 1)[0]
+            return f"{directory}/__pycache__/{name}.cpython-312.pyc"
+        else:
+            name = source_path.rsplit(".", 1)[0]
+            return f"__pycache__/{name}.cpython-312.pyc"
+
+    print(pycache_path("app/services/audit.py"))
+    print(pycache_path("audit.py"))
+
+- slug: uv-commands-debug
+  title: "Diagnosticar un flujo de instalación roto"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente código modela la secuencia de comandos que un desarrollador ejecutó
+    al configurar un proyecto. La función `diagnose_setup` debe devolver una lista
+    con los **problemas** que encuentra, en orden de aparición.
+
+    Reglas para identificar problemas:
+    - Si hay un `"pip install"` en la secuencia → problema: `"pip_used"`
+    - Si `"uv sync"` aparece antes de que exista un `"uv init"` o `"uv add"` → problema: `"sync_before_init"`
+    - Si `"uv.lock"` no está en `committed_files` → problema: `"lockfile_not_committed"`
+    - Si `".venv"` está en `committed_files` → problema: `"venv_committed"`
+  hint: |
+    Recorre `commands` en orden y lleva un flag `initialized = False`.
+    Usa `any(c.startswith("pip install") for c in commands)` para detectar pip.
+  starter: |
+    def diagnose_setup(
+        commands: list[str],
+        committed_files: list[str],
+    ) -> list[str]:
+        """Devuelve lista de problemas en el flujo de setup."""
+        problems: list[str] = []
+        # implementa la detección aquí
+        return problems
+
+    # caso de prueba: flujo problemático real
+    commands_bad = [
+        "uv init acme-audit",
+        "pip install anthropic",
+        "uv sync",
+    ]
+    committed_bad = ["pyproject.toml", "app/main.py", ".venv/bin/python"]
+
+    print(diagnose_setup(commands_bad, committed_bad))
+  test: |
+    # caso limpio
+    clean = diagnose_setup(
+        ["uv init acme-audit", "uv add anthropic", "uv sync"],
+        ["pyproject.toml", "uv.lock", "app/main.py"],
+    )
+    assert clean == [], f"Flujo limpio no debe tener problemas, obtuve: {clean}"
+
+    # caso con pip
+    pip_case = diagnose_setup(
+        ["uv init", "pip install pydantic", "uv sync"],
+        ["pyproject.toml", "uv.lock"],
+    )
+    assert "pip_used" in pip_case, "Debe detectar pip_used"
+
+    # caso con .venv commiteado
+    venv_case = diagnose_setup(
+        ["uv init", "uv add fastapi", "uv sync"],
+        ["pyproject.toml", "uv.lock", ".venv/bin/python"],
+    )
+    assert "venv_committed" in venv_case, "Debe detectar venv_committed"
+
+    # caso sin lockfile
+    no_lock = diagnose_setup(
+        ["uv init", "uv add fastapi", "uv sync"],
+        ["pyproject.toml", "app/main.py"],
+    )
+    assert "lockfile_not_committed" in no_lock, "Debe detectar lockfile_not_committed"
+    print("ok")
+  solution: |
+    def diagnose_setup(
+        commands: list[str],
+        committed_files: list[str],
+    ) -> list[str]:
+        """Devuelve lista de problemas en el flujo de setup."""
+        problems: list[str] = []
+
+        if any(c.startswith("pip install") for c in commands):
+            problems.append("pip_used")
+
+        initialized = False
+        for cmd in commands:
+            if cmd.startswith("uv init") or cmd.startswith("uv add"):
+                initialized = True
+            if cmd == "uv sync" and not initialized:
+                problems.append("sync_before_init")
+                break
+
+        if "uv.lock" not in committed_files:
+            problems.append("lockfile_not_committed")
+
+        if any(f.startswith(".venv") for f in committed_files):
+            problems.append("venv_committed")
+
+        return problems
+
+    commands_bad = [
+        "uv init acme-audit",
+        "pip install anthropic",
+        "uv sync",
+    ]
+    committed_bad = ["pyproject.toml", "app/main.py", ".venv/bin/python"]
+    print(diagnose_setup(commands_bad, committed_bad))

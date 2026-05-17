@@ -1,0 +1,154 @@
+- slug: compute-iva
+  title: "Función compute_iva"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Define una función `compute_iva(amount)` que devuelva el IVA al 21%
+    sobre `amount`. Luego llámala con tres montos distintos e imprime
+    cada resultado.
+
+    - `compute_iva(4820.0)` → `1012.2`
+    - `compute_iva(1500.0)` → `315.0`
+    - `compute_iva(0.0)` → `0.0`
+  hint: |
+    La función tiene un solo parámetro y un solo `return`. La fórmula es
+    `amount * 0.21`. Llama a la función tres veces, una por monto.
+  starter: |
+    def compute_iva(amount):
+        # tu código aquí
+        pass
+
+
+    # llama a la función con los tres montos e imprime los resultados
+  test: |
+    assert compute_iva(4820.0) == 4820.0 * 0.21, (
+        f"compute_iva(4820.0) debe ser {4820.0 * 0.21}, obtuve {compute_iva(4820.0)}"
+    )
+    assert compute_iva(1500.0) == 1500.0 * 0.21, (
+        f"compute_iva(1500.0) debe ser {1500.0 * 0.21}"
+    )
+    assert compute_iva(0.0) == 0.0, "compute_iva(0.0) debe ser 0.0"
+    print("ok")
+  solution: |
+    def compute_iva(amount):
+        return amount * 0.21
+
+
+    print(compute_iva(4820.0))
+    print(compute_iva(1500.0))
+    print(compute_iva(0.0))
+
+- slug: get-level
+  title: "Función get_level"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Define una función `get_level(amount)` que clasifique un monto en:
+    - `"alto"` si supera 1 000
+    - `"medio"` si supera 100 (pero no llega a 1 000)
+    - `"bajo"` en cualquier otro caso
+
+    Prueba la función con los montos `4820.0`, `350.0` y `50.0`.
+    Imprime el nivel para cada uno.
+  hint: |
+    Usa `if/elif/else` dentro de la función, con `return` en cada rama.
+    El orden importa: comprueba `> 1000` primero.
+  starter: |
+    def get_level(amount):
+        # tu código aquí
+        pass
+
+
+    # prueba con tres montos
+  test: |
+    assert get_level(4820.0) == "alto",  f"4820.0 → esperaba 'alto', obtuve {get_level(4820.0)!r}"
+    assert get_level(350.0)  == "medio", f"350.0 → esperaba 'medio', obtuve {get_level(350.0)!r}"
+    assert get_level(50.0)   == "bajo",  f"50.0 → esperaba 'bajo', obtuve {get_level(50.0)!r}"
+    assert get_level(1000.0) == "bajo",  f"1000.0 → esperaba 'bajo' (no supera > 1000)"
+    assert get_level(1000.1) == "alto",  f"1000.1 → esperaba 'alto'"
+    assert get_level(100.0)  == "bajo",  f"100.0 → esperaba 'bajo' (no supera > 100)"
+    print("ok")
+  solution: |
+    def get_level(amount):
+        if amount > 1000:
+            return "alto"
+        elif amount > 100:
+            return "medio"
+        else:
+            return "bajo"
+
+
+    print(get_level(4820.0))
+    print(get_level(350.0))
+    print(get_level(50.0))
+
+- slug: sum-valid-invoices
+  title: "Función sum_valid_invoices"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Define una función `sum_valid_invoices(invoices)` que reciba una lista
+    de dicts (cada uno con clave `"amount"`) y devuelva la suma de los montos
+    **mayores que cero**. Los montos en cero o negativos no se suman.
+
+    Prueba con:
+    ```python
+    batch = [
+        {"id": "INV-001", "amount": 4820.0},
+        {"id": "INV-002", "amount": 0.0},
+        {"id": "INV-003", "amount": 1500.0},
+        {"id": "INV-004", "amount": -200.0},
+    ]
+    ```
+    Resultado esperado: `6320.0`
+  hint: |
+    Inicializa `total = 0.0` dentro de la función. Recorre `invoices` con `for`.
+    Solo suma si `inv["amount"] > 0`. Al final, `return total`.
+  starter: |
+    def sum_valid_invoices(invoices):
+        # tu código aquí
+        pass
+
+
+    batch = [
+        {"id": "INV-001", "amount": 4820.0},
+        {"id": "INV-002", "amount": 0.0},
+        {"id": "INV-003", "amount": 1500.0},
+        {"id": "INV-004", "amount": -200.0},
+    ]
+
+    print(sum_valid_invoices(batch))
+  test: |
+    batch = [
+        {"id": "INV-001", "amount": 4820.0},
+        {"id": "INV-002", "amount": 0.0},
+        {"id": "INV-003", "amount": 1500.0},
+        {"id": "INV-004", "amount": -200.0},
+    ]
+    result = sum_valid_invoices(batch)
+    assert result == 6320.0, f"esperaba 6320.0, obtuve {result}"
+
+    # caso borde: lista vacía
+    assert sum_valid_invoices([]) == 0.0, "lista vacía debe devolver 0.0"
+
+    # caso borde: todos cero
+    assert sum_valid_invoices([{"amount": 0.0}, {"amount": 0.0}]) == 0.0
+
+    print("ok")
+  solution: |
+    def sum_valid_invoices(invoices):
+        total = 0.0
+        for inv in invoices:
+            if inv["amount"] > 0:
+                total += inv["amount"]
+        return total
+
+
+    batch = [
+        {"id": "INV-001", "amount": 4820.0},
+        {"id": "INV-002", "amount": 0.0},
+        {"id": "INV-003", "amount": 1500.0},
+        {"id": "INV-004", "amount": -200.0},
+    ]
+
+    print(sum_valid_invoices(batch))

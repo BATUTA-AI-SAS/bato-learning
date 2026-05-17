@@ -1,0 +1,384 @@
+- slug: schema-validation
+  title: "Valida el schema del archivo de Andina"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Héctor mandó el CSV del extracto de Bancolombia. Escribe la función
+    `validate_bank_statement_schema(rows)` que recibe una lista de dicts
+    (filas del CSV) y devuelve un dict con `valid: bool` y `errors: list[str]`.
+
+    Schema esperado de Bancolombia:
+    - Columnas requeridas: `fecha`, `descripcion`, `debito`, `credito`, `saldo`
+    - `fecha` debe estar en formato ISO YYYY-MM-DD
+    - `debito` y `credito` deben ser float (pueden ser 0.0)
+    - No pueden haber filas con ambos `debito` y `credito` en cero
+
+    Si hay errores, la lista `errors` describe cada problema con el número
+    de fila (1-indexed).
+  hint: |
+    Itera las filas con enumerate(rows, start=1) para tener el número de fila.
+    Para validar la fecha, usa un try/except con datetime.strptime.
+  starter: |
+    from datetime import datetime
+
+    def validate_bank_statement_schema(rows: list) -> dict:
+        """
+        rows: list[dict] — filas del CSV de Bancolombia
+        retorna: {"valid": bool, "errors": list[str]}
+        """
+        pass
+
+    # Test básico
+    sample = [
+        {"fecha": "2026-03-15", "descripcion": "PAGO PROVEEDOR", "debito": 4820000.0, "credito": 0.0, "saldo": 18230401.5},
+        {"fecha": "15/03/2026", "descripcion": "TRANSFERENCIA", "debito": 0.0, "credito": 500000.0, "saldo": 18730401.5},
+        {"fecha": "2026-03-20", "descripcion": "COMISION", "debito": 0.0, "credito": 0.0, "saldo": 18730401.5},
+    ]
+    result = validate_bank_statement_schema(sample)
+    print(result)
+  test: |
+    assert callable(validate_bank_statement_schema)
+
+    # Caso válido
+    valid_rows = [
+        {"fecha": "2026-03-15", "descripcion": "PAGO", "debito": 100.0, "credito": 0.0, "saldo": 900.0},
+        {"fecha": "2026-03-16", "descripcion": "ABONO", "debito": 0.0, "credito": 200.0, "saldo": 1100.0},
+    ]
+    r_valid = validate_bank_statement_schema(valid_rows)
+    assert r_valid["valid"] is True, f"Caso válido debe retornar valid=True. Errors: {r_valid['errors']}"
+    assert r_valid["errors"] == [], f"Caso válido no debe tener errores"
+
+    # Caso con fecha en formato incorrecto
+    bad_date = [{"fecha": "15/03/2026", "descripcion": "X", "debito": 0.0, "credito": 100.0, "saldo": 100.0}]
+    r_date = validate_bank_statement_schema(bad_date)
+    assert r_date["valid"] is False
+    assert any("fecha" in e.lower() or "formato" in e.lower() for e in r_date["errors"]), \
+        "Debe haber un error sobre el formato de fecha"
+
+    # Caso con fila donde debito=0 y credito=0
+    zero_row = [{"fecha": "2026-03-20", "descripcion": "COMISION", "debito": 0.0, "credito": 0.0, "saldo": 900.0}]
+    r_zero = validate_bank_statement_schema(zero_row)
+    assert r_zero["valid"] is False
+    assert any("cero" in e.lower() or "zero" in e.lower() or "0" in e for e in r_zero["errors"]), \
+        "Debe haber un error por fila con debito=0 y credito=0"
+
+    # Caso con columna faltante
+    missing_col = [{"fecha": "2026-03-15", "descripcion": "X", "debito": 100.0, "saldo": 900.0}]
+    r_miss = validate_bank_statement_schema(missing_col)
+    assert r_miss["valid"] is False
+    assert any("credito" in e.lower() for e in r_miss["errors"]), \
+        "Debe indicar que falta la columna 'credito'"
+    print("ok")
+  solution: |
+    from datetime import datetime
+
+    def validate_bank_statement_schema(rows: list) -> dict:
+        required_cols = {"fecha", "descripcion", "debito", "credito", "saldo"}
+        errors = []
+
+        for i, row in enumerate(rows, start=1):
+            # Verificar columnas requeridas
+            missing = required_cols - set(row.keys())
+            for col in sorted(missing):
+                errors.append(f"Fila {i}: falta columna '{col}'")
+            if missing:
+                continue  # si faltan columnas, no valido el resto de la fila
+
+            # Verificar formato de fecha
+            try:
+                datetime.strptime(str(row["fecha"]), "%Y-%m-%d")
+            except ValueError:
+                errors.append(f"Fila {i}: formato de fecha inválido '{row['fecha']}' — esperado YYYY-MM-DD")
+
+            # Verificar tipos numéricos
+            for col in ("debito", "credito", "saldo"):
+                try:
+                    float(row[col])
+                except (TypeError, ValueError):
+                    errors.append(f"Fila {i}: '{col}' debe ser numérico, obtenido '{row[col]}'")
+
+            # Verificar que no ambos sean cero
+            try:
+                if float(row["debito"]) == 0.0 and float(row["credito"]) == 0.0:
+                    errors.append(f"Fila {i}: debito y credito no pueden ser cero simultáneamente")
+            except (TypeError, ValueError):
+                pass  # ya reportado arriba
+
+        return {"valid": len(errors) == 0, "errors": errors}
+  hints:
+    - "datetime.strptime('2026-03-15', '%Y-%m-%d') levanta ValueError si el formato no coincide."
+    - "Usa enumerate(rows, start=1) para que el número de fila sea 1-indexed."
+
+- slug: golden-set-design
+  title: "Define el golden set de 5 transacciones para Andina"
+  runner: pyodide
+  kind: design
+  prompt: |
+    A partir del dataset de Andina (782 transacciones de marzo), seleccionas
+    5 transacciones representativas para el golden set. Define cada una con
+    su tipo de dificultad y la salida esperada del agente.
+
+    El golden set debe incluir:
+    - 2 casos fáciles (match exacto esperable)
+    - 2 casos medios (match difuso, confianza media)
+    - 1 caso difícil (sin match esperado, excepción)
+  hint: |
+    El caso difícil debería ser el tipo de transacción que más le preocupa
+    a Héctor: algo que el agente no puede resolver solo y que va a la
+    cola de revisión humana.
+  starter: |
+    golden_set = [
+        {
+            "id": 1,
+            "difficulty": "",   # easy | medium | hard
+            "bank_row": {
+                "fecha": "",
+                "descripcion": "",
+                "debito": 0.0,
+                "credito": 0.0
+            },
+            "siigo_row": {
+                "fecha": "",
+                "comprobante": "",
+                "descripcion": "",
+                "monto": 0.0
+            },
+            "expected_output": {
+                "status": "",       # MATCHED | UNMATCHED | EXCEPTION
+                "confidence": 0.0,  # 0.0 a 1.0 (solo si MATCHED)
+                "note": ""          # por qué se espera este output
+            }
+        }
+        # añade 4 más (total 5)
+    ]
+  test: |
+    assert isinstance(golden_set, list), "golden_set debe ser una lista"
+    assert len(golden_set) == 5, f"El golden set debe tener exactamente 5 casos, tiene {len(golden_set)}"
+
+    difficulties = [g["difficulty"] for g in golden_set]
+    easy_count = difficulties.count("easy")
+    medium_count = difficulties.count("medium")
+    hard_count = difficulties.count("hard")
+
+    assert easy_count >= 2, f"Se requieren al menos 2 casos 'easy', hay {easy_count}"
+    assert medium_count >= 2, f"Se requieren al menos 2 casos 'medium', hay {medium_count}"
+    assert hard_count >= 1, f"Se requiere al menos 1 caso 'hard', hay {hard_count}"
+
+    valid_statuses = {"MATCHED", "UNMATCHED", "EXCEPTION"}
+    for i, g in enumerate(golden_set, 1):
+        assert g["difficulty"] in ("easy", "medium", "hard"), \
+            f"Caso {i}: difficulty debe ser 'easy', 'medium' o 'hard'"
+
+        exp = g["expected_output"]
+        assert exp["status"] in valid_statuses, \
+            f"Caso {i}: expected_output.status debe ser MATCHED, UNMATCHED o EXCEPTION"
+        assert exp["note"] != "", f"Caso {i}: note no puede estar vacío"
+
+        # Easy y medium deben ser MATCHED; hard puede ser EXCEPTION o UNMATCHED
+        if g["difficulty"] == "easy":
+            assert exp["status"] == "MATCHED", \
+                f"Caso easy {i}: se espera MATCHED (es un match exacto obvio)"
+            assert exp["confidence"] >= 0.85, \
+                f"Caso easy {i}: confidence debe ser ≥ 0.85"
+    print("ok")
+  solution: |
+    golden_set = [
+        {
+            "id": 1,
+            "difficulty": "easy",
+            "bank_row": {
+                "fecha": "2026-03-10",
+                "descripcion": "TRANSF PAGO PROVEEDOR VARGAS SAS",
+                "debito": 4820000.0,
+                "credito": 0.0
+            },
+            "siigo_row": {
+                "fecha": "2026-03-10",
+                "comprobante": "GR-00412",
+                "descripcion": "Pago proveedor Vargas Suministros SAS",
+                "monto": 4820000.0
+            },
+            "expected_output": {
+                "status": "MATCHED",
+                "confidence": 0.97,
+                "note": "Mismo monto exacto, misma fecha, descripción contiene 'VARGAS'. Match fácil por monto+fecha+keyword."
+            }
+        },
+        {
+            "id": 2,
+            "difficulty": "easy",
+            "bank_row": {
+                "fecha": "2026-03-15",
+                "descripcion": "ABONO CLIENTE ANDINA NORTE",
+                "debito": 0.0,
+                "credito": 12500000.0
+            },
+            "siigo_row": {
+                "fecha": "2026-03-15",
+                "comprobante": "RC-00215",
+                "descripcion": "Recaudo cliente proyecto Andina Norte",
+                "monto": 12500000.0
+            },
+            "expected_output": {
+                "status": "MATCHED",
+                "confidence": 0.95,
+                "note": "Mismo monto, misma fecha, 'ANDINA NORTE' en ambas descripciones."
+            }
+        },
+        {
+            "id": 3,
+            "difficulty": "medium",
+            "bank_row": {
+                "fecha": "2026-03-20",
+                "descripcion": "TRANSF MARIA C 03/19",
+                "debito": 2100000.0,
+                "credito": 0.0
+            },
+            "siigo_row": {
+                "fecha": "2026-03-19",
+                "comprobante": "GC-00089",
+                "descripcion": "Nómina parcial María Carolina Jiménez — comisión marzo",
+                "monto": 2100000.0
+            },
+            "expected_output": {
+                "status": "MATCHED",
+                "confidence": 0.78,
+                "note": "Mismo monto pero fecha difiere 1 día (timing bancario). 'MARIA C' coincide con María Carolina. Confianza media por diferencia de fecha."
+            }
+        },
+        {
+            "id": 4,
+            "difficulty": "medium",
+            "bank_row": {
+                "fecha": "2026-03-28",
+                "descripcion": "PAGO PSE REF 4420819",
+                "debito": 0.0,
+                "credito": 8750000.0
+            },
+            "siigo_row": {
+                "fecha": "2026-03-28",
+                "comprobante": "RC-00231",
+                "descripcion": "Recaudo PSE contrato obra residencial fase 2",
+                "monto": 8750000.0
+            },
+            "expected_output": {
+                "status": "MATCHED",
+                "confidence": 0.82,
+                "note": "Monto y fecha exactos, pero la descripción del banco es una referencia PSE opaca. El agente infiere el match por monto+fecha+canal PSE."
+            }
+        },
+        {
+            "id": 5,
+            "difficulty": "hard",
+            "bank_row": {
+                "fecha": "2026-03-31",
+                "descripcion": "COMISION MANEJO CTA CTE 0420",
+                "debito": 48200.0,
+                "credito": 0.0
+            },
+            "siigo_row": None,
+            "expected_output": {
+                "status": "EXCEPTION",
+                "confidence": 0.0,
+                "note": "Comisión bancaria sin asiento en Siigo. El agente no puede matchear porque no hay contrapartida contable. Va a la cola de revisión de Héctor."
+            }
+        }
+    ]
+  hints:
+    - "Caso 'hard': una comisión bancaria no registrada en el libro es el tipo de excepción más frecuente."
+    - "La 'confidence' del golden set es la que esperas que el agente reporte, no un número que inventas."
+
+- slug: onboarding-risk-matrix
+  title: "Identifica y prioriza los riesgos del onboarding de Andina"
+  runner: pyodide
+  kind: design
+  prompt: |
+    El onboarding de Andina tiene los siguientes riesgos potenciales.
+    Clasifica cada uno por probabilidad (HIGH/MEDIUM/LOW) e impacto
+    (HIGH/MEDIUM/LOW) y propón una acción de mitigación concreta.
+  hint: |
+    El riesgo de «datos tardíos» es HIGH/HIGH porque bloquea todo el
+    proceso y depende de una acción del cliente que no controlas.
+  starter: |
+    risks = [
+        {
+            "id": 1,
+            "risk": "Héctor no entrega los archivos CSV/PDF en el Día 3 acordado.",
+            "probability": "",  # HIGH | MEDIUM | LOW
+            "impact": "",
+            "mitigation": ""
+        },
+        {
+            "id": 2,
+            "risk": "El extracto de BBVA tiene un formato completamente diferente al esperado (no es el PDF estándar del portal).",
+            "probability": "",
+            "impact": "",
+            "mitigation": ""
+        },
+        {
+            "id": 3,
+            "risk": "El match automático en la primera corrida es del 60 % en lugar del 85 % esperado.",
+            "probability": "",
+            "impact": "",
+            "mitigation": ""
+        },
+        {
+            "id": 4,
+            "risk": "Carlos (gerente) se va de vacaciones en la semana 2 y nadie puede dar el go-live.",
+            "probability": "",
+            "impact": "",
+            "mitigation": ""
+        }
+    ]
+  test: |
+    assert isinstance(risks, list) and len(risks) == 4
+    valid_levels = {"HIGH", "MEDIUM", "LOW"}
+    for r in risks:
+        assert r["probability"] in valid_levels, \
+            f"Risk {r['id']}: probability debe ser HIGH, MEDIUM o LOW"
+        assert r["impact"] in valid_levels, \
+            f"Risk {r['id']}: impact debe ser HIGH, MEDIUM o LOW"
+        assert len(r["mitigation"]) > 20, \
+            f"Risk {r['id']}: mitigation debe ser una acción concreta (> 20 caracteres)"
+
+    # Datos tardíos es el riesgo más crítico
+    r1 = next(r for r in risks if r["id"] == 1)
+    assert r1["probability"] == "HIGH", \
+        "Riesgo 1 (datos tardíos): probabilidad HIGH — es el riesgo más frecuente en onboardings PYME"
+    assert r1["impact"] == "HIGH", \
+        "Riesgo 1 (datos tardíos): impacto HIGH — bloquea todo el timeline"
+    print("ok")
+  solution: |
+    risks = [
+        {
+            "id": 1,
+            "risk": "Héctor no entrega los archivos en el Día 3 acordado.",
+            "probability": "HIGH",
+            "impact": "HIGH",
+            "mitigation": "Recordatorio automático por email/WhatsApp el Día 2. Si no llegan el Día 4, escalar a Carlos (gerente) directamente. Cláusula en el SOW: 'Si los datos no son entregados en Día 3, el timeline se extiende proporcionalmente sin penalidad al proveedor.'"
+        },
+        {
+            "id": 2,
+            "risk": "El extracto de BBVA tiene un formato diferente al estándar.",
+            "probability": "MEDIUM",
+            "impact": "MEDIUM",
+            "mitigation": "Solicitar un archivo de muestra de cada banco antes del kick-off (no después). Validar el schema en el Día 1 con el archivo de muestra. Tener un parser genérico de fallback para PDFs tabulares."
+        },
+        {
+            "id": 3,
+            "risk": "Match automático en primera corrida del 60 % en lugar del 85 %.",
+            "probability": "MEDIUM",
+            "impact": "HIGH",
+            "mitigation": "El golden set del Día 5 detectará el problema antes de la corrida real. Si el dry-run falla en > 1 de 5 casos, reajustar thresholds antes de la corrida del Día 8. Comunicar a Héctor que el primer resultado es siempre el baseline, no el final."
+        },
+        {
+            "id": 4,
+            "risk": "Carlos se va de vacaciones y nadie puede dar el go-live.",
+            "probability": "LOW",
+            "impact": "HIGH",
+            "mitigation": "En el kick-off, identificar al delegado de Carlos para decisiones operativas. El go-live puede ser autorizado por el delegado en ausencia de Carlos, documentado en email."
+        }
+    ]
+  hints:
+    - "Probabilidad 'HIGH' no significa que siempre pasa: significa que pasa en la mayoría de los onboardings si no se previene."
+    - "La mitigación es una acción concreta, no una descripción del riesgo."

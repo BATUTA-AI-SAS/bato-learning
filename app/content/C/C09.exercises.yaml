@@ -1,0 +1,318 @@
+- slug: chunking_with_overlap
+  title: "Implementa chunking por tokens con overlap"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `chunk_text(text, chunk_size, overlap)` que divide un texto
+    en chunks de aproximadamente `chunk_size` **palabras** (usamos palabras como
+    proxy de tokens para no necesitar tokenizador externo), con `overlap` palabras
+    de solapamiento entre chunks consecutivos.
+
+    El último chunk puede ser más pequeño si el texto no es divisible exactamente.
+
+    Ejemplo con `chunk_size=5, overlap=2`:
+    - Texto: `"A B C D E F G H I J"`  (10 palabras)
+    - Chunks: `["A B C D E", "D E F G H", "G H I J"]`
+
+    Guarda los resultados de las pruebas en `chunks_small` y `chunks_overlap`.
+  hint: |
+    Divide el texto en palabras con `.split()`. Luego itera con paso `chunk_size - overlap`.
+    Cada chunk es `words[i : i + chunk_size]` unido con espacios.
+  starter: |
+    def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
+        # implementa aquí
+        pass
+
+    # prueba 1: sin overlap
+    texto_acme = "La revalorización de activos fijos se rige por NIIF 16 según el manual contable aprobado en 2025"
+    chunks_small = chunk_text(texto_acme, chunk_size=5, overlap=0)
+
+    # prueba 2: con overlap
+    chunks_overlap = chunk_text(texto_acme, chunk_size=5, overlap=2)
+
+    print("sin overlap:", chunks_small)
+    print("con overlap:", chunks_overlap)
+  test: |
+    words = texto_acme.split()
+
+    # sin overlap: chunks de 5 palabras, sin repetición
+    assert len(chunks_small) == (len(words) + 4) // 5, (
+        f"sin overlap: esperaba {(len(words) + 4) // 5} chunks, obtuve {len(chunks_small)}"
+    )
+    # verificar que no hay palabras repetidas entre chunks consecutivos
+    for i in range(len(chunks_small) - 1):
+        last_word = chunks_small[i].split()[-1]
+        first_word_next = chunks_small[i+1].split()[0]
+        # sin overlap, la última palabra del chunk i no debe ser la primera del i+1
+        # (a menos que sea el patrón exacto)
+
+    # con overlap: los últimos `overlap` tokens del chunk i aparecen al inicio del chunk i+1
+    for i in range(len(chunks_overlap) - 1):
+        words_current = chunks_overlap[i].split()
+        words_next    = chunks_overlap[i + 1].split()
+        overlap_actual = 2
+        if len(words_current) >= overlap_actual:
+            tail = words_current[-overlap_actual:]
+            head = words_next[:overlap_actual]
+            assert tail == head, (
+                f"overlap incorrecto entre chunk {i} y {i+1}: "
+                f"tail={tail}, head={head}"
+            )
+
+    # el texto completo se puede reconstruir (sin overlap)
+    all_words = " ".join(chunks_small).split()
+    assert all_words == words, "todos los tokens del texto deben aparecer en los chunks"
+    print("ok")
+  solution: |
+    def chunk_text(text, chunk_size, overlap):
+        words = text.split()
+        chunks = []
+        step = chunk_size - overlap
+        for i in range(0, len(words), step):
+            chunk = words[i : i + chunk_size]
+            if chunk:
+                chunks.append(" ".join(chunk))
+        return chunks
+
+- slug: rag_pipeline_simulation
+  title: "Pipeline RAG completo con vectores sintéticos"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa un pipeline RAG mínimo con vectores sintéticos (sin APIs externas).
+    El pipeline tiene 4 funciones que debes completar:
+
+    1. `retrieve(query_vec, corpus, tenant_id, top_k)`:
+       - Filtra por `tenant_id`.
+       - Calcula similitud coseno.
+       - Retorna los `top_k` más similares como lista de dicts `{text, metadata, similarity}`.
+
+    2. `rerank(question, chunks)`:
+       - Simula un reranker multiplicando la similitud por un «boost» si la question
+         contiene alguna palabra del chunk (case-insensitive). Boost = 1.2 si hay match,
+         1.0 si no.
+       - Ordena por `rerank_score` descendente y retorna los mismos dicts con
+         el campo `rerank_score` añadido.
+
+    3. `build_context(chunks)`:
+       - Retorna un string con los chunks numerados:
+         `"[1] §section p.page: texto\n\n[2] ..."`
+
+    4. `rag_pipeline(question, query_vec, corpus, tenant_id)`:
+       - Llama retrieve (top_k=4), rerank (top_n=2), build_context.
+       - Retorna `{"context": str, "chunks_used": int}`.
+
+    Usa el corpus y la query de prueba incluidos.
+  hint: |
+    Para el rerank simulado: `boost = 1.2 if any(w in chunk["text"].lower() for w in question.lower().split()) else 1.0`
+    `rerank_score = chunk["similarity"] * boost`
+  starter: |
+    import math
+
+    def cosine_similarity(v1: list[float], v2: list[float]) -> float:
+        dot = sum(a * b for a, b in zip(v1, v2))
+        norm = lambda v: math.sqrt(sum(x*x for x in v))
+        return dot / (norm(v1) * norm(v2))
+
+    def retrieve(query_vec, corpus, tenant_id, top_k):
+        # filtra por tenant_id, calcula similitud, retorna top_k
+        pass
+
+    def rerank(question, chunks):
+        # simula reranker con boost por match de palabras
+        pass
+
+    def build_context(chunks):
+        # construye el string de contexto numerado
+        pass
+
+    def rag_pipeline(question, query_vec, corpus, tenant_id):
+        # orquesta los pasos
+        pass
+
+    # --- corpus de prueba ---
+    corpus = [
+        {"text": "La revalorización de activos fijos se rige por NIIF 16.",
+         "tenant_id": "acme", "embedding": [0.9, 0.1, 0.05, 0.2],
+         "metadata": {"section": "3.2", "page": 15}},
+        {"text": "Los gastos de capital deben activarse como activo fijo.",
+         "tenant_id": "acme", "embedding": [0.85, 0.15, 0.1, 0.25],
+         "metadata": {"section": "3.1", "page": 12}},
+        {"text": "El pago de dividendos requiere aprobación de junta directiva.",
+         "tenant_id": "acme", "embedding": [0.1, 0.9, 0.2, 0.1],
+         "metadata": {"section": "7.1", "page": 45}},
+        {"text": "Documentos de Globex sobre logística portuaria.",
+         "tenant_id": "globex", "embedding": [0.88, 0.12, 0.06, 0.22],
+         "metadata": {"section": "1.1", "page": 1}},
+    ]
+    question = "¿Cómo se contabiliza la revalorización de activos fijos?"
+    query_vec = [0.88, 0.12, 0.06, 0.22]
+
+    result = rag_pipeline(question, query_vec, corpus, tenant_id="acme")
+    print("Chunks usados:", result["chunks_used"])
+    print("Contexto:\n", result["context"])
+  test: |
+    assert result is not None, "rag_pipeline debe retornar un dict"
+    assert "context" in result, "el resultado debe tener 'context'"
+    assert "chunks_used" in result, "el resultado debe tener 'chunks_used'"
+    assert result["chunks_used"] == 2, (
+        f"con top_n=2 en rerank, chunks_used debe ser 2, obtuve {result['chunks_used']}"
+    )
+    # no deben aparecer chunks de globex
+    assert "Globex" not in result["context"], (
+        "los chunks de globex no deben aparecer — filtro de tenant_id"
+    )
+    # el contexto debe estar numerado
+    assert "[1]" in result["context"], "el contexto debe tener numeración [1]"
+    assert "[2]" in result["context"], "el contexto debe tener numeración [2]"
+    # el chunk más relevante (activos fijos) debe aparecer
+    assert "activo" in result["context"].lower() or "NIIF" in result["context"], (
+        "el chunk sobre activos fijos debería estar en el contexto"
+    )
+    print("ok")
+  solution: |
+    import math
+
+    def cosine_similarity(v1, v2):
+        dot = sum(a * b for a, b in zip(v1, v2))
+        norm = lambda v: math.sqrt(sum(x*x for x in v))
+        return dot / (norm(v1) * norm(v2))
+
+    def retrieve(query_vec, corpus, tenant_id, top_k):
+        filtered = [c for c in corpus if c["tenant_id"] == tenant_id]
+        scored = [
+            {**c, "similarity": cosine_similarity(query_vec, c["embedding"])}
+            for c in filtered
+        ]
+        return sorted(scored, key=lambda x: x["similarity"], reverse=True)[:top_k]
+
+    def rerank(question, chunks):
+        words = set(question.lower().split())
+        result = []
+        for chunk in chunks:
+            boost = 1.2 if any(w in chunk["text"].lower() for w in words) else 1.0
+            result.append({**chunk, "rerank_score": chunk["similarity"] * boost})
+        return sorted(result, key=lambda x: x["rerank_score"], reverse=True)
+
+    def build_context(chunks):
+        parts = []
+        for i, chunk in enumerate(chunks, 1):
+            m = chunk.get("metadata", {})
+            parts.append(f"[{i}] §{m.get('section','?')} p.{m.get('page','?')}: {chunk['text']}")
+        return "\n\n".join(parts)
+
+    def rag_pipeline(question, query_vec, corpus, tenant_id):
+        chunks = retrieve(query_vec, corpus, tenant_id, top_k=4)
+        reranked = rerank(question, chunks)[:2]
+        context = build_context(reranked)
+        return {"context": context, "chunks_used": len(reranked)}
+
+- slug: rag_cost_calculator
+  title: "Calcula el costo mensual de un pipeline RAG"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `calculate_rag_cost(config)` que calcula el costo mensual (USD)
+    de un pipeline RAG dado un dict de configuración con estas claves:
+
+    - `queries_per_day`: número de queries diarias
+    - `chunks_retrieved`: chunks recuperados por query (top-K)
+    - `tokens_per_chunk`: tokens promedio por chunk
+    - `question_tokens`: tokens promedio de la pregunta del usuario
+    - `answer_tokens`: tokens de la respuesta del LLM
+    - `days_per_month`: días del mes (usa 30)
+
+    Precios a usar:
+    - Embedding (query): $0.06 por millón de tokens (Voyage voyage-3)
+    - Reranking: $0.002 por 1000 queries (Cohere rerank-v3.5, aproximado)
+    - LLM entrada: $3.00 por millón de tokens (claude-sonnet-4-6)
+    - LLM salida: $15.00 por millón de tokens (claude-sonnet-4-6)
+
+    El prompt de entrada al LLM es: `question_tokens + chunks_retrieved * tokens_per_chunk`.
+
+    Retorna un dict con:
+    - `total_usd`: costo total mensual (float, redondeado a 2 decimales)
+    - `breakdown`: dict con las claves `embedding`, `reranking`, `llm_input`, `llm_output`
+      (cada una con el costo mensual redondeado a 4 decimales)
+  hint: |
+    Total tokens embedding por mes = `queries_per_day * question_tokens * days_per_month`.
+    Total tokens LLM input por mes = `queries_per_day * (question_tokens + chunks_retrieved * tokens_per_chunk) * days_per_month`.
+  starter: |
+    def calculate_rag_cost(config: dict) -> dict:
+        # implementa aquí
+        pass
+
+    config_acme = {
+        "queries_per_day": 100,
+        "chunks_retrieved": 5,
+        "tokens_per_chunk": 400,
+        "question_tokens": 50,
+        "answer_tokens": 300,
+        "days_per_month": 30,
+    }
+
+    result = calculate_rag_cost(config_acme)
+    print(f"Total mensual: ${result['total_usd']}")
+    for k, v in result['breakdown'].items():
+        print(f"  {k}: ${v}")
+  test: |
+    assert result is not None
+    assert "total_usd" in result
+    assert "breakdown" in result
+    b = result["breakdown"]
+    assert set(b.keys()) == {"embedding", "reranking", "llm_input", "llm_output"}
+
+    # verificar cálculos con los valores del config_acme
+    queries_month = 100 * 30  # 3000
+    embed_tokens = 3000 * 50   # 150,000 tokens
+    expected_embed = round(embed_tokens / 1_000_000 * 0.06, 4)
+    assert abs(b["embedding"] - expected_embed) < 0.001, (
+        f"embedding esperado {expected_embed}, obtuve {b['embedding']}"
+    )
+
+    llm_in_tokens = 3000 * (50 + 5 * 400)  # 3000 * 2050 = 6,150,000
+    expected_llm_in = round(llm_in_tokens / 1_000_000 * 3.0, 4)
+    assert abs(b["llm_input"] - expected_llm_in) < 0.1, (
+        f"llm_input esperado ~{expected_llm_in}, obtuve {b['llm_input']}"
+    )
+
+    llm_out_tokens = 3000 * 300
+    expected_llm_out = round(llm_out_tokens / 1_000_000 * 15.0, 4)
+    assert abs(b["llm_output"] - expected_llm_out) < 0.01, (
+        f"llm_output esperado {expected_llm_out}, obtuve {b['llm_output']}"
+    )
+
+    total_expected = round(expected_embed + b["reranking"] + expected_llm_in + expected_llm_out, 2)
+    assert abs(result["total_usd"] - total_expected) < 0.1, (
+        f"total esperado ~{total_expected}, obtuve {result['total_usd']}"
+    )
+    # el costo total debería ser razonable (entre $15 y $50 para este config)
+    assert 10 < result["total_usd"] < 100, (
+        f"costo mensual debería ser entre $10 y $100, obtuve ${result['total_usd']}"
+    )
+    print("ok")
+  solution: |
+    def calculate_rag_cost(config):
+        qpd = config["queries_per_day"]
+        days = config["days_per_month"]
+        queries_month = qpd * days
+
+        embed_tokens  = queries_month * config["question_tokens"]
+        llm_in_tokens = queries_month * (config["question_tokens"] + config["chunks_retrieved"] * config["tokens_per_chunk"])
+        llm_out_tokens = queries_month * config["answer_tokens"]
+
+        embedding  = round(embed_tokens  / 1_000_000 * 0.06, 4)
+        reranking  = round(queries_month / 1_000 * 0.002, 4)
+        llm_input  = round(llm_in_tokens / 1_000_000 * 3.0, 4)
+        llm_output = round(llm_out_tokens / 1_000_000 * 15.0, 4)
+        total      = round(embedding + reranking + llm_input + llm_output, 2)
+
+        return {
+            "total_usd": total,
+            "breakdown": {
+                "embedding": embedding,
+                "reranking": reranking,
+                "llm_input": llm_input,
+                "llm_output": llm_output,
+            }
+        }

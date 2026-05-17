@@ -1,0 +1,31 @@
+slug: http-anatomy
+title: "¿Qué viaja en una petición HTTP?"
+kind: multi_choice
+trains_skill: http
+concepts_introduced: [DNS, TCP, TLS, request, response, headers]
+concepts_reinforced: [API]
+scenario_md: |
+  María de ACME pregunta por qué a veces el navegador tarda antes de mostrar
+  la primera respuesta de la API, incluso cuando el servidor procesa rápido.
+  ¿Qué proceso ocurre antes de que el primer byte de datos viaje?
+payload:
+  options:
+    - text: "El navegador descarga el HTML del servidor"
+      correct: false
+      feedback: "Eso ocurre después de establecer la conexión, no antes."
+    - text: "DNS resuelve el dominio, TCP establece la conexión y TLS negocia el cifrado"
+      correct: true
+      feedback: "Correcto. Esos tres pasos ocurren antes del primer byte de datos útil."
+    - text: "El servidor compila el código Python antes de responder"
+      correct: false
+      feedback: "FastAPI no compila en cada request. El proceso DNS/TCP/TLS es la latencia real."
+    - text: "El cliente espera que el servidor esté libre"
+      correct: false
+      feedback: "Los servidores atienden múltiples conexiones en paralelo. El cuello de botella es la red, no la cola."
+hint_md: "¿Cuántos pasos de red ocurren antes de que el cliente pueda enviar el primer byte HTTP?"
+solution_md: |
+  DNS convierte el nombre de dominio a IP. TCP hace el handshake de 3 pasos
+  (SYN, SYN-ACK, ACK). TLS negocia claves. Solo después viajan los headers
+  y el body de la petición HTTP. Eso explica la latencia inicial.
+xp: 10
+est_seconds: 75

@@ -1,0 +1,155 @@
+- slug: count-overdue
+  title: "Contar facturas vencidas"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El string `RAW_CSV` simula un archivo de facturas de ACME.
+    Cuenta cuántas filas tienen `status == "OVERDUE"` y calcula su monto total.
+
+    Imprime dos líneas exactamente así (con los valores reales del CSV del starter):
+    ```
+    Vencidas: 3
+    Total: 4500.00 EUR
+    ```
+  hint: |
+    Usa `csv.DictReader(io.StringIO(RAW_CSV))` para leer el CSV.
+    Acumula un contador y un total dentro del bucle `for`.
+  starter: |
+    import csv
+    import io
+
+    RAW_CSV = """vendor,amount,status
+    ACME,4820.50,PAID
+    Globex,1500.00,OVERDUE
+    Initech,3100.75,PAID
+    ACME,800.00,OVERDUE
+    Globex,2200.00,OVERDUE
+    Initech,600.25,PAID
+    """
+
+    overdue_count = 0
+    overdue_total = 0.0
+
+    # completa aquí: itera el CSV y acumula
+    reader = csv.DictReader(io.StringIO(RAW_CSV))
+
+    print(f"Vencidas: {overdue_count}")
+    print(f"Total: {overdue_total:.2f} EUR")
+  test: |
+    out = __cap.getvalue().strip().split("\n")
+    assert len(out) == 2, f"esperaba 2 líneas, obtuve {len(out)}: {out}"
+    assert out[0] == "Vencidas: 3", f"primera línea incorrecta: {out[0]!r}"
+    assert out[1] == "Total: 4500.00 EUR", f"segunda línea incorrecta: {out[1]!r}"
+    print("ok")
+  solution: |
+    import csv
+    import io
+
+    RAW_CSV = """vendor,amount,status
+    ACME,4820.50,PAID
+    Globex,1500.00,OVERDUE
+    Initech,3100.75,PAID
+    ACME,800.00,OVERDUE
+    Globex,2200.00,OVERDUE
+    Initech,600.25,PAID
+    """
+
+    overdue_count = 0
+    overdue_total = 0.0
+
+    reader = csv.DictReader(io.StringIO(RAW_CSV))
+    for row in reader:
+        if row["status"] == "OVERDUE":
+            overdue_count += 1
+            overdue_total += float(row["amount"])
+
+    print(f"Vencidas: {overdue_count}")
+    print(f"Total: {overdue_total:.2f} EUR")
+
+- slug: write-summary
+  title: "Escribir un resumen a texto"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado el mismo CSV de facturas, construye un resumen y escríbelo
+    en un string (simulando escritura a archivo).
+
+    La función `build_summary(raw_csv)` debe devolver un string con este formato
+    (una línea por proveedor, ordenado como aparece en los datos):
+    ```
+    ACME: 2 facturas
+    Globex: 2 facturas
+    Initech: 2 facturas
+    ```
+
+    Usa `csv.DictReader` para leer. Acumula un dict `{vendor: count}`.
+    Devuelve las líneas unidas con `"\n"`.
+  hint: |
+    Crea un dict vacío. Por cada fila, comprueba si `row["vendor"]` ya está en el
+    dict. Si no, añádelo con valor 0. Luego incrementa. Al final, construye el
+    string con un bucle.
+  starter: |
+    import csv
+    import io
+
+    RAW_CSV = """vendor,amount,status
+    ACME,4820.50,PAID
+    Globex,1500.00,OVERDUE
+    Initech,3100.75,PAID
+    ACME,800.00,OVERDUE
+    Globex,2200.00,OVERDUE
+    Initech,600.25,PAID
+    """
+
+
+    def build_summary(raw_csv: str) -> str:
+        counts: dict[str, int] = {}
+        reader = csv.DictReader(io.StringIO(raw_csv))
+        for row in reader:
+            # completa aquí
+            pass
+        # construye el string de salida
+        lines = []
+        for vendor, count in counts.items():
+            lines.append(f"{vendor}: {count} facturas")
+        return "\n".join(lines)
+
+
+    print(build_summary(RAW_CSV))
+  test: |
+    result = build_summary(RAW_CSV)
+    lines = result.strip().split("\n")
+    assert len(lines) == 3, f"esperaba 3 líneas, obtuve {len(lines)}"
+    assert "ACME: 2 facturas" in lines, f"falta ACME: {lines}"
+    assert "Globex: 2 facturas" in lines, f"falta Globex: {lines}"
+    assert "Initech: 2 facturas" in lines, f"falta Initech: {lines}"
+    print("ok")
+  solution: |
+    import csv
+    import io
+
+    RAW_CSV = """vendor,amount,status
+    ACME,4820.50,PAID
+    Globex,1500.00,OVERDUE
+    Initech,3100.75,PAID
+    ACME,800.00,OVERDUE
+    Globex,2200.00,OVERDUE
+    Initech,600.25,PAID
+    """
+
+
+    def build_summary(raw_csv: str) -> str:
+        counts: dict[str, int] = {}
+        reader = csv.DictReader(io.StringIO(raw_csv))
+        for row in reader:
+            vendor = row["vendor"]
+            if vendor not in counts:
+                counts[vendor] = 0
+            counts[vendor] += 1
+        lines = []
+        for vendor, count in counts.items():
+            lines.append(f"{vendor}: {count} facturas")
+        return "\n".join(lines)
+
+
+    print(build_summary(RAW_CSV))

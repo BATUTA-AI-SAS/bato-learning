@@ -1,0 +1,12 @@
+slug: llm
+title: "¿Qué es un LLM?"
+analogy_md: |
+  Un LLM (Modelo de Lenguaje Grande) es como un asesor externo al que le envías un memo
+  con instrucciones y datos, y te responde con texto. No tiene memoria entre llamadas a menos que
+  incluyas el historial en cada mensaje.
+example_md: |
+  ```python
+  response = client.messages.create(
+      model="claude-sonnet-4-5", messages=[{"role": "user", "content": prompt}]
+  )
+  ```

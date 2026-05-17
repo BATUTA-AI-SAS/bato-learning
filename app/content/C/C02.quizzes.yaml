@@ -1,0 +1,78 @@
+- slug: rls-bypass-superuser
+  question: |
+    Tu app conecta a Postgres como el usuario `postgres` (superusuario).
+    Tienes RLS habilitado en `invoice` con políticas correctas.
+    Un bug en el repo omite `WHERE tenant_id = :tid`. ¿Qué ocurre?
+  explanation: |
+    Los superusuarios de Postgres **ignoran RLS por defecto** (`BYPASSRLS` es
+    implícito). Si la app conecta como `postgres`, todas las políticas de RLS
+    son transparentes para ella: un bug que omita el filtro devolverá filas de
+    todos los tenants. La solución es conectar la app con un usuario de
+    aplicación sin privilegios de superusuario. El superusuario solo se usa
+    para administración (crear roles, aplicar migraciones críticas).
+  options:
+    - text: "RLS filtra correctamente — el superusuario también está sujeto a las políticas."
+      correct: false
+      feedback: "Incorrecto. Los superusuarios bypass RLS por defecto en Postgres. Necesitas un usuario sin BYPASSRLS."
+    - text: "El bug devuelve filas de todos los tenants porque el superusuario ignora RLS."
+      correct: true
+      feedback: "Correcto. La app debe conectar con un usuario sin privilegios. Nunca usar el usuario postgres en producción."
+    - text: "Postgres lanza un error de permiso y no devuelve nada."
+      correct: false
+      feedback: "No hay error. El superusuario tiene permiso total y omite silenciosamente las políticas RLS."
+    - text: "Depende de si la política tiene `FORCE ROW LEVEL SECURITY`."
+      correct: false
+      feedback: "Parcialmente: `ALTER TABLE ... FORCE ROW LEVEL SECURITY` sí aplica RLS al owner de la tabla, pero no al superusuario. El superusuario siempre bypass."
+
+- slug: set-local-scope
+  question: |
+    Ejecutas `SET LOCAL app.tenant_id = 'acme'` dentro de una transacción.
+    La transacción hace rollback por un error. ¿Qué valor tiene `app.tenant_id`
+    en la misma conexión después del rollback?
+  explanation: |
+    `SET LOCAL` tiene scope de transacción: si la transacción hace rollback o
+    commit, el valor vuelve al que tenía antes de empezar la transacción. Si
+    no había ningún valor previo, vuelve a estar indefinida. Esto es exactamente
+    el comportamiento que se necesita en un pool de conexiones: la conexión
+    vuelve al pool «limpia», sin tenant residual.
+  options:
+    - text: "Sigue siendo 'acme' — el rollback no revierte variables de sesión."
+      correct: false
+      feedback: "SET LOCAL sí se revierte con rollback. Eso es precisamente su utilidad en pools de conexiones."
+    - text: "El valor se revierte al que tenía antes de la transacción (vacío si no había ninguno)."
+      correct: true
+      feedback: "Correcto. SET LOCAL es transaccional: el rollback lo deshace igual que deshace los INSERT o UPDATE."
+    - text: "La conexión se cierra automáticamente después del rollback."
+      correct: false
+      feedback: "El rollback no cierra la conexión. La conexión vuelve al pool disponible para el siguiente request."
+    - text: "SET LOCAL no existe en Postgres; la sintaxis correcta es SET SESSION."
+      correct: false
+      feedback: "SET LOCAL sí existe en Postgres y tiene scope de transacción. SET SESSION (o simplemente SET) tiene scope de conexión."
+
+- slug: rls-three-patterns
+  question: |
+    Globex Logistics procesa datos financieros regulados bajo normativa local
+    que exige que los datos de cada cliente estén en infraestructura física
+    separada. ¿Qué patrón de multitenancy es el adecuado?
+  explanation: |
+    Cuando existe un requisito regulatorio de **aislamiento físico** — los datos
+    de cada cliente deben estar en su propio servidor o instancia de base de
+    datos — el patrón tabla compartida con RLS no es suficiente (sigue siendo la
+    misma instancia Postgres). El patrón correcto es **base de datos por tenant**
+    (o instancia separada). Schema-per-tenant tampoco cumple el requisito de
+    aislamiento físico si están en el mismo servidor. El patrón RLS es el más
+    económico y adecuado para la mayoría de SaaS sin requisitos de aislamiento
+    físico.
+  options:
+    - text: "Tabla compartida con RLS — es la opción más económica y segura."
+      correct: false
+      feedback: "RLS aisla lógicamente, no físicamente. Si la regulación exige separación física, RLS no es suficiente."
+    - text: "Base de datos por tenant (o instancia separada) para cumplir el requisito de aislamiento físico."
+      correct: true
+      feedback: "Correcto. Aislamiento físico = instancias separadas. Esto tiene mayor costo operativo pero es el único patrón que cumple el requisito regulatorio."
+    - text: "Schema por tenant en la misma instancia Postgres."
+      correct: false
+      feedback: "Schema-per-tenant sigue siendo la misma instancia. No cumple aislamiento físico si la normativa lo exige."
+    - text: "Tabla compartida con cifrado de columnas por tenant."
+      correct: false
+      feedback: "El cifrado protege en reposo, no el acceso lógico entre tenants dentro de la misma instancia. No cumple el requisito de aislamiento físico."

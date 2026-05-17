@@ -1,0 +1,91 @@
+- slug: division-type
+  question: |
+    ¿Qué devuelve `5 / 2` en Python 3?
+  explanation: |
+    En Python 3, el operador `/` siempre devuelve `float`, aunque los dos operandos
+    sean enteros. `5 / 2` devuelve `2.5`. Para obtener el cociente entero, se usa
+    `//`: `5 // 2` devuelve `2` (tipo `int`).
+  options:
+    - text: "`2` (tipo `int`), porque ambos operandos son enteros."
+      correct: false
+      feedback: |
+        Ese era el comportamiento de Python 2. En Python 3, `/` siempre produce
+        `float`: `5 / 2` es `2.5`. Para el cociente entero, usa `//`.
+    - text: "`2.5` (tipo `float`), porque `/` siempre produce `float`."
+      correct: true
+      feedback: |
+        Correcto. Python 3 cambió este comportamiento respecto a Python 2.
+        `/` es siempre división real. `//` es división entera.
+    - text: "`2.0` (tipo `float`), Python trunca y añade `.0`."
+      correct: false
+      feedback: |
+        No trunca. `5 / 2` es `2.5`, no `2.0`. Si quisieras truncar, usarías
+        `5 // 2` que devuelve `2` (int), o `float(5 // 2)` que daría `2.0`.
+    - text: "Error `TypeError` porque no puedes dividir dos enteros."
+      correct: false
+      feedback: |
+        Dividir enteros con `/` es perfectamente válido en Python. El error
+        `TypeError` aparece cuando intentas mezclar tipos incompatibles,
+        como `"4820" / 2`.
+
+- slug: caret-operator
+  question: |
+    En Excel usas `=B4^2` para elevar al cuadrado. Escribes `amount ^ 2` en Python.
+    ¿Qué pasa?
+  explanation: |
+    En Python, `^` es el operador XOR bit a bit, no la potencia. `4 ^ 2` devuelve `6`
+    (XOR de los bits de 4 y 2), no `16`. El operador de potencia en Python es `**`:
+    `4 ** 2` devuelve `16`.
+  options:
+    - text: "Devuelve el cuadrado del valor, igual que en Excel."
+      correct: false
+      feedback: |
+        En Python, `^` es XOR bit a bit, no potencia. `4 ^ 2` devuelve `6`.
+        Para potencia, usa `**`: `4 ** 2` devuelve `16`.
+    - text: "Lanza `SyntaxError` porque `^` no existe en Python."
+      correct: false
+      feedback: |
+        `^` sí existe en Python, pero significa XOR bit a bit, no potencia.
+        No hay error de sintaxis; hay un error semántico: el resultado no es el
+        que esperas.
+    - text: "Calcula el XOR bit a bit, que probablemente no es lo que quieres."
+      correct: true
+      feedback: |
+        Correcto. `^` es XOR en Python. `4 ^ 2` es `6` (100 XOR 010 = 110 en binario).
+        Para elevar al cuadrado usa `amount ** 2`.
+    - text: "Lanza `TypeError` porque `^` no funciona con `float`."
+      correct: false
+      feedback: |
+        El error no sería `TypeError` para enteros; XOR funciona con `int`.
+        Con `float` sí lanzaría `TypeError`, pero el error conceptual es que
+        `^` no es potencia en Python.
+
+- slug: fstring-syntax
+  question: |
+    Quieres imprimir `"Total: 4820.00 EUR"` usando una f-string y la variable `amount = 4820.0`.
+    ¿Cuál es la sintaxis correcta?
+  explanation: |
+    Las f-strings empiezan con `f` antes de la comilla de apertura. Dentro de `{}` se
+    escribe la expresión a evaluar. El especificador `:.2f` dentro de las llaves formatea
+    el float con exactamente 2 decimales.
+  options:
+    - text: '`"Total: {amount:.2f} EUR"`'
+      correct: false
+      feedback: |
+        Falta la `f` inicial. Sin ella, `{amount:.2f}` es texto literal y se
+        imprime tal cual: `"Total: {amount:.2f} EUR"`.
+    - text: '`f"Total: {amount:.2f} EUR"`'
+      correct: true
+      feedback: |
+        Correcto. La `f` antes de la comilla activa la interpolación. `{amount:.2f}`
+        inserta el valor de `amount` con 2 decimales: `4820.00`.
+    - text: '`f"Total: {amount} EUR"` (sin especificador de formato)'
+      correct: false
+      feedback: |
+        Esto funciona pero imprime `4820.0` en lugar de `4820.00`. El especificador
+        `:.2f` es necesario para forzar exactamente 2 decimales.
+    - text: '`f"Total: " + amount + " EUR"`'
+      correct: false
+      feedback: |
+        Esto lanza `TypeError`: no puedes concatenar `str` y `float` con `+` directamente.
+        Necesitas `str(amount)` o, mejor, una f-string: `f"Total: {amount:.2f} EUR"`.

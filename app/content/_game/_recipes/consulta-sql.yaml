@@ -1,0 +1,18 @@
+slug: consulta-sql
+title: "Receta: Consulta SQL"
+chapter_ref: phase2
+ingredients: [sql, base-de-datos, async]
+body_md: |
+  Usa parámetros preparados siempre, nunca construyas SQL con f-strings. Con SQLAlchemy Core
+  escribes SQL explícito pero seguro; el resultado es una lista de filas mapeadas a diccionarios.
+yields_md: |
+  ```python
+  from sqlalchemy import text
+
+  async def totales_por_cliente(session, tenant_id: str):
+      result = await session.execute(
+          text("SELECT cliente, SUM(monto) FROM facturas WHERE tenant_id=:t GROUP BY cliente"),
+          {"t": tenant_id},
+      )
+      return result.mappings().all()
+  ```

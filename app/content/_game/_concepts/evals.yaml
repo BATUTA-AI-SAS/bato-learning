@@ -1,0 +1,11 @@
+slug: evals
+title: "¿Qué son las evaluaciones (evals)?"
+analogy_md: |
+  Es el proceso de medir qué tan bien responde tu agente, como el control de calidad de ACME:
+  tomas un conjunto de preguntas con respuestas correctas conocidas y mides cuántas el agente
+  responde bien.
+example_md: |
+  ```python
+  score = sum(1 for q in test_set if agent.run(q.input) == q.expected)
+  print(f"Accuracy: {score}/{len(test_set)}")
+  ```

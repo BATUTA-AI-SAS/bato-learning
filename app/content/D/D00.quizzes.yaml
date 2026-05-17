@@ -1,0 +1,103 @@
+- slug: ufw-order-of-operations
+  question: |
+    Estás en el servidor por SSH. Ejecutas estos dos comandos en orden:
+
+    ```bash
+    sudo ufw default deny incoming
+    sudo ufw enable
+    ```
+
+    ¿Qué pasa con tu sesión SSH actual y con los próximos intentos de conexión?
+  explanation: |
+    Tu sesión SSH **activa** no se corta — las conexiones TCP establecidas
+    no son afectadas por `ufw enable`. El problema es que **no podrás volver
+    a conectarte**: el puerto 22 no está en la lista de permitidos.
+    El firewall está activo con `default deny`, y SSH no tiene `allow`.
+    La sesión actual sobrevive pero te quedas sin la llave para volver a entrar.
+    El orden correcto: `ufw allow 22` → `ufw default deny incoming` → `ufw enable`.
+  options:
+    - text: "La sesión actual sobrevive pero no puedes volver a conectarte por SSH"
+      correct: true
+      feedback: "Correcto. UFW no corta conexiones existentes, pero bloquea nuevas. Quedas encerrado fuera."
+    - text: "La sesión SSH se corta inmediatamente"
+      correct: false
+      feedback: "No. UFW opera a nivel de nuevas conexiones; no termina conexiones TCP ya establecidas. La sesión activa continúa — pero cuando la cierres, no podrás volver a abrir otra."
+    - text: "Nada — `default deny incoming` no aplica a SSH"
+      correct: false
+      feedback: "SSH usa TCP en el puerto 22, que es tráfico entrante. `default deny incoming` lo bloquea como cualquier otro puerto."
+    - text: "Tienes 60 segundos antes de que corte la sesión"
+      correct: false
+      feedback: "No hay timeout automático en UFW. La sesión activa no se corta, pero la falta del `allow 22` bloqueará futuras conexiones."
+
+- slug: systemd-restart-policy
+  question: |
+    Tu unit file tiene `Restart=no` (el valor por defecto). El agente de
+    auditoría de ACME termina con código de salida 1 a las 3 a.m. porque
+    la DB estaba bloqueada. ¿Qué hace systemd?
+  explanation: |
+    Con `Restart=no`, systemd no hace nada más que registrar el evento
+    en journald. El servicio queda en estado «failed». El equipo descubre
+    el problema cuando alguien revisa el dashboard a la mañana siguiente.
+    `Restart=on-failure` hace que systemd reintente el servicio cuando
+    el proceso termina con código de error distinto de 0.
+  options:
+    - text: "El servicio queda en estado 'failed' hasta que alguien lo reinicie manualmente"
+      correct: true
+      feedback: "Exacto. Con Restart=no, systemd registra el fallo pero no actúa. Necesitas Restart=on-failure."
+    - text: "systemd reinicia el servicio automáticamente después de 30 segundos"
+      correct: false
+      feedback: "Solo si tienes `Restart=on-failure` o `Restart=always` configurado. El valor por defecto es `Restart=no`."
+    - text: "systemd envía un email de alerta al administrador"
+      correct: false
+      feedback: "systemd no envía emails por defecto. Eso lo hace una herramienta de monitoreo externa (Prometheus + Alertmanager, por ejemplo)."
+    - text: "El proceso queda zombie en ps aux hasta que el admin lo limpia"
+      correct: false
+      feedback: "Un proceso zombie es diferente: es un proceso que terminó pero cuyo padre no leyó su código de salida. systemd sí lee el código de salida — el proceso desaparece de `ps aux`, pero el servicio queda en estado failed."
+
+- slug: journalctl-priority
+  question: |
+    Quieres ver solo los errores y mensajes críticos del agente de las
+    últimas 2 horas. ¿Cuál es el comando correcto?
+  explanation: |
+    `journalctl` acepta `-p` para filtrar por prioridad (log level) y
+    `--since` para filtrar por tiempo. `-p err` muestra err, crit, alert
+    y emerg (todos los niveles iguales o más graves que err).
+    La combinación de ambos flags da exactamente lo que se pide.
+  options:
+    - text: "`journalctl -u audit-agent -p err --since '2h ago'`"
+      correct: true
+      feedback: "Correcto. -p err filtra por nivel de error o superior; --since '2h ago' acota al tiempo."
+    - text: "`journalctl -u audit-agent --level=error --time=2h`"
+      correct: false
+      feedback: "Los flags `--level` y `--time` no existen en journalctl. El flag correcto para nivel es `-p` y para tiempo es `--since`."
+    - text: "`journalctl -u audit-agent -n 200 | grep ERROR`"
+      correct: false
+      feedback: "Funcional pero impreciso: -n 200 toma las últimas 200 líneas sin filtrar por tiempo, y `grep ERROR` depende del formato del mensaje (journald usa niveles, no la palabra 'ERROR' necesariamente)."
+    - text: "`journalctl audit-agent -f --errors --since 2h`"
+      correct: false
+      feedback: "Varios errores: falta `-u` para especificar la unit, `--errors` no es un flag válido, y `--since 2h` necesita estar entre comillas: `--since '2h ago'`."
+
+- slug: chmod-values
+  question: |
+    Tienes el archivo `.env` con `ANTHROPIC_API_KEY=sk-ant-...`.
+    ¿Qué permisos debería tener ese archivo?
+  explanation: |
+    `600` significa `rw-------`: solo el propietario puede leer y escribir.
+    Nadie más — ni el grupo, ni otros usuarios — puede ver el contenido.
+    Esto es lo mínimo para un archivo que contiene secretos.
+    `644` permitiría que cualquier usuario del sistema leyera el archivo.
+    `755` añadiría permisos de ejecución, innecesarios para un archivo de texto.
+    `777` es el permiso más peligroso: cualquiera puede leer, escribir y ejecutar.
+  options:
+    - text: "`chmod 600 .env` (rw-------)"
+      correct: true
+      feedback: "Correcto. Solo el propietario puede leer y escribir. Nadie más ve el contenido."
+    - text: "`chmod 644 .env` (rw-r--r--)"
+      correct: false
+      feedback: "Con 644, cualquier usuario del sistema puede leer el archivo. En un servidor compartido, eso expone la API key a todos los usuarios."
+    - text: "`chmod 755 .env` (rwxr-xr-x)"
+      correct: false
+      feedback: "Además del problema de lectura (todos ven el contenido), añades permiso de ejecución a un archivo que no debería ejecutarse."
+    - text: "`chmod 777 .env` (rwxrwxrwx)"
+      correct: false
+      feedback: "Cualquier usuario puede leer, modificar y ejecutar el archivo. El secreto es accesible para cualquier proceso que corra en el sistema."

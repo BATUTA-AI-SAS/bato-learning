@@ -1,0 +1,71 @@
+- slug: embedding_determinism
+  question: |
+    Generas el embedding del texto `"revalorización de activos fijos"` con el modelo
+    `voyage-3` hoy. Mañana generas el embedding del mismo texto con el mismo modelo.
+    ¿Son los dos vectores iguales?
+  explanation: |
+    Los modelos de embedding son **determinísticos**: el mismo texto con el mismo modelo siempre
+    produce el mismo vector. Esto es fundamental para RAG: puedes indexar hoy y hacer queries
+    mañana con consistencia garantizada. El problema de mezclar modelos distintos surge precisamente
+    porque cada modelo tiene su propio espacio semántico — no comparable con el de otro modelo.
+  options:
+    - text: "Sí, son iguales. El mismo texto con el mismo modelo siempre produce el mismo vector."
+      correct: true
+      feedback: "Correcto. Los modelos de embedding son determinísticos. Esto es lo que hace posible indexar una vez y consultar muchas veces."
+    - text: "No, varían ligeramente por el orden de los tokens internos del modelo."
+      correct: false
+      feedback: "Los modelos de embedding no tienen aleatoriedad en la inferencia. El resultado es siempre el mismo dado el mismo input y modelo."
+    - text: "Depende de la temperatura del modelo al hacer el embedding."
+      correct: false
+      feedback: "Los modelos de embedding no tienen parámetro de temperatura — ese parámetro es para los modelos generativos. Los embeddings son siempre determinísticos."
+    - text: "No, porque el modelo puede actualizarse entre hoy y mañana."
+      correct: false
+      feedback: "Si el modelo cambia de versión (ej. voyage-3 → voyage-3-large), los vectores serían distintos. Pero con el mismo modelo y versión, son idénticos. Por eso se pinea la versión del modelo de embedding."
+
+- slug: cosine_vs_l2
+  question: |
+    Tienes dos textos: uno de 200 palabras y otro de 20 palabras, ambos sobre el
+    mismo tema. Sus embeddings son vectores de diferentes magnitudes pero apuntan
+    en la misma dirección en el espacio semántico. ¿Qué métrica de distancia
+    los identificará correctamente como similares?
+  explanation: |
+    La **similitud coseno** mide el ángulo entre vectores, ignorando su magnitud.
+    Dos textos sobre el mismo tema pero de distinta longitud tendrán vectores que
+    apuntan en la misma dirección aunque tengan magnitudes distintas. La distancia L2
+    (euclidiana) sí considera la magnitud — y daría una distancia alta entre los dos vectores.
+  options:
+    - text: "Similitud coseno, porque mide el ángulo entre vectores e ignora la magnitud."
+      correct: true
+      feedback: "Correcto. El coseno solo mide la dirección, no la longitud del vector. Ideal para texto donde la magnitud puede variar con la longitud del documento."
+    - text: "Distancia L2 (euclidiana), porque mide la distancia directa entre los dos puntos."
+      correct: false
+      feedback: "L2 considera la magnitud. Si un vector tiene magnitud 2 y el otro tiene magnitud 0.5 (por diferencia de longitud de texto), L2 dará una distancia alta aunque apunten en la misma dirección."
+    - text: "Dot product sin normalizar, porque considera tanto dirección como magnitud."
+      correct: false
+      feedback: "El dot product sin normalizar favorece vectores de mayor magnitud (textos más largos). La similitud coseno es su versión normalizada."
+    - text: "No importa la métrica — todas dan el mismo resultado con embeddings de texto."
+      correct: false
+      feedback: "Las métricas no son equivalentes. Con vectores de diferentes magnitudes, coseno y L2 pueden dar resultados muy distintos."
+
+- slug: pgvector_vs_qdrant
+  question: |
+    ACME Manufacturing ya usa Postgres en producción. Tiene 800 000 chunks de
+    documentos contables (manuales, contratos). ¿Qué base de datos vectorial debería usar?
+  explanation: |
+    Con menos de 10 M vectores y Postgres ya en producción, **pgvector** es la elección correcta.
+    Mismo servidor, mismo backup, mismas herramientas de monitoreo. La complejidad operativa de
+    añadir un servicio adicional (Qdrant) no se justifica a esta escala. Qdrant se justifica
+    cuando el corpus crece más de 10 M vectores o se necesitan features avanzadas.
+  options:
+    - text: "pgvector — mismo Postgres, cero infraestructura adicional, suficiente para 800K vectores."
+      correct: true
+      feedback: "Correcto. pgvector funciona bien hasta ~10 M vectores. Con 800K y Postgres existente, la complejidad adicional de Qdrant no se justifica."
+    - text: "Pinecone — más simple que pgvector porque es serverless."
+      correct: false
+      feedback: "Si ya tienes Postgres, añadir Pinecone significa una dependencia externa adicional, su costo mensual, y datos duplicados. pgvector es más simple en este contexto."
+    - text: "Qdrant — siempre mejor rendimiento que pgvector."
+      correct: false
+      feedback: "Qdrant tiene mejor rendimiento a escala masiva, pero a 800K vectores la diferencia es negligible. El costo operativo de un servicio Rust adicional supera el beneficio."
+    - text: "Weaviate — porque tiene módulos de embedding integrados."
+      correct: false
+      feedback: "Los módulos integrados son convenientes, pero ACME ya tiene Postgres y probablemente ya eligió un proveedor de embeddings. Weaviate añadiría complejidad sin beneficio claro."

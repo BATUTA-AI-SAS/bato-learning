@@ -1,0 +1,26 @@
+slug: debug-conversion
+title: "¿Qué imprime este código con datos sucios?"
+kind: predict
+trains_skill: debugging
+concepts_introduced: [try-except, stack-trace, debugging]
+concepts_reinforced: [string, float]
+scenario_md: |
+  María de ACME pegó un extracto con una línea corrupta: el monto dice
+  "N/A" en lugar de un número. El script intenta convertirlo con float().
+  ¿Qué imprime exactamente este código al ejecutarse?
+payload:
+  code: |
+    monto_texto = "N/A"
+    try:
+        valor = float(monto_texto)
+        print(f"Monto: {valor}")
+    except ValueError:
+        print("Dato inválido: no se pudo convertir")
+  expected_output: "Dato inválido: no se pudo convertir"
+hint_md: "float('N/A') lanza ValueError. ¿Qué bloque captura ese error específico?"
+solution_md: |
+  float('N/A') no puede convertirse a número: lanza ValueError.
+  El bloque except ValueError lo captura y ejecuta su print.
+  El print del try nunca se ejecuta.
+xp: 15
+est_seconds: 60

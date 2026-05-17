@@ -1,0 +1,29 @@
+slug: filter-high-value
+title: "Separa las facturas de alto valor"
+kind: code
+trains_skill: condicion
+concepts_introduced: [condicion, if, append, filtrar]
+concepts_reinforced: [lista, for]
+scenario_md: |
+  El Director de TI de ACME estableció que toda factura mayor a 500 000 pesos
+  requiere aprobación del CFO. Tu script debe separar esas facturas de la
+  lista general y devolver solo las que superan el umbral.
+payload:
+  starter: |
+    def facturas_alto_valor(montos: list, umbral: float) -> list:
+        resultado = []
+        for monto in montos:
+            # Agrega a resultado si supera el umbral
+            ...
+        return resultado
+  tests: |
+    assert facturas_alto_valor([100, 600_000, 200, 800_000], 500_000) == [600_000, 800_000]
+    assert facturas_alto_valor([100, 200], 500_000) == []
+    assert facturas_alto_valor([500_001], 500_000) == [500_001]
+hint_md: "Usa if dentro del for. Si cumple la condición, usa append para agregar a resultado."
+solution_md: |
+  if monto > umbral:
+      resultado.append(monto)
+  La condición dentro del loop filtra: solo pasan los que superan el umbral.
+xp: 20
+est_seconds: 100

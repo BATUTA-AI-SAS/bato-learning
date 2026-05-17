@@ -1,0 +1,33 @@
+slug: clean-architecture
+title: "Estructura el proyecto para que 5 devs no choquen"
+kind: multi_choice
+phase: PH02
+ord: 35
+trains_skill: clean-architecture
+xp: 15
+est_seconds: 90
+scenario_md: |
+  Un dev de ACME puso lógica de negocio directamente en el router de FastAPI.
+  Ahora hay SQL en el handler HTTP. ¿Cuál de estas opciones describe
+  la capa correcta para ejecutar queries a la base de datos?
+payload:
+  options:
+    - text: "En el router, directo en la función del endpoint"
+      correct: false
+      feedback: "El router valida HTTP y formatea respuestas. Si pones queries aquí, no puedes reutilizarlas desde otro contexto (CLI, tests, otros endpoints)."
+    - text: "En el modelo ORM, como método de la clase"
+      correct: false
+      feedback: "El modelo describe columnas y relaciones. La lógica de query en el modelo mezcla dos responsabilidades y hace los modelos imposibles de testear en aislamiento."
+    - text: "En el repo (repository), como función que recibe AsyncSession"
+      correct: true
+      feedback: "Correcto. El repo es la única capa que habla con la DB. Recibe la sesión por parámetro (Dependency Injection) para que los tests puedan inyectar una sesión de prueba."
+    - text: "En el servicio, directamente con SQLAlchemy"
+      correct: false
+      feedback: "El servicio orquesta lógica de negocio pero no ejecuta queries. Delega en el repo. Si el servicio hace SQL, viola la separación de capas."
+hint_md: |
+  Las capas son: router → service → repo → model.
+  Cada capa solo importa desde la capa siguiente, nunca desde una más externa.
+solution_md: |
+  Router = HTTP. Service = lógica de negocio. Repo = queries. Model = schema.
+  Esta separación permite testear el repo con una DB en memoria, testear el
+  servicio con un repo mock, y cambiar de SQLite a Postgres sin tocar routers.

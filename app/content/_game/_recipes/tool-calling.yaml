@@ -1,0 +1,17 @@
+slug: tool-calling
+title: "Receta: Tool calling con el SDK de Anthropic"
+chapter_ref: phase3
+ingredients: [tool-calling, llm, funcion, diccionario]
+body_md: |
+  Define herramientas, envíalas al modelo y despacha el resultado de vuelta. El modelo decide
+  cuándo y con qué argumentos llamar cada herramienta; el código decide si ejecutarla.
+yields_md: |
+  ```python
+  tools = [{"name": "buscar_factura",
+            "input_schema": {"type": "object",
+                             "properties": {"id": {"type": "string"}}}}]
+  resp = client.messages.create(model=MODEL, tools=tools, messages=msgs)
+  if resp.stop_reason == "tool_use":
+      tool_input = resp.content[0].input
+      resultado = buscar_factura(**tool_input)
+  ```

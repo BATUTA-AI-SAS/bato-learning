@@ -1,0 +1,72 @@
+- slug: left_join_filter_position
+  question: |
+    Tienes `client LEFT JOIN invoice ON i.client_id = c.id`.
+    Quieres devolver todos los clientes, pero solo cruzando con facturas del período `2026-04`.
+    ¿Dónde debe ir la condición `i.period = '2026-04'`?
+  explanation: |
+    En un `LEFT JOIN`, los filtros sobre la tabla derecha deben ir en la condición `ON`, no en `WHERE`.
+    Si van en `WHERE`, las filas donde `i.period` es `NULL` (clientes sin factura) se descartan,
+    convirtiendo el `LEFT JOIN` en un `INNER JOIN` implícito.
+  options:
+    - text: "En la condición `ON`: `LEFT JOIN invoice i ON i.client_id = c.id AND i.period = '2026-04'`"
+      correct: true
+      feedback: "Correcto. Así los clientes sin factura en 2026-04 siguen apareciendo, con NULL en las columnas de invoice."
+    - text: "En el `WHERE`: `WHERE i.period = '2026-04'`"
+      correct: false
+      feedback: "Si pones el filtro en WHERE, los clientes sin factura (donde i.period = NULL) quedan descartados. El LEFT JOIN pierde su propósito."
+    - text: "No importa — `ON` y `WHERE` son equivalentes en un `LEFT JOIN`."
+      correct: false
+      feedback: "Son equivalentes en un INNER JOIN. En un LEFT JOIN, el WHERE actúa después del join y descarta las filas con NULL de la tabla derecha."
+    - text: "En una subquery: `LEFT JOIN (SELECT * FROM invoice WHERE period = '2026-04') i ON ...`"
+      correct: false
+      feedback: "Esto funciona, pero es innecesariamente complejo. La forma idiomática es añadir la condición al ON directamente."
+
+- slug: having_vs_where
+  question: |
+    Tienes esta query:
+    ```sql
+    SELECT client_id, SUM(total_eur) AS total
+    FROM invoice
+    WHERE tenant_id = 'acme'
+    GROUP BY client_id
+    HAVING total > 10000
+    ```
+    ¿Qué filtra el `WHERE` y qué filtra el `HAVING`?
+  explanation: |
+    `WHERE` se aplica **antes** de la agregación: descarta filas individuales de `invoice`.
+    `HAVING` se aplica **después** de la agregación: descarta grupos (resultados de `GROUP BY`).
+    No puedes usar `SUM()` en un `WHERE` porque la suma no existe aún cuando `WHERE` se evalúa.
+  options:
+    - text: "`WHERE` filtra filas individuales antes de agrupar; `HAVING` filtra grupos después de agregar."
+      correct: true
+      feedback: "Correcto. El orden es: FROM → WHERE (filtra filas) → GROUP BY + agregaciones → HAVING (filtra grupos)."
+    - text: "`WHERE` y `HAVING` son equivalentes — puedes usar cualquiera."
+      correct: false
+      feedback: "No son equivalentes. `WHERE SUM(total_eur) > 10000` lanzaría error porque `SUM` no está permitida en `WHERE`."
+    - text: "`HAVING` es solo una forma más lenta de escribir `WHERE`."
+      correct: false
+      feedback: "`HAVING` no puede reemplazar a `WHERE` para filtrar filas individuales. Son cláusulas con propósitos distintos y se evalúan en momentos distintos."
+    - text: "`WHERE` filtra los grupos; `HAVING` filtra las filas."
+      correct: false
+      feedback: "Es al revés. `WHERE` opera sobre filas individuales (antes de agrupar). `HAVING` opera sobre grupos (después de agrupar)."
+
+- slug: cte_vs_subquery
+  question: |
+    ¿Cuál es la ventaja principal de un CTE (`WITH nombre AS (...)`) sobre una subquery anidada?
+  explanation: |
+    Los CTEs y las subqueries son equivalentes en resultado y rendimiento (el motor los reescribe igual).
+    La diferencia es **legibilidad**: el CTE nombra el resultado intermedio, lo que permite leerlo
+    como código con variables bien nombradas. También permite **reusar** el resultado en la misma query.
+  options:
+    - text: "Legibilidad: el CTE nombra los resultados intermedios y puede reutilizarse en la misma query."
+      correct: true
+      feedback: "Correcto. El motor los compila de forma idéntica. El valor del CTE es para el humano que lee la query."
+    - text: "Rendimiento: el motor cachea el resultado del CTE y lo ejecuta una sola vez."
+      correct: false
+      feedback: "En la mayoría de motores (incluyendo Postgres y SQLite), los CTEs no garantizan caching. Postgres puede materializarlos con `MATERIALIZED` explícito, pero no es el comportamiento por defecto."
+    - text: "El CTE permite usar `INSERT`, `UPDATE` y `DELETE` dentro de un `SELECT`."
+      correct: false
+      feedback: "Eso es un CTE modificable (writable CTE con `RETURNING`), que es una feature distinta y no universal. La ventaja principal de los CTEs regulares es legibilidad."
+    - text: "El CTE es más rápido porque evita el `JOIN`."
+      correct: false
+      feedback: "Un CTE no evita el JOIN — simplemente reorganiza la query. El plan de ejecución puede ser idéntico al de una subquery anidada."

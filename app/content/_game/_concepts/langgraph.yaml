@@ -1,0 +1,13 @@
+slug: langgraph
+title: "¿Qué es LangGraph?"
+analogy_md: |
+  LangGraph define el flujo de un agente como un grafo: nodos son pasos (llamar LLM, ejecutar
+  herramienta) y aristas son decisiones. Es como un diagrama de flujo de proceso que ACME
+  documenta antes de automatizar.
+example_md: |
+  ```python
+  graph = StateGraph(AgentState)
+  graph.add_node("llm", call_model)
+  graph.add_node("tools", execute_tools)
+  graph.add_edge("llm", "tools")
+  ```

@@ -1,0 +1,36 @@
+slug: read-csv-file
+title: "Lee el extracto bancario en CSV"
+kind: code
+trains_skill: archivo
+concepts_introduced: [open, readlines, split, with]
+concepts_reinforced: [lista, funcion]
+scenario_md: |
+  El Director de TI de ACME exportó el extracto bancario de marzo como CSV.
+  Cada línea tiene fecha, descripción y monto separados por coma. Tu función
+  debe leer el archivo y devolver una lista de montos como números flotantes.
+payload:
+  starter: |
+    def leer_montos_csv(ruta: str) -> list:
+        montos = []
+        with open(ruta, "r", encoding="utf-8") as f:
+            for linea in f.readlines():
+                partes = linea.strip().split(",")
+                # Agrega el tercer campo como float
+                ...
+        return montos
+  tests: |
+    import tempfile, os
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)
+    tmp.write("2024-03-01,Pago proveedor,1500000\n")
+    tmp.write("2024-03-02,Transferencia,87500\n")
+    tmp.close()
+    resultado = leer_montos_csv(tmp.name)
+    assert resultado == [1500000.0, 87500.0]
+    os.unlink(tmp.name)
+hint_md: "partes[2] es el tercer campo (índice 2). Conviértelo a float antes de agregar."
+solution_md: |
+  montos.append(float(partes[2]))
+  split(",") divide la línea por comas. El índice 2 es el tercer campo.
+  float() convierte el texto a número. with cierra el archivo automáticamente.
+xp: 20
+est_seconds: 120

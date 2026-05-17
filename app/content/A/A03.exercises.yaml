@@ -1,0 +1,314 @@
+- slug: invoice-pipeline
+  title: "Pipeline de filtrado y agrupación de facturas"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa las tres funciones de un pipeline de auditoría de período para ACME:
+
+    1. `filter_valid(invoices)` → lista con solo facturas donde `amount > 0`
+       y `status != "cancelled"`. Usa comprensión de lista.
+
+    2. `group_by_vendor(invoices)` → dict `{vendor: total_amount}` donde
+       `total_amount` es la suma de `amount` de todas las facturas de ese vendor.
+       Usa un bucle `for` con `dict.get`.
+
+    3. `find_duplicates(invoices)` → lista con las facturas que son duplicados exactos
+       (mismo `vendor` Y mismo `amount` que una factura anterior en la lista).
+       Usa un `set` de tuplas para trackear los ya vistos.
+
+    No mutes las listas de entrada.
+  hint: |
+    Para `group_by_vendor`: `totals[vendor] = totals.get(vendor, 0.0) + amount`.
+    Para `find_duplicates`: define `seen: set[tuple[str, float]] = set()` y
+    añade `(vendor, amount)` después de cada factura procesada.
+  starter: |
+    invoices: list[dict] = [
+        {"id": "INV-001", "vendor": "acme_global",  "amount": 4820.0, "status": "paid"},
+        {"id": "INV-002", "vendor": "andina_co",    "amount": 0.0,    "status": "paid"},
+        {"id": "INV-003", "vendor": "acme_global",  "amount": 4820.0, "status": "paid"},
+        {"id": "INV-004", "vendor": "expreslog_mx", "amount": 3100.0, "status": "cancelled"},
+        {"id": "INV-005", "vendor": "andina_co",    "amount": 750.0,  "status": "paid"},
+    ]
+
+    def filter_valid(data: list[dict]) -> list[dict]:
+        """Filtra facturas con amount > 0 y status != cancelled."""
+        ...
+
+    def group_by_vendor(data: list[dict]) -> dict[str, float]:
+        """Agrupa montos por vendor."""
+        ...
+
+    def find_duplicates(data: list[dict]) -> list[dict]:
+        """Devuelve facturas con vendor+amount ya vistos."""
+        ...
+
+    valid = filter_valid(invoices)
+    totals = group_by_vendor(valid)
+    dupes = find_duplicates(valid)
+
+    print(f"válidas: {len(valid)}")
+    print(f"totales: {totals}")
+    print(f"duplicados: {[d['id'] for d in dupes]}")
+  test: |
+    valid = filter_valid(invoices)
+    assert len(valid) == 3, f"filter_valid debe devolver 3 facturas, devolvió {len(valid)}"
+    valid_ids = {inv["id"] for inv in valid}
+    assert "INV-002" not in valid_ids, "INV-002 (amount=0) no debe estar en válidas"
+    assert "INV-004" not in valid_ids, "INV-004 (cancelled) no debe estar en válidas"
+
+    # el input original no debe estar mutado
+    assert len(invoices) == 5, "filter_valid mutó la lista original"
+    assert invoices[1]["amount"] == 0.0, "filter_valid mutó los dicts internos"
+
+    totals = group_by_vendor(valid)
+    assert isinstance(totals, dict), "group_by_vendor debe devolver dict"
+    assert abs(totals.get("acme_global", 0) - 9640.0) < 0.01, (
+        f"total acme_global debería ser 9640.0, obtuve {totals.get('acme_global')}"
+    )
+    assert abs(totals.get("andina_co", 0) - 750.0) < 0.01, (
+        f"total andina_co debería ser 750.0, obtuve {totals.get('andina_co')}"
+    )
+
+    dupes = find_duplicates(valid)
+    assert len(dupes) == 1, f"find_duplicates debe devolver 1 duplicado, devolvió {len(dupes)}"
+    assert dupes[0]["id"] == "INV-003", (
+        f"El duplicado debería ser INV-003, obtuve {dupes[0]['id']}"
+    )
+    print("ok")
+  solution: |
+    invoices: list[dict] = [
+        {"id": "INV-001", "vendor": "acme_global",  "amount": 4820.0, "status": "paid"},
+        {"id": "INV-002", "vendor": "andina_co",    "amount": 0.0,    "status": "paid"},
+        {"id": "INV-003", "vendor": "acme_global",  "amount": 4820.0, "status": "paid"},
+        {"id": "INV-004", "vendor": "expreslog_mx", "amount": 3100.0, "status": "cancelled"},
+        {"id": "INV-005", "vendor": "andina_co",    "amount": 750.0,  "status": "paid"},
+    ]
+
+    def filter_valid(data: list[dict]) -> list[dict]:
+        """Filtra facturas con amount > 0 y status != cancelled."""
+        return [inv for inv in data if inv["amount"] > 0.0 and inv["status"] != "cancelled"]
+
+    def group_by_vendor(data: list[dict]) -> dict[str, float]:
+        """Agrupa montos por vendor."""
+        totals: dict[str, float] = {}
+        for inv in data:
+            vendor = inv["vendor"]
+            totals[vendor] = totals.get(vendor, 0.0) + inv["amount"]
+        return totals
+
+    def find_duplicates(data: list[dict]) -> list[dict]:
+        """Devuelve facturas con vendor+amount ya vistos."""
+        seen: set[tuple[str, float]] = set()
+        duplicates: list[dict] = []
+        for inv in data:
+            key = (inv["vendor"], inv["amount"])
+            if key in seen:
+                duplicates.append(inv)
+            else:
+                seen.add(key)
+        return duplicates
+
+    valid = filter_valid(invoices)
+    totals = group_by_vendor(valid)
+    dupes = find_duplicates(valid)
+
+    print(f"válidas: {len(valid)}")
+    print(f"totales: {totals}")
+    print(f"duplicados: {[d['id'] for d in dupes]}")
+
+- slug: comprehension-vs-loop
+  title: "Refactorizar bucle a comprensión (y saber cuándo no hacerlo)"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes dos funciones escritas con bucles `for` explícitos.
+    Reescribe **solo** `extract_ids` como comprensión de lista.
+    Deja `build_summary` como bucle — tiene efectos y lógica múltiple por elemento.
+
+    Además, implementa `top_vendors` usando una expresión generadora:
+    dado un dict `{vendor: total}`, devuelve los `n` vendors con mayor total
+    como lista de tuplas `(vendor, total)` ordenadas de mayor a menor.
+
+    No importes nada; usa solo builtins.
+  hint: |
+    `extract_ids`: `[inv["id"] for inv in data]`.
+    `top_vendors`: `sorted(totals.items(), key=lambda kv: kv[1], reverse=True)[:n]`.
+  starter: |
+    invoices: list[dict] = [
+        {"id": "INV-001", "vendor": "acme_global",  "amount": 4820.0},
+        {"id": "INV-002", "vendor": "andina_co",    "amount": 750.0},
+        {"id": "INV-003", "vendor": "acme_global",  "amount": 4820.0},
+        {"id": "INV-004", "vendor": "expreslog_mx", "amount": 3100.0},
+    ]
+
+    def extract_ids(data: list[dict]) -> list[str]:
+        """Devuelve lista de ids. Usa comprensión de lista."""
+        # REESCRIBE con comprensión — elimina el bucle
+        result = []
+        for inv in data:
+            result.append(inv["id"])
+        return result
+
+    def build_summary(data: list[dict]) -> list[str]:
+        """Construye líneas de reporte. Mantén como bucle for."""
+        lines = []
+        for inv in data:
+            vendor = inv["vendor"].upper()
+            amount = inv["amount"]
+            status = "OK" if amount > 0 else "ZERO"
+            lines.append(f"{inv['id']} | {vendor} | {amount:.2f} | {status}")
+        return lines
+
+    def top_vendors(totals: dict[str, float], n: int) -> list[tuple[str, float]]:
+        """Devuelve los n vendors con mayor total, de mayor a menor."""
+        ...
+
+    print(extract_ids(invoices))
+    print(build_summary(invoices))
+
+    sample_totals = {"acme_global": 9640.0, "andina_co": 750.0, "expreslog_mx": 3100.0}
+    print(top_vendors(sample_totals, 2))
+  test: |
+    ids = extract_ids(invoices)
+    assert ids == ["INV-001", "INV-002", "INV-003", "INV-004"], (
+        f"extract_ids devolvió {ids}"
+    )
+    # verifica que sea comprensión inspeccionando el source (heurística)
+    import inspect
+    src = inspect.getsource(extract_ids)
+    assert "for" not in src.split("return")[1] or "[" in src.split("return")[1], (
+        "extract_ids debe usar comprensión de lista, no bucle for"
+    )
+    assert "result.append" not in src, "extract_ids no debe usar append — usa comprensión"
+
+    summary = build_summary(invoices)
+    assert len(summary) == 4, f"build_summary debe devolver 4 líneas, devolvió {len(summary)}"
+    assert "INV-001 | ACME_GLOBAL | 4820.00 | OK" in summary, (
+        f"Formato incorrecto. Primera línea: {summary[0]!r}"
+    )
+
+    sample_totals = {"acme_global": 9640.0, "andina_co": 750.0, "expreslog_mx": 3100.0}
+    top2 = top_vendors(sample_totals, 2)
+    assert len(top2) == 2, f"top_vendors(n=2) debe devolver 2 elementos, devolvió {len(top2)}"
+    assert top2[0][0] == "acme_global", f"El primero debe ser acme_global, es {top2[0][0]}"
+    assert top2[1][0] == "expreslog_mx", f"El segundo debe ser expreslog_mx, es {top2[1][0]}"
+    print("ok")
+  solution: |
+    invoices: list[dict] = [
+        {"id": "INV-001", "vendor": "acme_global",  "amount": 4820.0},
+        {"id": "INV-002", "vendor": "andina_co",    "amount": 750.0},
+        {"id": "INV-003", "vendor": "acme_global",  "amount": 4820.0},
+        {"id": "INV-004", "vendor": "expreslog_mx", "amount": 3100.0},
+    ]
+
+    def extract_ids(data: list[dict]) -> list[str]:
+        """Devuelve lista de ids."""
+        return [inv["id"] for inv in data]
+
+    def build_summary(data: list[dict]) -> list[str]:
+        """Construye líneas de reporte."""
+        lines = []
+        for inv in data:
+            vendor = inv["vendor"].upper()
+            amount = inv["amount"]
+            status = "OK" if amount > 0 else "ZERO"
+            lines.append(f"{inv['id']} | {vendor} | {amount:.2f} | {status}")
+        return lines
+
+    def top_vendors(totals: dict[str, float], n: int) -> list[tuple[str, float]]:
+        """Devuelve los n vendors con mayor total, de mayor a menor."""
+        return sorted(totals.items(), key=lambda kv: kv[1], reverse=True)[:n]
+
+    print(extract_ids(invoices))
+    print(build_summary(invoices))
+
+    sample_totals = {"acme_global": 9640.0, "andina_co": 750.0, "expreslog_mx": 3100.0}
+    print(top_vendors(sample_totals, 2))
+
+- slug: while-retry-guard
+  title: "Bucle while con guardia de reintentos"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `fetch_period_data` que simula un fetch con reintentos.
+
+    La función recibe:
+    - `tenant: str` — slug del tenant
+    - `period: str` — período en formato "YYYY-MM"
+    - `max_retries: int` — máximo de intentos (default 3)
+
+    Usa el simulador `_erp_call(attempt_number)` ya definido que devuelve
+    `True` en el tercer intento (simula fallo en los primeros dos).
+
+    La función debe:
+    1. Intentar hasta `max_retries` veces.
+    2. Si tiene éxito, devolver `{"tenant": tenant, "period": period, "ok": True}`.
+    3. Si agota los reintentos sin éxito, levantar `RuntimeError` con mensaje
+       `f"ERP no respondió para {tenant}/{period} tras {max_retries} intentos"`.
+
+    No uses `time.sleep` — Pyodide no lo necesita aquí.
+  hint: |
+    `attempts = 0; while attempts < max_retries:` con `attempts += 1` al inicio
+    del cuerpo. Si `_erp_call(attempts)` devuelve True, devuelve el dict.
+    Si el while termina sin devolver, levanta `RuntimeError`.
+  starter: |
+    def _erp_call(attempt: int) -> bool:
+        """Simulador: falla en los primeros 2 intentos, éxito en el 3ro."""
+        return attempt >= 3
+
+    def fetch_period_data(
+        tenant: str,
+        period: str,
+        max_retries: int = 3,
+    ) -> dict:
+        """Fetch con reintentos. Levanta RuntimeError si agota intentos."""
+        ...
+
+    # prueba manual
+    result = fetch_period_data("acme", "2026-04")
+    print(result)
+  test: |
+    # caso exitoso: necesita exactamente 3 intentos
+    result = fetch_period_data("acme", "2026-04", max_retries=3)
+    assert result == {"tenant": "acme", "period": "2026-04", "ok": True}, (
+        f"Resultado incorrecto: {result}"
+    )
+
+    # caso de fallo: solo 2 intentos no son suficientes
+    error_raised = False
+    try:
+        fetch_period_data("globex", "2026-04", max_retries=2)
+    except RuntimeError as e:
+        error_raised = True
+        assert "globex" in str(e), f"El mensaje de error debe mencionar el tenant: {e}"
+        assert "2026-04" in str(e), f"El mensaje de error debe mencionar el período: {e}"
+        assert "2" in str(e), f"El mensaje debe mencionar el número de intentos: {e}"
+    assert error_raised, "fetch_period_data debería levantar RuntimeError con max_retries=2"
+
+    # caso exitoso con max_retries mayor
+    result2 = fetch_period_data("initech", "2026-03", max_retries=5)
+    assert result2["ok"] is True
+
+    print("ok")
+  solution: |
+    def _erp_call(attempt: int) -> bool:
+        """Simulador: falla en los primeros 2 intentos, éxito en el 3ro."""
+        return attempt >= 3
+
+    def fetch_period_data(
+        tenant: str,
+        period: str,
+        max_retries: int = 3,
+    ) -> dict:
+        """Fetch con reintentos. Levanta RuntimeError si agota intentos."""
+        attempts = 0
+        while attempts < max_retries:
+            attempts += 1
+            if _erp_call(attempts):
+                return {"tenant": tenant, "period": period, "ok": True}
+        raise RuntimeError(
+            f"ERP no respondió para {tenant}/{period} tras {max_retries} intentos"
+        )
+
+    result = fetch_period_data("acme", "2026-04")
+    print(result)

@@ -1,0 +1,254 @@
+- slug: coroutine-vs-function
+  title: "Coroutina vs función: ¿qué devuelve cada una?"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tenemos dos funciones que parecen hacer lo mismo pero una es sync y otra
+    async. El test verifica que entiendes qué devuelve cada una *sin* `await`.
+
+    Completa `inspect_both()` para que:
+    - `result_sync` sea el valor de llamar `get_vendor_sync("V-01")` directamente.
+    - `result_async_type` sea el nombre del tipo que devuelve
+      `get_vendor_async("V-01")` *sin* `await` (pista: usa `type(...).__name__`).
+
+    Luego usa `asyncio.run` para obtener `result_async_awaited` con el valor real.
+  hint: |
+    Llamar `get_vendor_async("V-01")` sin `await` devuelve un objeto coroutine,
+    no el dict. Para obtener el dict, necesitas `await` dentro de una función
+    async, o `asyncio.run(get_vendor_async("V-01"))` en el top level.
+  starter: |
+    import asyncio
+
+    def get_vendor_sync(vendor_id: str) -> dict:
+        """Versión síncrona."""
+        return {"id": vendor_id, "approved": True}
+
+    async def get_vendor_async(vendor_id: str) -> dict:
+        """Versión async (simula I/O con sleep)."""
+        await asyncio.sleep(0)
+        return {"id": vendor_id, "approved": True}
+
+    result_sync = None
+    result_async_type = None
+    result_async_awaited = None
+
+    # completa aquí
+  test: |
+    assert result_sync == {"id": "V-01", "approved": True}, f"sync: {result_sync}"
+    assert result_async_type == "coroutine", (
+        f"sin await, el tipo debe ser 'coroutine', obtenido: {result_async_type}"
+    )
+    assert result_async_awaited == {"id": "V-01", "approved": True}, (
+        f"awaited: {result_async_awaited}"
+    )
+    print("ok")
+  solution: |
+    import asyncio
+
+    def get_vendor_sync(vendor_id: str) -> dict:
+        return {"id": vendor_id, "approved": True}
+
+    async def get_vendor_async(vendor_id: str) -> dict:
+        await asyncio.sleep(0)
+        return {"id": vendor_id, "approved": True}
+
+    result_sync = get_vendor_sync("V-01")
+    coro = get_vendor_async("V-01")
+    result_async_type = type(coro).__name__
+    result_async_awaited = asyncio.run(coro)
+
+- slug: gather-parallel-fetch
+  title: "Paralleliza tres fetches con asyncio.gather"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Las tres funciones async simulan llamadas a APIs externas con delays
+    diferentes. Implementa `collect_all(tenant: str)` que las llame **en
+    paralelo** con `asyncio.gather` y devuelva una tupla
+    `(inventory, orders, prices)`.
+
+    El test verifica que el tiempo total es menor que la suma de los delays
+    (concurrencia real), y que los datos son correctos.
+  hint: |
+    `asyncio.gather(coro1, coro2, coro3)` devuelve una lista con los tres
+    resultados en el mismo orden. Puedes desempacarla directamente:
+    `a, b, c = await asyncio.gather(...)`.
+  starter: |
+    import asyncio
+    import time
+
+    async def fetch_inventory(tenant: str) -> list[dict]:
+        await asyncio.sleep(0.15)
+        return [{"item": "acero", "qty": 500, "tenant": tenant}]
+
+    async def fetch_orders(tenant: str) -> list[dict]:
+        await asyncio.sleep(0.10)
+        return [{"order_id": "ORD-001", "qty": 200, "tenant": tenant}]
+
+    async def fetch_prices(tenant: str) -> dict[str, float]:
+        await asyncio.sleep(0.12)
+        return {"acero": 1200.0}
+
+    async def collect_all(tenant: str) -> tuple:
+        """Llama las tres funciones en paralelo y devuelve (inventory, orders, prices)."""
+        ...
+
+    start = time.monotonic()
+    inventory, orders, prices = asyncio.run(collect_all("acme"))
+    elapsed = time.monotonic() - start
+  test: |
+    # concurrencia: el tiempo debe ser ~max(0.15, 0.10, 0.12) no la suma
+    assert elapsed < 0.40, f"muy lento ({elapsed:.2f}s); ¿usaste gather?"
+    assert inventory[0]["item"] == "acero"
+    assert orders[0]["order_id"] == "ORD-001"
+    assert prices["acero"] == 1200.0
+    assert inventory[0]["tenant"] == "acme"
+    print("ok")
+  solution: |
+    import asyncio
+    import time
+
+    async def fetch_inventory(tenant: str) -> list[dict]:
+        await asyncio.sleep(0.15)
+        return [{"item": "acero", "qty": 500, "tenant": tenant}]
+
+    async def fetch_orders(tenant: str) -> list[dict]:
+        await asyncio.sleep(0.10)
+        return [{"order_id": "ORD-001", "qty": 200, "tenant": tenant}]
+
+    async def fetch_prices(tenant: str) -> dict[str, float]:
+        await asyncio.sleep(0.12)
+        return {"acero": 1200.0}
+
+    async def collect_all(tenant: str) -> tuple:
+        inventory, orders, prices = await asyncio.gather(
+            fetch_inventory(tenant),
+            fetch_orders(tenant),
+            fetch_prices(tenant),
+        )
+        return inventory, orders, prices
+
+    start = time.monotonic()
+    inventory, orders, prices = asyncio.run(collect_all("acme"))
+    elapsed = time.monotonic() - start
+
+- slug: detect-blocking-call
+  title: "Identifica y corrige la llamada bloqueante"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `enrich_invoice` tiene un bug: llama `time.sleep` (bloqueante)
+    dentro de `async def`. En producción, eso congela el event loop.
+
+    Corrígela reemplazando `time.sleep` por `asyncio.sleep`. Luego implementa
+    `process_invoices(invoices: list[dict]) -> list[dict]` que enriquezca
+    todas las facturas **en paralelo** con `gather`.
+
+    El test verifica concurrencia: procesar 4 facturas debe tardar menos que
+    4 × el delay de cada una.
+  hint: |
+    `asyncio.sleep(n)` es la alternativa async de `time.sleep(n)`. Para el
+    gather, pasa una lista de coroutinas: `await asyncio.gather(*coros)`.
+  starter: |
+    import asyncio
+    import time
+
+    async def enrich_invoice(inv: dict) -> dict:
+        """Enriquece la factura con datos de vendor (simula I/O)."""
+        time.sleep(0.05)   # BUG: bloqueante — corrígelo
+        return {**inv, "vendor_name": "ACME Manufacturing"}
+
+    async def process_invoices(invoices: list[dict]) -> list[dict]:
+        """Enriquece todas las facturas en paralelo."""
+        ...
+
+    invoices = [{"id": f"INV-{i:03d}", "amount": 1000 * i} for i in range(1, 5)]
+    start = time.monotonic()
+    result = asyncio.run(process_invoices(invoices))
+    elapsed = time.monotonic() - start
+  test: |
+    assert len(result) == 4
+    assert all(r["vendor_name"] == "ACME Manufacturing" for r in result)
+    assert result[0]["id"] == "INV-001"
+    # con gather: ~0.05s no ~0.20s
+    assert elapsed < 0.15, f"muy lento ({elapsed:.2f}s); ¿usaste gather y asyncio.sleep?"
+    print("ok")
+  solution: |
+    import asyncio
+    import time
+
+    async def enrich_invoice(inv: dict) -> dict:
+        await asyncio.sleep(0.05)
+        return {**inv, "vendor_name": "ACME Manufacturing"}
+
+    async def process_invoices(invoices: list[dict]) -> list[dict]:
+        return list(await asyncio.gather(*[enrich_invoice(inv) for inv in invoices]))
+
+    invoices = [{"id": f"INV-{i:03d}", "amount": 1000 * i} for i in range(1, 5)]
+    start = time.monotonic()
+    result = asyncio.run(process_invoices(invoices))
+    elapsed = time.monotonic() - start
+
+- slug: async-iterator-stream
+  title: "Generador async para stream de chunks"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `stream_report(lines: list[str]) -> AsyncIterator[str]` como un
+    generador async: hace `yield` de cada línea con un delay simulado de 0 ms
+    (usa `await asyncio.sleep(0)` para ceder control al loop entre líneas).
+
+    Luego implementa `collect_stream(lines: list[str]) -> list[str]` que use
+    `async for` para recoger todos los chunks en una lista.
+
+    Este patrón es idéntico al que usa `stream_chat` en
+    `app/services/anthropic_client.py` para el chat tutor.
+  hint: |
+    Un generador async es `async def f() -> AsyncIterator[T]:` con `yield`
+    dentro. Para iterarlo: `async for item in f(): ...`.
+  starter: |
+    import asyncio
+    from collections.abc import AsyncIterator
+
+    async def stream_report(lines: list[str]) -> AsyncIterator[str]:
+        """Genera líneas del reporte una a una, cediendo control entre cada una."""
+        ...
+
+    async def collect_stream(lines: list[str]) -> list[str]:
+        """Recoge todos los chunks del generador en una lista."""
+        ...
+
+    report_lines = [
+        "Auditoría ACME — Período 2026-04",
+        "Facturas procesadas: 142",
+        "Hallazgos: 3",
+    ]
+    result = asyncio.run(collect_stream(report_lines))
+  test: |
+    assert result == [
+        "Auditoría ACME — Período 2026-04",
+        "Facturas procesadas: 142",
+        "Hallazgos: 3",
+    ], f"obtenido: {result}"
+    print("ok")
+  solution: |
+    import asyncio
+    from collections.abc import AsyncIterator
+
+    async def stream_report(lines: list[str]) -> AsyncIterator[str]:
+        for line in lines:
+            await asyncio.sleep(0)
+            yield line
+
+    async def collect_stream(lines: list[str]) -> list[str]:
+        chunks = []
+        async for chunk in stream_report(lines):
+            chunks.append(chunk)
+        return chunks
+
+    report_lines = [
+        "Auditoría ACME — Período 2026-04",
+        "Facturas procesadas: 142",
+        "Hallazgos: 3",
+    ]
+    result = asyncio.run(collect_stream(report_lines))

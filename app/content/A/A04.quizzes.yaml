@@ -1,0 +1,111 @@
+- slug: default-mutable-behavior
+  question: |
+    ¿Qué imprime este código?
+
+    ```python
+    def append_finding(msg: str, findings: list[str] = []) -> list[str]:
+        findings.append(msg)
+        return findings
+
+    a = append_finding("error A")
+    b = append_finding("error B")
+    print(len(b))
+    ```
+  explanation: |
+    La lista `[]` en el default se crea una sola vez cuando Python define la
+    función. Las dos llamadas sin `findings` explícito comparten exactamente la
+    misma lista. Después de ambas llamadas, esa lista tiene 2 elementos.
+  options:
+    - text: "`1`"
+      correct: false
+      feedback: |
+        Incorrecto. Cada llamada sin `findings` usa **la misma** lista del
+        default, no una nueva. Después de dos llamadas, la lista compartida
+        tiene 2 elementos.
+    - text: "`2`"
+      correct: true
+      feedback: |
+        Correcto. `[]` se evalúa una vez al definir la función. Ambas llamadas
+        modifican el mismo objeto. El arreglo es usar `None` como default y
+        crear la lista dentro del cuerpo.
+    - text: "Lanza `TypeError`"
+      correct: false
+      feedback: |
+        No hay error de tipo. El código es sintácticamente válido. El problema
+        es semántico: el default mutable se comparte entre invocaciones.
+    - text: "`0`"
+      correct: false
+      feedback: |
+        Si devolviera 0, significaría que `findings` está vacío. Pero cada
+        `append` agrega a la lista compartida, así que no puede estar vacía.
+
+- slug: exception-hierarchy-catch
+  question: |
+    Dada esta jerarquía:
+
+    ```python
+    class AuditError(Exception): ...
+    class InvoiceError(AuditError): ...
+    class DuplicateInvoiceError(InvoiceError): ...
+    ```
+
+    ¿Qué bloque captura `DuplicateInvoiceError`?
+  explanation: |
+    `except AuditError` captura cualquier excepción que sea subclase de
+    `AuditError`, lo que incluye `InvoiceError` y `DuplicateInvoiceError`.
+    Python recorre los `except` en orden y elige el primero que coincide.
+  options:
+    - text: "Solo `except DuplicateInvoiceError`"
+      correct: false
+      feedback: |
+        Incorrecto. `except InvoiceError` y `except AuditError` también la
+        capturan porque `DuplicateInvoiceError` es subclase de ambos.
+    - text: "`except DuplicateInvoiceError`, `except InvoiceError` y `except AuditError`"
+      correct: true
+      feedback: |
+        Correcto. Python usa `isinstance` para evaluar el `except`. Como
+        `DuplicateInvoiceError` hereda de `InvoiceError` que hereda de
+        `AuditError`, cualquiera de los tres bloques la captura.
+    - text: "Solo `except Exception`"
+      correct: false
+      feedback: |
+        `except Exception` la captura también (porque toda excepción hereda de
+        `Exception`), pero no es la única opción. Los bloques más específicos
+        de la jerarquía también la capturan.
+    - text: "Ninguno; `DuplicateInvoiceError` solo la lanza su propio handler"
+      correct: false
+      feedback: |
+        Las excepciones no tienen handlers propios. Cualquier `except` cuyo
+        tipo sea la clase o una superclase de la excepción lanzada la captura.
+
+- slug: keyword-only-syntax
+  question: |
+    ¿Cuál de estas llamadas lanza `TypeError`?
+
+    ```python
+    def send_report(tenant: str, *, period: str, dry_run: bool = False) -> None:
+        ...
+    ```
+  explanation: |
+    El `*` en la firma marca que `period` y `dry_run` son keyword-only. No se
+    pueden pasar posicionalmente. Pasar `"2026-04"` como segundo argumento
+    posicional intenta asignarlo a `period` de forma posicional, lo que falla.
+  options:
+    - text: '`send_report("acme", period="2026-04")`'
+      correct: false
+      feedback: |
+        Correcto uso: `tenant` se pasa posicionalmente, `period` con keyword.
+        No lanza error.
+    - text: '`send_report("acme", "2026-04")`'
+      correct: true
+      feedback: |
+        Correcto: lanza `TypeError` porque `period` es keyword-only (viene
+        después del `*`) y no se puede pasar posicionalmente.
+    - text: '`send_report("acme", period="2026-04", dry_run=True)`'
+      correct: false
+      feedback: |
+        Válido. Todos los keyword-only reciben su valor con nombre explícito.
+    - text: '`send_report(tenant="acme", period="2026-04")`'
+      correct: false
+      feedback: |
+        Válido. Los parámetros posicionales también aceptan llamada con nombre.

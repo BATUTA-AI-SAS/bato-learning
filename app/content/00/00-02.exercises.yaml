@@ -1,0 +1,59 @@
+- slug: classify-terminal-lines
+  title: "Clasificar líneas de terminal"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Una sesión de terminal mezcla comandos (los que tú escribes, empiezan con `$`)
+    y respuestas del sistema (el output, no empiezan con `$`).
+
+    La función `classify_lines` recibe una lista de strings y devuelve una lista
+    de tuplas `(línea, tipo)` donde `tipo` es `"command"` o `"output"`.
+
+    Ejemplo de entrada:
+    ```
+    ["$ pwd", "/home/maria", "$ ls", "acme-audit  facturas"]
+    ```
+    Salida esperada:
+    ```
+    [("$ pwd", "command"), ("/home/maria", "output"),
+     ("$ ls", "command"), ("acme-audit  facturas", "output")]
+    ```
+  hint: |
+    Usa `str.startswith("$ ")` para detectar comandos.
+    Recorre la lista con un bucle y construye la lista de tuplas.
+  starter: |
+    def classify_lines(lines: list) -> list:
+        """Clasifica líneas de terminal como comando u output."""
+        result = []
+        # implementa aquí
+        return result
+
+    session = ["$ pwd", "/home/maria/acme-audit", "$ ls", "facturas  reportes", "$ mkdir datos"]
+    for line, kind in classify_lines(session):
+        print(f"[{kind}] {line}")
+  test: |
+    result = classify_lines(["$ pwd", "/home/maria", "$ ls", "acme-audit"])
+    assert len(result) == 4, f"Deben ser 4 entradas, hay {len(result)}"
+    assert result[0] == ("$ pwd", "command"), f"Primera entrada incorrecta: {result[0]}"
+    assert result[1] == ("/home/maria", "output"), f"Segunda entrada incorrecta: {result[1]}"
+    assert result[2] == ("$ ls", "command"), f"Tercera entrada incorrecta: {result[2]}"
+    assert result[3] == ("acme-audit", "output"), f"Cuarta entrada incorrecta: {result[3]}"
+
+    # caso con línea vacía: sigue siendo output
+    r2 = classify_lines(["$ echo ''", ""])
+    assert r2[1] == ("", "output"), "Una línea vacía es output, no command"
+    print("ok")
+  solution: |
+    def classify_lines(lines: list) -> list:
+        """Clasifica líneas de terminal como comando u output."""
+        result = []
+        for line in lines:
+            if line.startswith("$ "):
+                result.append((line, "command"))
+            else:
+                result.append((line, "output"))
+        return result
+
+    session = ["$ pwd", "/home/maria/acme-audit", "$ ls", "facturas  reportes", "$ mkdir datos"]
+    for line, kind in classify_lines(session):
+        print(f"[{kind}] {line}")

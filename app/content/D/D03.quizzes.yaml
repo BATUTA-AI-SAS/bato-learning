@@ -1,0 +1,67 @@
+- slug: traefik-v3-tls-challenge
+  question: |
+    En Traefik v3 con `tlsChallenge`, ¿qué puerto debe estar accesible públicamente
+    para que Let's Encrypt pueda emitir el certificado?
+  explanation: |
+    El TLS-ALPN-01 challenge de Let's Encrypt ocurre en el puerto 443 (TLS).
+    Traefik responde al challenge directamente en `:443` sin necesitar `:80`.
+    El `httpChallenge` sería el que requiere `:80`.
+  options:
+    - text: "Solo el 443 (TLS)"
+      correct: true
+      feedback: "Correcto. `tlsChallenge` usa TLS-ALPN-01 en el puerto 443. No necesitas exponer el 80 para el challenge."
+    - text: "Solo el 80 (HTTP)"
+      correct: false
+      feedback: "El 80 lo necesita `httpChallenge` (HTTP-01). `tlsChallenge` usa el 443."
+    - text: "Ambos, 80 y 443"
+      correct: false
+      feedback: "Con `tlsChallenge` basta el 443. Puedes exponer el 80 solo para redirigir a HTTPS, no para el challenge."
+    - text: "Ninguno; el challenge es interno"
+      correct: false
+      feedback: "Let's Encrypt necesita acceso externo al servidor para validar el challenge. Sin puerto público accesible, no hay certificado."
+
+- slug: sops-age-what-commits
+  question: |
+    Con sops + age correctamente configurado, ¿cuál de estos archivos **debe** estar
+    en el repositorio git?
+  explanation: |
+    La clave pública está en `.sops.yaml` y puede estar en el repo — es pública.
+    El archivo `.env.enc.env` está cifrado y es seguro commitearlo.
+    La clave privada (`key.txt`) y el `.env` en plaintext nunca van al repo.
+  options:
+    - text: "`.env.enc.env` y `.sops.yaml`"
+      correct: true
+      feedback: "Exacto. El archivo cifrado y la configuración con la clave pública van al repo. La clave privada y el plaintext nunca."
+    - text: "`.env` y `.sops.yaml`"
+      correct: false
+      feedback: "`.env` en plaintext no va al repo nunca. Eso es el problema que sops resuelve."
+    - text: "`~/.age/key.txt` y `.env.enc.env`"
+      correct: false
+      feedback: "La clave privada (`key.txt`) no va al repo. Solo va al servidor y a los GitHub Secrets."
+    - text: "Solo `.env.enc.env`"
+      correct: false
+      feedback: "Sin `.sops.yaml` nadie sabe qué clave pública usar para re-cifrar o quién puede descifrar. El archivo de configuración también va al repo."
+
+- slug: sqlite-backup-api
+  question: |
+    ¿Por qué `cp data/learning.db backup/` no es suficiente para hacer backup de
+    SQLite en una app activa?
+  explanation: |
+    SQLite no bloquea el archivo completo durante escrituras normales en WAL mode.
+    Un `cp` captura el archivo en mitad de una transacción activa, generando un backup
+    en estado inconsistente que SQLite reporta como corrupto al restaurarlo.
+    La API `.backup` de SQLite adquiere un lock compartido correctamente y copia el
+    estado consistente de la base.
+  options:
+    - text: "`cp` puede copiar el archivo en mitad de una escritura, produciendo un backup corrupto"
+      correct: true
+      feedback: "Correcto. La API `.backup` de SQLite garantiza un snapshot consistente adquiriendo el lock adecuado."
+    - text: "`cp` no comprime el archivo, así que ocupa más espacio"
+      correct: false
+      feedback: "La compresión es un problema separado (y resoluble con gzip post-copia). El problema real es la inconsistencia, no el tamaño."
+    - text: "`cp` no funciona con archivos de más de 2 GB en Linux"
+      correct: false
+      feedback: "Eso es un mito. `cp` maneja archivos grandes sin problema. El problema de backup de SQLite es de consistencia transaccional."
+    - text: "`cp` requiere permisos de root para leer la base de datos"
+      correct: false
+      feedback: "Los permisos del archivo son independientes del método de copia. El problema es de consistencia: SQLite puede estar escribiendo mientras `cp` lee."

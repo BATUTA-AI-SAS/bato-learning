@@ -1,0 +1,67 @@
+- slug: git-secret-remediation
+  question: |
+    Un ingeniero commiteó `ANTHROPIC_API_KEY=sk-ant-api03-abc123` en `config.py`
+    hace 3 commits. Se dio cuenta del error y hizo un nuevo commit que borra la key.
+    ¿El problema está resuelto?
+  explanation: |
+    No. Git conserva el historial completo. El commit que contenía la key sigue
+    existible en el historial (`git log --all`), y cualquier persona con acceso al
+    repo puede hacer `git checkout <sha-del-commit-viejo>` y ver el archivo con la key.
+    Si el repo alguna vez fue público (aunque sea por minutos), la key debe considerarse
+    comprometida permanentemente. La única solución correcta es revocar la key
+    en la consola de Anthropic y generar una nueva.
+  options:
+    - text: "Sí. El nuevo commit borra el archivo y el secreto ya no es accesible."
+      correct: false
+      feedback: "Git no borra historial con commits normales. El commit anterior con la key sigue ahí. `git log --all -p` muestra el diff con la key en texto plano."
+    - text: "No. El historial de Git conserva el commit con la key. Hay que revocarla inmediatamente en la consola de Anthropic."
+      correct: true
+      feedback: "Correcto. El único remedio seguro es revocar la key comprometida. Además de revocar, si el repo es privado y se quiere purgar el historial, se puede usar `git filter-repo` para eliminar el commit con la key — pero eso requiere que todos los colaboradores actualicen sus clones."
+    - text: "Depende: si nadie descargó el repo entre el commit con la key y el commit que la borra, está resuelto."
+      correct: false
+      feedback: "Incluso si nadie descargó el repo, el historial local del creador del commit tiene la key. Y si hay algún servicio de escaneo de repos (GitHub tiene uno integrado), ya alertó. Revocar es siempre la acción correcta."
+
+- slug: sops-bus-factor
+  question: |
+    Un equipo usa sops+age con una sola clave age (del lead de infra). El lead
+    se va de vacaciones 3 semanas. Hay un incidente que requiere cambiar la
+    `ANTHROPIC_API_KEY` de producción urgentemente. ¿Qué problema tienen?
+  explanation: |
+    Con una sola clave age como destinatario en sops, solo el lead puede descifrar
+    el `.env.prod.enc`. Si el lead no está disponible, nadie puede descifrar para
+    ver el valor actual ni para actualizarlo. Este es el bus factor 1 en gestión
+    de secretos. La solución es siempre configurar múltiples destinatarios en
+    `.sops.yaml` (mínimo 2 personas + 1 clave de emergencia).
+  options:
+    - text: "Ninguno: pueden cambiar la ANTHROPIC_API_KEY directamente en el servidor sin descifrar el .env.enc."
+      correct: false
+      feedback: "Cambiar la key directamente en el servidor resuelve el incidente, pero desincroniza el `.env.prod.enc` del repo con el `.env` real en producción. La próxima persona que descifre y use el `.enc` tendrá la key vieja. El repo deja de ser la fuente de verdad."
+    - text: "No pueden descifrar el `.env.prod.enc` porque solo el lead tiene la clave age, y el incidente no se puede resolver hasta que vuelva."
+      correct: true
+      feedback: "Exacto. Bus factor 1. La corrección estructural es `sops.yaml` con múltiples destinatarios: al menos un segundo ingeniero + una clave de emergencia en un gestor de passwords compartido (Bitwarden Teams, 1Password Business)."
+    - text: "Pueden usar la clave pública de age para descifrar sin la clave privada."
+      correct: false
+      feedback: "La clave pública solo sirve para cifrar. Para descifrar se necesita la clave privada correspondiente. Eso es la base del cifrado asimétrico."
+
+- slug: vault-vs-sops-decision
+  question: |
+    Una startup tiene 4 ingenieros, 30 clientes SaaS, y acaba de contratar a
+    un auditor de seguridad que pide: «Necesito un log de quién accedió a qué
+    secreto y cuándo». ¿Qué herramienta es la mínima que satisface ese requisito?
+  explanation: |
+    sops+age no tiene audit log de acceso: puede ver en Git quién modificó el
+    archivo cifrado, pero no puede registrar quién descifró y leyó el secreto.
+    El audit log de accesos requiere un servidor centralizado que intercepte
+    cada lectura. HashiCorp Vault tiene esta capacidad nativa: cada operación
+    `vault kv get` se registra con timestamp, identidad del cliente y secreto accedido.
+    AWS Secrets Manager / GCP Secret Manager también tienen audit logs via CloudTrail/Audit Logs.
+  options:
+    - text: "sops+age: el historial de Git muestra quién cambió los secretos."
+      correct: false
+      feedback: "El historial de Git registra cambios (commits), no lecturas. sops no registra cuándo alguien ejecutó `sops --decrypt` para leer un secreto. El auditor necesita log de accesos de lectura, no solo de escritura."
+    - text: "HashiCorp Vault: tiene audit log nativo de cada operación de lectura y escritura de secretos."
+      correct: true
+      feedback: "Correcto. Vault registra cada operación con timestamp, identidad del solicitante (AppRole, token, etc.) y el path del secreto accedido. Es el mínimo que satisface la demanda del auditor. AWS Secrets Manager también lo haría si ya estuvieran en AWS."
+    - text: "Variables de entorno en el servidor: son las más simples y el auditor puede ver el .env."
+      correct: false
+      feedback: "Las variables de entorno en el servidor no tienen audit log. El auditor puede ver qué secretos existen, pero no quién los accedió ni cuándo. No satisface el requisito."

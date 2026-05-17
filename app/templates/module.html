@@ -1,0 +1,105 @@
+{% extends "_layout.html" %}
+{% block title %}{{ module.ext_id }} · {{ module.title }}{% endblock %}
+
+{% block main %}
+{% set xp_visit = 20 if module.track == "0" else 10 %}
+{% set xp_ex_each = 50 if module.track == "0" else 25 %}
+<header class="mod-header" style="--track-color: var(--track-{{ module.track }});">
+  <span class="ext-id">{{ module.ext_id }}</span>
+  <h1>{{ module.title }}</h1>
+  {% if module.summary %}<p class="lede">{{ module.summary }}</p>{% endif %}
+  <div class="mod-meta">
+    <span class="pill track-pill">{{ module.track | track_label }}</span>
+    <span class="pill time">~{{ module.estimated_minutes }} min</span>
+    <span class="pill xp">+{{ xp_visit }} XP al abrir{% if module.exercises %} · +{{ xp_ex_each }} por ejercicio{% endif %}</span>
+    {% if module.exercises %}<a href="#exercises">ejercicios ({{ module.exercises|length }})</a>{% endif %}
+    {% if module.quizzes %}<a href="#quizzes">quizzes ({{ module.quizzes|length }})</a>{% endif %}
+  </div>
+</header>
+
+<!-- G9: intra-module progress bar (filled by wireCheckpoints in app.js) -->
+<div id="mod-progress-bar-wrap" aria-hidden="true">
+  <div id="mod-progress-bar"></div>
+</div>
+<div id="mod-progress-label" aria-live="polite"></div>
+
+<article class="mod-body prose" data-module-id="{{ module.id }}">
+  {{ module.body_md | md | safe }}
+</article>
+
+<!-- G11: module-complete overlay (toggled by app.js on module-complete event) -->
+<div id="module-complete-overlay" hidden></div>
+
+{% if module.exercises %}
+<section id="exercises">
+  <h2>Ejercicios</h2>
+  {% for ex in module.exercises %}
+    {% include "partials/exercise.html" %}
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if module.quizzes %}
+<section id="quizzes">
+  <h2>Quizzes</h2>
+  {% for q in module.quizzes %}
+    {% include "partials/quiz.html" %}
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if next_module and next_module.id != module.id %}
+{% set xp_next_visit = 20 if next_module.track == "0" else 10 %}
+<a href="/m/{{ next_module.slug }}" class="next-module-card" style="text-decoration: none; color: inherit;">
+  <div>
+    <div class="lbl">siguiente</div>
+    <h2>{{ next_module.ext_id }} · {{ next_module.title }}</h2>
+    <p class="meta">
+      <span>{{ next_module.track | track_label }}</span>
+      <span>· te tomará ~{{ next_module.estimated_minutes }} min</span>
+      <span class="xp-chip">· ganas +{{ xp_next_visit }} XP al abrirlo</span>
+    </p>
+  </div>
+  <span class="cta">continuar →</span>
+</a>
+{% endif %}
+
+<footer class="mod-footer">
+  <a href="/">← inicio</a>
+  <a href="/progreso">tu progreso →</a>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="/static/js/pyodide_runner.js"></script>
+<script type="module" src="/static/js/chat.js"></script>
+<script>
+/* hoistInlineExercises — called by app.js before wireExercises/wireQuizzes.
+   For each .inline-exercise-anchor[data-slug=X] it moves the matching
+   <article data-slug=X> from #exercises / #quizzes to that anchor position.
+   Articles with no matching anchor stay in their original section (legacy). */
+window.__BL_hoist = function hoistInline() {
+  document.querySelectorAll(".inline-exercise-anchor[data-slug]").forEach(function(anchor) {
+    var slug = anchor.dataset.slug;
+    var article = document.querySelector(".exercise[data-slug='" + slug + "']");
+    if (article) {
+      anchor.replaceWith(article);
+    }
+  });
+  document.querySelectorAll(".inline-quiz-anchor[data-slug]").forEach(function(anchor) {
+    var slug = anchor.dataset.slug;
+    var article = document.querySelector(".quiz[data-slug='" + slug + "']");
+    if (article) {
+      anchor.replaceWith(article);
+    }
+  });
+  // Hide empty legacy sections after hoisting
+  ["exercises", "quizzes"].forEach(function(id) {
+    var sec = document.getElementById(id);
+    if (sec && sec.querySelectorAll("article").length === 0) {
+      sec.hidden = true;
+    }
+  });
+};
+</script>
+{% endblock %}

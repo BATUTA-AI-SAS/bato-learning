@@ -1,0 +1,17 @@
+.git
+.venv
+__pycache__
+*.pyc
+data/
+.env
+.env.*
+node_modules
+site/
+api/
+infra/
+_team/
+*.md
+!app/content/**/*.md
+.uv-cache
+.pytest_cache
+.ruff_cache

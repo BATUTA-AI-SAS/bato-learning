@@ -1,0 +1,231 @@
+- slug: cosine_similarity_manual
+  title: "Implementa similitud coseno desde cero"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa la función `cosine_similarity(v1, v2)` que calcula la similitud coseno
+    entre dos vectores representados como listas de floats.
+
+    Fórmula: `(v1 · v2) / (‖v1‖ × ‖v2‖)`
+
+    Donde:
+    - `v1 · v2 = Σ(v1[i] × v2[i])` (producto punto)
+    - `‖v‖ = √(Σ v[i]²)` (norma euclidiana)
+
+    Luego implementa `top_k_similar(query_vec, corpus, k)` que:
+    - Recibe un vector `query_vec`, una lista `corpus` de `(label, vector)`, y un entero `k`.
+    - Retorna los `k` pares `(label, similarity)` con mayor similitud, ordenados de mayor a menor.
+
+    Verifica con los vectores de prueba incluidos.
+  hint: |
+    `math.sqrt` y `sum(...)` son suficientes. No necesitas numpy.
+    Para el producto punto: `sum(a * b for a, b in zip(v1, v2))`.
+  starter: |
+    import math
+
+    def cosine_similarity(v1: list[float], v2: list[float]) -> float:
+        # implementa aquí
+        pass
+
+    def top_k_similar(
+        query_vec: list[float],
+        corpus: list[tuple[str, list[float]]],
+        k: int,
+    ) -> list[tuple[str, float]]:
+        # implementa aquí
+        pass
+
+    # --- prueba ---
+    corpus = [
+        ("activos_fijos",      [0.9, 0.1, 0.1, 0.2]),
+        ("depreciacion",       [0.8, 0.2, 0.1, 0.3]),
+        ("dividendos",         [0.1, 0.9, 0.2, 0.1]),
+        ("inventario",         [0.1, 0.1, 0.9, 0.2]),
+    ]
+    query = [0.85, 0.15, 0.05, 0.25]
+    results = top_k_similar(query, corpus, k=2)
+    for label, score in results:
+        print(f"{score:.4f}  {label}")
+  test: |
+    import math
+
+    # cosine_similarity básica
+    v1 = [1.0, 0.0]
+    v2 = [1.0, 0.0]
+    assert abs(cosine_similarity(v1, v2) - 1.0) < 1e-6, "vectores idénticos → similitud 1.0"
+
+    v3 = [0.0, 1.0]
+    assert abs(cosine_similarity(v1, v3) - 0.0) < 1e-6, "vectores ortogonales → similitud 0.0"
+
+    v4 = [-1.0, 0.0]
+    assert abs(cosine_similarity(v1, v4) - (-1.0)) < 1e-6, "vectores opuestos → similitud -1.0"
+
+    # cosine_similarity en 4D con vectores normalizados
+    norm = lambda v: math.sqrt(sum(x*x for x in v))
+    va = [0.9, 0.1, 0.1, 0.2]; va_n = [x/norm(va) for x in va]
+    vb = [0.8, 0.2, 0.1, 0.3]; vb_n = [x/norm(vb) for x in vb]
+    sim = cosine_similarity(va_n, vb_n)
+    assert 0.95 < sim < 1.0, f"vectores parecidos deberían tener similitud >0.95, obtuve {sim}"
+
+    # top_k_similar
+    corpus = [
+        ("activos_fijos", [0.9, 0.1, 0.1, 0.2]),
+        ("depreciacion",  [0.8, 0.2, 0.1, 0.3]),
+        ("dividendos",    [0.1, 0.9, 0.2, 0.1]),
+        ("inventario",    [0.1, 0.1, 0.9, 0.2]),
+    ]
+    query = [0.85, 0.15, 0.05, 0.25]
+    results = top_k_similar(query, corpus, k=2)
+    assert len(results) == 2, f"top_k_similar(k=2) debe retornar 2, retornó {len(results)}"
+    labels = [r[0] for r in results]
+    assert labels[0] in ("activos_fijos", "depreciacion"), (
+        f"el más similar debería ser activos_fijos o depreciacion, obtuve {labels[0]}"
+    )
+    # verificar orden descendente
+    scores = [r[1] for r in results]
+    assert scores[0] >= scores[1], "los resultados deben estar en orden descendente de similitud"
+    print("ok")
+  solution: |
+    import math
+
+    def cosine_similarity(v1, v2):
+        dot = sum(a * b for a, b in zip(v1, v2))
+        norm1 = math.sqrt(sum(a * a for a in v1))
+        norm2 = math.sqrt(sum(b * b for b in v2))
+        return dot / (norm1 * norm2)
+
+    def top_k_similar(query_vec, corpus, k):
+        scored = [(label, cosine_similarity(query_vec, vec)) for label, vec in corpus]
+        return sorted(scored, key=lambda x: x[1], reverse=True)[:k]
+
+- slug: vector_db_selection
+  title: "Decision tree: elige la base de datos vectorial correcta"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa la función `choose_vector_db(case)` que recibe un diccionario
+    con los atributos del caso y retorna la base de datos vectorial recomendada
+    como string: `"pgvector"`, `"qdrant"`, `"pinecone"`, o `"weaviate"`.
+
+    Reglas del decision tree:
+    - Si `has_postgres=True` y `vectors < 10_000_000`: → `"pgvector"`
+    - Si `has_postgres=True` y `vectors >= 10_000_000`: → `"qdrant"`
+    - Si `has_postgres=False` y `want_zero_ops=True`: → `"pinecone"`
+    - Si `has_postgres=False` y `want_zero_ops=False` y `want_integrated_modules=True`: → `"weaviate"`
+    - Si `has_postgres=False` y `want_zero_ops=False` y `want_integrated_modules=False`: → `"qdrant"`
+  hint: |
+    Encadena los `if/elif` en el orden del decision tree. Comprueba `has_postgres` primero.
+  starter: |
+    def choose_vector_db(case: dict) -> str:
+        # implementa el decision tree
+        pass
+
+    # pruebas
+    cases = [
+        {"has_postgres": True,  "vectors": 500_000,     "want_zero_ops": False, "want_integrated_modules": False},
+        {"has_postgres": True,  "vectors": 15_000_000,  "want_zero_ops": False, "want_integrated_modules": False},
+        {"has_postgres": False, "vectors": 1_000_000,   "want_zero_ops": True,  "want_integrated_modules": False},
+        {"has_postgres": False, "vectors": 2_000_000,   "want_zero_ops": False, "want_integrated_modules": True},
+        {"has_postgres": False, "vectors": 5_000_000,   "want_zero_ops": False, "want_integrated_modules": False},
+    ]
+    for c in cases:
+        print(choose_vector_db(c))
+  test: |
+    results = [choose_vector_db(c) for c in cases]
+    assert results[0] == "pgvector",  f"caso 1 (Postgres, 500K): esperaba pgvector, obtuve {results[0]}"
+    assert results[1] == "qdrant",    f"caso 2 (Postgres, 15M): esperaba qdrant, obtuve {results[1]}"
+    assert results[2] == "pinecone",  f"caso 3 (no Postgres, zero ops): esperaba pinecone, obtuve {results[2]}"
+    assert results[3] == "weaviate",  f"caso 4 (no Postgres, módulos): esperaba weaviate, obtuve {results[3]}"
+    assert results[4] == "qdrant",    f"caso 5 (no Postgres, self-host): esperaba qdrant, obtuve {results[4]}"
+    print("ok")
+  solution: |
+    def choose_vector_db(case):
+        if case["has_postgres"]:
+            return "pgvector" if case["vectors"] < 10_000_000 else "qdrant"
+        if case["want_zero_ops"]:
+            return "pinecone"
+        if case["want_integrated_modules"]:
+            return "weaviate"
+        return "qdrant"
+
+- slug: hybrid_search_simulation
+  title: "Búsqueda híbrida: combina similitud vectorial con filtro exacto"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Simula una búsqueda híbrida: dado un corpus de chunks con embeddings y metadata,
+    devuelve solo los chunks que pasen el filtro de `tenant_id` Y cuya similitud
+    coseno con el query vector supere el umbral `min_similarity`.
+
+    Implementa `hybrid_search(query_vec, corpus, tenant_id, min_similarity, top_k)`:
+    - `corpus`: lista de dicts con `{"text", "tenant_id", "embedding"}`.
+    - Filtra primero por `tenant_id`.
+    - Calcula similitud coseno de cada chunk filtrado con `query_vec`.
+    - Retorna los `top_k` chunks con mayor similitud que superen `min_similarity`,
+      como lista de dicts `{"text", "similarity"}` ordenada de mayor a menor.
+  hint: |
+    Primero filtra la lista por `tenant_id`, luego calcula similitud, luego filtra
+    por `min_similarity`, luego ordena y corta con `[:top_k]`.
+  starter: |
+    import math
+
+    def cosine_similarity(v1: list[float], v2: list[float]) -> float:
+        dot = sum(a * b for a, b in zip(v1, v2))
+        norm = lambda v: math.sqrt(sum(x * x for x in v))
+        return dot / (norm(v1) * norm(v2))
+
+    def hybrid_search(
+        query_vec: list[float],
+        corpus: list[dict],
+        tenant_id: str,
+        min_similarity: float,
+        top_k: int,
+    ) -> list[dict]:
+        # implementa aquí
+        pass
+
+    corpus = [
+        {"text": "activos fijos de ACME",     "tenant_id": "acme",   "embedding": [0.9, 0.1, 0.05, 0.2]},
+        {"text": "depreciación de inmuebles",  "tenant_id": "acme",   "embedding": [0.8, 0.2, 0.1,  0.3]},
+        {"text": "dividendos Globex",          "tenant_id": "globex", "embedding": [0.1, 0.9, 0.2,  0.1]},
+        {"text": "inventario materia prima",   "tenant_id": "acme",   "embedding": [0.1, 0.1, 0.9,  0.2]},
+        {"text": "política de crédito ACME",   "tenant_id": "acme",   "embedding": [0.3, 0.5, 0.1,  0.8]},
+    ]
+    query = [0.85, 0.15, 0.05, 0.25]
+    results = hybrid_search(query, corpus, tenant_id="acme", min_similarity=0.8, top_k=3)
+    for r in results:
+        print(f"{r['similarity']:.3f}  {r['text']}")
+  test: |
+    import math
+
+    results = hybrid_search(query, corpus, tenant_id="acme", min_similarity=0.8, top_k=3)
+
+    # ningún resultado de globex
+    assert all(r["text"] != "dividendos Globex" for r in results), (
+        "los resultados de globex no deben aparecer — filtro de tenant_id"
+    )
+
+    # todos deben superar min_similarity
+    for r in results:
+        assert r["similarity"] >= 0.8, (
+            f"todos deben superar 0.8, pero '{r['text']}' tiene {r['similarity']:.3f}"
+        )
+
+    # verificar orden descendente
+    sims = [r["similarity"] for r in results]
+    assert sims == sorted(sims, reverse=True), "deben estar en orden descendente"
+
+    # los más similares al query deben ser activos_fijos y depreciacion
+    texts = [r["text"] for r in results]
+    assert any("activos" in t for t in texts), "activos fijos debería aparecer"
+    assert any("depreciaci" in t for t in texts), "depreciación debería aparecer"
+    print("ok")
+  solution: |
+    def hybrid_search(query_vec, corpus, tenant_id, min_similarity, top_k):
+        filtered = [c for c in corpus if c["tenant_id"] == tenant_id]
+        scored = [
+            {"text": c["text"], "similarity": cosine_similarity(query_vec, c["embedding"])}
+            for c in filtered
+        ]
+        above_threshold = [s for s in scored if s["similarity"] >= min_similarity]
+        return sorted(above_threshold, key=lambda x: x["similarity"], reverse=True)[:top_k]

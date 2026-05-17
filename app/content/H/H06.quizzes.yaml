@@ -1,0 +1,56 @@
+- slug: rpo-rto-definition
+  question: |
+    El backup de ACME se genera cada hora. A las 14h55 el servidor falla.
+    El último backup exitoso es de las 14h00. El restore tarda 35 minutos.
+    ¿Cuáles son el RPO y RTO de este incidente?
+  explanation: |
+    RPO = tiempo máximo de datos perdidos. El último backup fue a las 14h00; se perdieron 55 minutos
+    de datos hasta el fallo. RPO = 55 minutos.
+    RTO = tiempo desde el incidente hasta volver a operar. El restore tardó 35 minutos. RTO = 35 minutos.
+  options:
+    - text: "RPO = 55 min (datos perdidos), RTO = 35 min (tiempo de restore)."
+      correct: true
+      feedback: "Correcto. RPO mide cuánto dato se pierde (ventana desde el backup hasta el fallo). RTO mide cuánto tarda la recuperación."
+    - text: "RPO = 35 min (tiempo de restore), RTO = 55 min (datos perdidos)."
+      correct: false
+      feedback: "Invertido. RPO es sobre datos perdidos (55 min de gap entre backup y fallo). RTO es sobre tiempo de recuperación (35 min de restore)."
+    - text: "RPO = 1h (el intervalo de backup), RTO = 35 min."
+      correct: false
+      feedback: "El RPO teórico es 1h (el peor caso). El RPO real de este incidente es 55 min (el gap hasta el fallo específico). La distinción importa al reportar."
+
+- slug: drill-infrastructure
+  question: |
+    ¿Por qué el restore drill debe hacerse en una VM diferente al servidor de producción?
+  explanation: |
+    El drill simula el escenario real: el servidor de producción está completamente inaccesible.
+    Si el drill se hace en el mismo servidor, no prueba el procedimiento real de recovery.
+    También evita contaminar o sobrescribir datos de producción por error durante el drill.
+  options:
+    - text: "Para reducir el costo; las VMs temporales son más baratas que usar producción."
+      correct: false
+      feedback: "El costo es un beneficio secundario. La razón principal es que el drill debe simular la pérdida del servidor original."
+    - text: "Para simular el escenario real de pérdida del servidor y verificar que el runbook funciona sin él."
+      correct: true
+      feedback: "Correcto. Si el drill se hace en el mismo servidor, no pruebas nada relevante. El valor del drill es demostrar que puedes operar sin el servidor original."
+    - text: "No es necesario; el drill se puede hacer en el mismo servidor mientras producción sigue corriendo."
+      correct: false
+      feedback: "Un drill en el mismo servidor no prueba el escenario de desastre. Además, restaurar una DB en el mismo host que producción tiene riesgo de sobrescribir datos reales."
+
+- slug: backup-without-drill
+  question: |
+    Tu sistema genera backups de SQLite automáticamente cada hora desde hace 3 meses.
+    Nunca has ejecutado un restore drill. ¿Qué sabes sobre tu capacidad de recuperación?
+  explanation: |
+    Que el script de backup corre no garantiza que los backups sean restaurables.
+    Los problemas más comunes que solo se detectan con el drill: rutas hardcodeadas al servidor original,
+    permisos incorrectos, formato de backup corrupto, dependencias que el script asume presentes.
+  options:
+    - text: "Que puedes recuperarte en menos de RTO = 4h porque el backup es reciente y frecuente."
+      correct: false
+      feedback: "No. Que el backup se genere no garantiza que sea restaurable. Sin el drill, no sabes si el proceso de restore funciona ni cuánto tiempo tarda."
+    - text: "Solo que el script de backup se ejecuta. No sabes si los backups son restaurables ni cuánto tarda el restore."
+      correct: true
+      feedback: "Correcto. El drill es la única forma de saber que el backup funciona de extremo a extremo. Sin él, el backup es una ficción operativa."
+    - text: "Nada útil; sin replicación en tiempo real, un SaaS no puede prometer ningún RTO."
+      correct: false
+      feedback: "Incorrecto. Con backups frecuentes y un runbook de restauración probado, RTO = 4h y RPO = 1h son objetivos alcanzables para PYME sin replicación en tiempo real."

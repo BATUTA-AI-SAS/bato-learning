@@ -1,0 +1,77 @@
+- slug: sarlaft_agent_limit
+  question: |
+    Un agente KYC analiza a un nuevo socio de Coop. Popular de Crédito. La
+    verificación de listas no muestra matches, el análisis reputacional da
+    riesgo "low" y el sujeto no es PEP. ¿El agente puede registrar automáticamente
+    al socio como "vinculado" en el sistema?
+  explanation: |
+    Bajo el SARLAFT 4.0 (Circular Externa 027 de 2020, Superfinanciera Colombia),
+    la decisión de vincular a un cliente es responsabilidad exclusiva del oficial
+    de cumplimiento certificado. El hecho de que todas las señales automáticas
+    sean «limpias» no elimina la obligación de que el oficial revise y firme.
+    El agente puede emitir una recomendación de vinculación, pero el acto de
+    vincular requiere la firma del oficial. Esta restricción protege a la entidad
+    en inspecciones de la Superfinanciera.
+  options:
+    - text: "No — la decisión de vincular siempre la firma el oficial de cumplimiento, aunque no haya señales de alerta"
+      correct: true
+      feedback: "Correcto. Circular 027/2020: la decisión de vinculación es responsabilidad del oficial de cumplimiento. El agente puede recomendar, no decidir."
+    - text: "Sí — si no hay flags de riesgo, la vinculación automática es eficiente y válida"
+      correct: false
+      feedback: "Incorrecto. La ausencia de flags no autoriza la vinculación automática bajo SARLAFT. La Circular 027 requiere que el oficial revise y firme cada vinculación."
+    - text: "Depende — el oficial puede configurar el agente para que apruebe automáticamente si el riesgo es 'low'"
+      correct: false
+      feedback: "Incorrecto. El oficial no puede delegar la decisión de vinculación en un sistema automatizado sin supervisión. Hacerlo viola la Circular 027 y expone a la entidad a sanciones de la Superfinanciera."
+    - text: "Solo si el monto de la cuenta es menor a 10 millones de COP"
+      correct: false
+      feedback: "Incorrecto. El SARLAFT no tiene umbrales de monto para la obligación de revisión por el oficial. La obligación aplica a todas las vinculaciones."
+
+- slug: pep_definition_co
+  question: |
+    ¿Cuál de estos perfiles califica como PEP bajo el SARLAFT 4.0
+    (Circular Externa 027 de 2020) en Colombia?
+  explanation: |
+    La Circular 027/2020 amplió la definición de PEP para incluir cargos
+    territoriales (alcaldes, gobernadores, concejales) y sus familiares en
+    primer grado. Un concejal municipal en ejercicio es PEP. Un director de
+    empresa privada no lo es a menos que la empresa sea estatal. Un familiar
+    en segundo grado (tío, sobrino) no queda dentro del alcance PEP directo.
+  options:
+    - text: "Un concejal municipal en ejercicio y su cónyuge"
+      correct: true
+      feedback: "Correcto. La Circular 027/2020 incluye explícitamente cargos territoriales como concejales, y su cónyuge o compañero/a permanente como familiar de primer grado."
+    - text: "El director de una empresa de construcción privada con contratos del Estado"
+      correct: false
+      feedback: "Incorrecto. El director de una empresa privada no es PEP por sí mismo, aunque la empresa tenga contratos públicos. PEP aplica a quien ejerce la función pública, no a sus contrapartes privadas."
+    - text: "El sobrino (hijo de hermano) de un exministro que dejó el cargo hace 5 años"
+      correct: false
+      feedback: "Incorrecto. Dos razones: (1) el familiar en segundo grado (sobrino) no entra en el alcance PEP directo; (2) el exministro lleva más de 2 años fuera del cargo, lo que generalmente sale del perímetro PEP activo."
+    - text: "Cualquier persona que tenga más de 5 transacciones en el mes"
+      correct: false
+      feedback: "Incorrecto. El volumen de transacciones no define si alguien es PEP. PEP se basa en el ejercicio de funciones públicas prominentes, no en el comportamiento transaccional."
+
+- slug: ros_filing_who
+  question: |
+    El agente detecta una serie de transacciones sospechosas de fragmentación
+    (structuring) en la cuenta de un asociado de Coop. Popular. Redacta el
+    borrador del ROS con todos los detalles. ¿Quién envía el ROS a la UIAF?
+  explanation: |
+    El Reporte de Operación Sospechosa (ROS) es un acto jurídico formal que
+    solo puede ser ejecutado por el oficial de cumplimiento certificado de la
+    entidad. El agente puede detectar las señales, investigar el contexto y
+    redactar el borrador del ROS, pero el envío a la UIAF requiere la revisión,
+    validación y firma del oficial. El oficial tiene 24–48 horas desde que
+    considera que la operación es sospechosa para radicar el ROS.
+  options:
+    - text: "El oficial de cumplimiento, después de revisar y validar el borrador del agente"
+      correct: true
+      feedback: "Correcto. El ROS es un acto del oficial de cumplimiento. El agente prepara el borrador; el oficial lo revisa, lo valida y lo radica ante la UIAF."
+    - text: "El agente directamente, para ganar tiempo dado el plazo de 24–48h"
+      correct: false
+      feedback: "Incorrecto. El tiempo de respuesta no justifica omitir la revisión del oficial. El envío automático sin firma del oficial viola la regulación. Si hay urgencia, el agente alerta inmediatamente al oficial."
+    - text: "El CEO de la cooperativa, como máxima autoridad"
+      correct: false
+      feedback: "Incorrecto. El oficial de cumplimiento certificado es quien tiene la responsabilidad y la habilitación legal para radicar ROS ante la UIAF. El CEO puede estar involucrado en casos PEP, pero no reemplaza al oficial para el ROS."
+    - text: "Cualquier empleado con acceso al sistema SIREL de la UIAF"
+      correct: false
+      feedback: "Incorrecto. El acceso técnico al sistema SIREL no equivale a la facultad legal de radicar ROS. Solo el oficial de cumplimiento designado puede hacerlo bajo el programa SARLAFT de la entidad."

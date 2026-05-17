@@ -1,0 +1,106 @@
+- slug: return-vs-print
+  question: |
+    Dada esta función:
+
+    ```python
+    def compute_total(amounts):
+        total = 0.0
+        for a in amounts:
+            total += a
+        print(total)   # sin return
+    ```
+
+    ¿Qué devuelve `result = compute_total([100.0, 200.0])`?
+  explanation: |
+    Una función sin `return` devuelve `None` automáticamente. La función
+    imprime el valor en pantalla, pero no lo devuelve al llamador. Para
+    guardar el resultado en `result`, la función necesita `return total`.
+  options:
+    - text: "`300.0`"
+      correct: false
+      feedback: "La función imprime 300.0 en pantalla, pero lo que asigna a `result` es `None` porque no hay `return`."
+    - text: "`None`"
+      correct: true
+      feedback: "Correcto. Sin `return`, Python devuelve `None`. Para que `result` sea 300.0 necesitas `return total`."
+    - text: "`0.0`"
+      correct: false
+      feedback: "No. El valor inicial del acumulador no se devuelve; sin `return`, lo que se devuelve es `None`."
+    - text: "Lanza `TypeError`"
+      correct: false
+      feedback: "No hay error. El código es válido. Simplemente, el `result` recibe `None`."
+
+- slug: local-scope
+  question: |
+    ```python
+    amount = 9999.0
+
+    def compute_iva(amount):
+        return amount * 0.21
+
+    result = compute_iva(1000.0)
+    ```
+
+    ¿Qué valor tiene `result`?
+  explanation: |
+    El `amount` que la función usa es el **parámetro local**: el valor que
+    se pasa en la llamada (`1000.0`), no la variable global `amount = 9999.0`.
+    Los parámetros son locales a la función y no ven — ni modifican —
+    las variables del nivel exterior con el mismo nombre.
+  options:
+    - text: "`2099.79` (9999.0 × 0.21)"
+      correct: false
+      feedback: "La función no usa la variable global `amount = 9999.0`. Usa el parámetro local que recibió: `1000.0`."
+    - text: "`210.0` (1000.0 × 0.21)"
+      correct: true
+      feedback: "Correcto. El parámetro `amount` de la función toma el valor del argumento en la llamada: `1000.0`."
+    - text: "Lanza `NameError` porque `amount` ya existe"
+      correct: false
+      feedback: "No hay conflicto. El parámetro local `amount` de la función es independiente de la variable global."
+    - text: "`None`"
+      correct: false
+      feedback: "La función tiene `return`, así que devuelve el resultado calculado, no `None`."
+
+- slug: pure-function
+  question: |
+    ¿Cuál de estas funciones es una **función pura**?
+  explanation: |
+    Una función pura solo depende de sus parámetros y devuelve un valor calculado.
+    No imprime, no modifica variables externas, no accede a archivos.
+    Para la misma entrada, siempre produce la misma salida.
+  options:
+    - text: |
+        ```python
+        def add_to_list(item, results=[]):
+            results.append(item)
+            return results
+        ```
+      correct: false
+      feedback: "No es pura: usa un argumento mutable por defecto que se comparte entre llamadas. Produce resultados distintos en la segunda llamada."
+    - text: |
+        ```python
+        def get_level(amount):
+            if amount > 1000:
+                return \"alto\"
+            elif amount > 100:
+                return \"medio\"
+            else:
+                return \"bajo\"
+        ```
+      correct: true
+      feedback: "Correcto. Solo depende de `amount`, no modifica nada externo, y siempre devuelve lo mismo para el mismo input."
+    - text: |
+        ```python
+        def print_total(invoices):
+            total = sum(inv[\"amount\"] for inv in invoices)
+            print(total)
+        ```
+      correct: false
+      feedback: "No es pura: tiene efecto secundario (`print`). Además no devuelve nada (devuelve `None`)."
+    - text: |
+        ```python
+        import random
+        def random_level():
+            return random.choice([\"alto\", \"medio\", \"bajo\"])
+        ```
+      correct: false
+      feedback: "No es pura: produce resultados distintos para la misma entrada (ninguna, en este caso) porque depende de aleatoriedad."

@@ -1,0 +1,63 @@
+- slug: msa-vs-sow
+  question: |
+    Andina ya firmó el MSA contigo hace 6 meses. Ahora quieren agregar
+    el caso de auditoría de facturas (F-CTA-02). ¿Qué documento necesitas
+    para formalizar este nuevo trabajo?
+  explanation: |
+    El MSA ya está firmado y rige la relación general. Cada proyecto
+    específico cuelga del MSA como un SOW. No necesitas firmar un nuevo
+    MSA; solo un nuevo SOW que define el alcance, los entregables y el
+    precio del nuevo caso de uso.
+  options:
+    - text: "Un nuevo MSA — el original solo cubre conciliación bancaria."
+      correct: false
+      feedback: "El MSA es el marco general para toda la relación comercial con ese cliente — no está atado a un proyecto específico. Solo necesitas un nuevo SOW."
+    - text: "Un nuevo SOW — el MSA ya existe y cubre la relación general."
+      correct: true
+      feedback: "Correcto. El SOW es el documento específico por proyecto. Firmas un SOW v2 para la auditoría de facturas, que hereda todas las condiciones generales del MSA original."
+    - text: "Una enmienda al MSA existente — cambias el scope directamente."
+      correct: false
+      feedback: "Las enmiendas al MSA cambian las condiciones generales de la relación. Agregar un nuevo caso de uso es un nuevo proyecto, no un cambio a las condiciones generales."
+
+- slug: dpa-required
+  question: |
+    Tu cliente es una empresa de 15 empleados en Colombia que quiere el
+    agente de auditoría de nómina. El agente procesa nombres, cédulas y
+    salarios de los empleados. El cliente dice: «somos pequeños, no
+    necesitamos DPA». ¿Qué le dices?
+  explanation: |
+    La Ley 1581 de Colombia no tiene excepción por tamaño de empresa.
+    Cualquier empresa que trate datos personales (incluidos salarios y
+    cédulas de empleados) necesita un DPA con el encargado del tratamiento,
+    independientemente del tamaño. El riesgo de multa de la SIC aplica.
+  options:
+    - text: "De acuerdo — empresas pequeñas están exentas de Ley 1581."
+      correct: false
+      feedback: "Incorrecto. La Ley 1581 no tiene excepción por tamaño. Aplica a cualquier empresa que trate datos personales, desde un freelance hasta una multinacional."
+    - text: "El DPA es obligatorio — la Ley 1581 no tiene excepción por tamaño y ambos asumen el riesgo de sanción de la SIC."
+      correct: true
+      feedback: "Correcto. Además, sin DPA firmado, tú como encargado del tratamiento también tienes responsabilidad legal. El DPA te protege a ti también, no solo al cliente."
+    - text: "El DPA es recomendado pero no obligatorio para datos de nómina interna."
+      correct: false
+      feedback: "Los salarios y cédulas son datos personales bajo Ley 1581. El contrato de tratamiento (DPA) es obligatorio cuando un tercero procesa esos datos en nombre del responsable."
+
+- slug: sla-99-9
+  question: |
+    Un cliente grande te exige SLA de 99.9 % de uptime. Tu infraestructura
+    actual es Hetzner CX22 (una sola instancia). ¿Puedes firmar ese SLA?
+  explanation: |
+    99.9 % = máximo 43 minutos de caída al mes. Una sola instancia sin
+    redundancia no puede garantizar eso de forma realista — cualquier
+    reinicio de servidor, actualización de OS o fallo de disco supera ese
+    límite. Para 99.9 % necesitas instancias redundantes + health checks
+    automáticos + failover.
+  options:
+    - text: "Sí — Hetzner tiene 99.9 % de garantía de uptime en sus SLAs internos."
+      correct: false
+      feedback: "El SLA de Hetzner cubre la infraestructura, no tu aplicación. Un reinicio de tu servicio, un bug en tu código, o un timeout del modelo Anthropic pueden causar caída sin que Hetzner tenga ninguna falla."
+    - text: "No — 99.9 % requiere redundancia que una instancia sola no puede ofrecer. El precio debe subir para cubrir la infraestructura adicional."
+      correct: true
+      feedback: "Correcto. Para 99.9 % necesitas al menos: 2 instancias activas + load balancer + health checks + failover automático. Eso es ~3-4× el costo de infraestructura. El precio debe reflejarlo."
+    - text: "Sí, pero solo durante horario laboral (8am–6pm)."
+      correct: false
+      feedback: "Un SLA parcial (solo horario laboral) es un SLA de disponibilidad parcial, que es un concepto diferente. Si el contrato dice '99.9% de uptime mensual' sin restricción horaria, aplica las 24 horas."

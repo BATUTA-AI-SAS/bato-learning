@@ -1,0 +1,238 @@
+- slug: sops-age-encrypt-detect
+  title: "Detectar secrets sin cifrar en un flujo de commit"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `audit_commit_files` recibe una lista de archivos que se van a
+    commitear y devuelve una lista de problemas encontrados.
+
+    Reglas:
+    - Si hay un archivo llamado exactamente `.env` → problema `"env_plain_in_repo"`
+    - Si hay un archivo `.env.plaintext` → problema `"env_plaintext_in_repo"`
+    - Si hay un archivo `.env.enc.env` pero NO hay `.sops.yaml` → problema `"sops_config_missing"`
+    - Si hay un archivo con extensión `.key` o que termine en `_key.txt` → problema `"private_key_in_repo"`
+
+    Ejemplo:
+    ```python
+    audit_commit_files([".env", ".sops.yaml"])
+    # → ["env_plain_in_repo"]
+
+    audit_commit_files([".env.enc.env", "app/main.py"])
+    # → ["sops_config_missing"]
+    ```
+  hint: |
+    Usa `any(f == ".env" for f in files)` para el caso exacto.
+    Para extensiones: `f.endswith(".key")`.
+  starter: |
+    def audit_commit_files(files: list[str]) -> list[str]:
+        """Devuelve lista de problemas de seguridad en los archivos a commitear."""
+        problems: list[str] = []
+        # implementa cada regla aquí
+        return problems
+
+    # prueba rápida
+    print(audit_commit_files([".env", ".sops.yaml", "app/main.py"]))
+  test: |
+    # caso limpio: solo el cifrado y su config
+    clean = audit_commit_files([".env.enc.env", ".sops.yaml", "app/main.py"])
+    assert clean == [], f"Caso limpio no debe tener problemas, obtuve: {clean}"
+
+    # .env en repo
+    env_case = audit_commit_files([".env", "compose.yaml"])
+    assert "env_plain_in_repo" in env_case, "Debe detectar .env sin cifrar"
+
+    # .env.plaintext en repo
+    plain_case = audit_commit_files([".env.plaintext", ".env.enc.env", ".sops.yaml"])
+    assert "env_plaintext_in_repo" in plain_case, "Debe detectar .env.plaintext"
+
+    # enc.env sin sops.yaml
+    no_sops = audit_commit_files([".env.enc.env", "app/main.py"])
+    assert "sops_config_missing" in no_sops, "Debe detectar sops_config_missing"
+
+    # clave privada
+    key_case = audit_commit_files(["~/.age/key.txt", ".sops.yaml"])
+    assert "private_key_in_repo" in key_case, "Debe detectar clave privada .key"
+
+    print("ok")
+  solution: |
+    def audit_commit_files(files: list[str]) -> list[str]:
+        problems: list[str] = []
+
+        if any(f == ".env" for f in files):
+            problems.append("env_plain_in_repo")
+
+        if any(f == ".env.plaintext" for f in files):
+            problems.append("env_plaintext_in_repo")
+
+        if any(f == ".env.enc.env" for f in files) and ".sops.yaml" not in files:
+            problems.append("sops_config_missing")
+
+        if any(f.endswith(".key") or f.endswith("_key.txt") for f in files):
+            problems.append("private_key_in_repo")
+
+        return problems
+
+    print(audit_commit_files([".env", ".sops.yaml", "app/main.py"]))
+
+- slug: sqlite-backup-script
+  title: "Validar la lógica del script de backup"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `backup_filename` genera el nombre del archivo de backup de SQLite
+    con el formato: `learning_{TIMESTAMP}.db` donde el timestamp sigue ISO 8601 UTC
+    básico: `YYYYMMDDTHHMMSSZ`.
+
+    La función recibe un string de timestamp ya formateado y el nombre base de la DB.
+    Devuelve el nombre del archivo.
+
+    Además, implementa `is_old_backup(filename: str, days_threshold: int) -> bool`
+    que devuelve `True` si el timestamp del filename indica que tiene más de
+    `days_threshold` días respecto a `reference_date` (también parámetro).
+
+    El formato del timestamp en el filename es `YYYYMMDDTHHMMSSZ`.
+    La `reference_date` es un string `"YYYY-MM-DD"`.
+
+    Ejemplo:
+    ```python
+    backup_filename("20260416T020000Z", "learning")
+    # → "learning_20260416T020000Z.db"
+
+    is_old_backup("learning_20260409T020000Z.db", days_threshold=7, reference_date="2026-04-16")
+    # → True  (7 días exactos de diferencia)
+    ```
+  hint: |
+    Para `is_old_backup`: extrae el timestamp del nombre, parsea la fecha con
+    `datetime.strptime`, calcula `(ref - backup_date).days`.
+  starter: |
+    from datetime import datetime
+
+
+    def backup_filename(timestamp: str, db_name: str) -> str:
+        """Genera el nombre del archivo de backup."""
+        ...
+
+
+    def is_old_backup(filename: str, days_threshold: int, reference_date: str) -> bool:
+        """True si el backup supera el umbral de días."""
+        ...
+
+
+    print(backup_filename("20260416T020000Z", "learning"))
+    print(is_old_backup("learning_20260409T020000Z.db", 7, "2026-04-16"))
+  test: |
+    from datetime import datetime
+
+    # backup_filename
+    result = backup_filename("20260416T020000Z", "learning")
+    assert result == "learning_20260416T020000Z.db", f"Obtuve: {result!r}"
+
+    result2 = backup_filename("20260101T000000Z", "audit")
+    assert result2 == "audit_20260101T000000Z.db", f"Obtuve: {result2!r}"
+
+    # is_old_backup — exactamente en el umbral → True
+    old = is_old_backup("learning_20260409T020000Z.db", 7, "2026-04-16")
+    assert old is True, "7 días exactos debe ser True"
+
+    # 6 días → False
+    fresh = is_old_backup("learning_20260410T020000Z.db", 7, "2026-04-16")
+    assert fresh is False, "6 días debe ser False"
+
+    # 8 días → True
+    very_old = is_old_backup("learning_20260408T020000Z.db", 7, "2026-04-16")
+    assert very_old is True, "8 días debe ser True"
+
+    print("ok")
+  solution: |
+    from datetime import datetime
+
+
+    def backup_filename(timestamp: str, db_name: str) -> str:
+        return f"{db_name}_{timestamp}.db"
+
+
+    def is_old_backup(filename: str, days_threshold: int, reference_date: str) -> bool:
+        # extrae el timestamp del nombre: learning_20260409T020000Z.db
+        ts_part = filename.rsplit("_", 1)[1].replace(".db", "")
+        backup_dt = datetime.strptime(ts_part, "%Y%m%dT%H%M%SZ")
+        ref_dt = datetime.strptime(reference_date, "%Y-%m-%d")
+        return (ref_dt - backup_dt).days >= days_threshold
+
+    print(backup_filename("20260416T020000Z", "learning"))
+    print(is_old_backup("learning_20260409T020000Z.db", 7, "2026-04-16"))
+
+- slug: traefik-labels-design
+  title: "Diseñar las labels de Traefik para un servicio nuevo"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado un diccionario de configuración de servicio, la función `traefik_labels`
+    genera el conjunto de labels Docker necesario para que Traefik v3 exponga ese
+    servicio con TLS automático.
+
+    La firma:
+    ```python
+    def traefik_labels(
+        name: str,          # nombre del router/service
+        hostname: str,      # dominio completo
+        internal_port: int, # puerto dentro del contenedor
+        certresolver: str = "le",
+    ) -> dict[str, str]:
+        ...
+    ```
+
+    Debe devolver exactamente estas keys (valores son strings):
+    - `"traefik.enable"` → `"true"`
+    - `"traefik.http.routers.{name}.rule"` → `'Host(\`{hostname}\`)'`
+    - `"traefik.http.routers.{name}.entrypoints"` → `"websecure"`
+    - `"traefik.http.routers.{name}.tls.certresolver"` → certresolver
+    - `"traefik.http.services.{name}.loadbalancer.server.port"` → str(internal_port)
+  hint: |
+    Las f-strings con backtick necesitan escapar el backtick: `f"Host(\`{hostname}\`)"`.
+  starter: |
+    def traefik_labels(
+        name: str,
+        hostname: str,
+        internal_port: int,
+        certresolver: str = "le",
+    ) -> dict[str, str]:
+        """Genera labels de Traefik v3 para exposición con TLS."""
+        ...
+
+
+    labels = traefik_labels("app", "learning.acme.com", 8080)
+    for k, v in sorted(labels.items()):
+        print(f"{k}: {v}")
+  test: |
+    labels = traefik_labels("app", "learning.acme.com", 8080)
+    assert labels["traefik.enable"] == "true"
+    assert labels["traefik.http.routers.app.rule"] == "Host(`learning.acme.com`)"
+    assert labels["traefik.http.routers.app.entrypoints"] == "websecure"
+    assert labels["traefik.http.routers.app.tls.certresolver"] == "le"
+    assert labels["traefik.http.services.app.loadbalancer.server.port"] == "8080"
+    assert len(labels) == 5, f"Deben ser exactamente 5 labels, obtuve {len(labels)}"
+
+    # con certresolver distinto
+    labels2 = traefik_labels("phoenix", "traces.acme.com", 6006, certresolver="staging")
+    assert labels2["traefik.http.routers.phoenix.tls.certresolver"] == "staging"
+    assert labels2["traefik.http.services.phoenix.loadbalancer.server.port"] == "6006"
+
+    print("ok")
+  solution: |
+    def traefik_labels(
+        name: str,
+        hostname: str,
+        internal_port: int,
+        certresolver: str = "le",
+    ) -> dict[str, str]:
+        return {
+            "traefik.enable": "true",
+            f"traefik.http.routers.{name}.rule": f"Host(`{hostname}`)",
+            f"traefik.http.routers.{name}.entrypoints": "websecure",
+            f"traefik.http.routers.{name}.tls.certresolver": certresolver,
+            f"traefik.http.services.{name}.loadbalancer.server.port": str(internal_port),
+        }
+
+    labels = traefik_labels("app", "learning.acme.com", 8080)
+    for k, v in sorted(labels.items()):
+        print(f"{k}: {v}")

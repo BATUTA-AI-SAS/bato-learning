@@ -1,0 +1,63 @@
+- slug: breaking-vs-non-breaking
+  question: |
+    El equipo de plataforma de ACME quiere añadir un campo `"currency": "EUR"` al response
+    de `GET /api/v1/invoices`. Los clientes existentes ignoran campos que no conocen.
+    ¿Necesita esto una nueva versión de la API?
+  explanation: |
+    Añadir un campo opcional al response es non-breaking si los clientes existentes
+    ignoran los campos desconocidos. No requiere versionar.
+  options:
+    - text: "Sí, cualquier cambio en el response requiere una nueva versión"
+      correct: false
+      feedback: "No. La regla es: breaking changes requieren nueva versión; non-breaking no. Añadir un campo al response es non-breaking si los clientes existentes ignoran campos desconocidos (comportamiento estándar de JSON parsers)."
+    - text: "No, añadir un campo opcional al response es non-breaking"
+      correct: true
+      feedback: "Correcto. Los clientes que parsean el response como un dict/objeto ignoran los campos que no conocen. El agente de ACME que solo usa `id` y `amount` sigue funcionando aunque `currency` aparezca en la respuesta."
+    - text: "Solo si el campo tiene un valor null por defecto"
+      correct: false
+      feedback: "El valor del campo no determina si es breaking o no. Lo que importa es si los clientes existentes se rompen al ver el campo. Un campo nuevo (con cualquier valor) que los clientes ignoran es non-breaking."
+    - text: "Depende del lenguaje de programación del cliente"
+      correct: false
+      feedback: "La definición de breaking/non-breaking es independiente del lenguaje. Los parsers JSON estándar (Python json, JavaScript JSON.parse, Java Jackson) todos ignoran campos desconocidos por defecto."
+
+- slug: versioning-location
+  question: |
+    ¿Cuál es la ventaja principal de poner la versión en el **path** (`/api/v1/`) en lugar
+    de en un header (`API-Version: 1`)?
+  explanation: |
+    El versionado en path es explícito, visible en logs y cacheable. El versionado por header
+    es invisible y puede confundir a proxies y CDNs.
+  options:
+    - text: "El versionado en path usa menos bytes en la request"
+      correct: false
+      feedback: "El tamaño de la request no es la razón. Un header `API-Version: 1` es incluso más corto que el prefijo `/api/v1/`. La ventaja del path es la visibilidad y la simplicidad."
+    - text: "El versionado en path es visible en URLs, logs, y herramientas de debugging — no necesita documentación especial"
+      correct: true
+      feedback: "Correcto. `/api/v1/invoices` vs `/api/v2/invoices` son recursos distintos y explícitos. Aparecen en logs, en el URL del browser, en Swagger UI, y en las herramientas de debugging sin configuración adicional."
+    - text: "El versionado en path es más fácil de cachear en CDNs"
+      correct: false
+      feedback: "Esto es parcialmente verdad (los CDNs cachean por URL, y un path con versión crea URLs distintas para v1 y v2). Pero la ventaja principal no es el cache sino la visibilidad y la simplicidad operativa."
+    - text: "Los headers HTTP no pueden contener números"
+      correct: false
+      feedback: "Los headers HTTP pueden contener cualquier valor de texto. `API-Version: 1` es perfectamente válido. El problema del versionado por header no es técnico sino operativo."
+
+- slug: expand-contract-order
+  question: |
+    La API de ACME necesita renombrar el campo `period` a `audit_period`.
+    ¿Cuál es el orden correcto de pasos en la estrategia expand-contract?
+  explanation: |
+    Expand-contract: primero añades el campo nuevo manteniendo el viejo (expand),
+    luego eliminas el viejo en la nueva versión (contract). Nunca al revés.
+  options:
+    - text: "1. Eliminar `period` en v2. 2. Añadir `audit_period` en v2."
+      correct: false
+      feedback: "Si eliminas `period` antes de que los clientes migren a `audit_period`, se rompen en el momento del deploy. El orden debe ser: primero añadir, luego eliminar."
+    - text: "1. Añadir `audit_period` en v1 (manteniendo `period`). 2. Eliminar `period` en v2 cuando los clientes migraron."
+      correct: true
+      feedback: "Correcto. Expand: v1 devuelve ambos campos (`period` y `audit_period`). Los clientes migran su código a usar `audit_period`. Contract: v2 solo tiene `audit_period`. Los clientes que ya migraron no se rompen."
+    - text: "1. Crear v2 con solo `audit_period`. 2. Apagar v1 inmediatamente."
+      correct: false
+      feedback: "Apagar v1 inmediatamente rompe a todos los clientes que no han migrado. El sunset debe ser anunciado con al menos 90 días de antelación."
+    - text: "1. Añadir `audit_period` solo en v2. 2. Mantener `period` en v1 para siempre."
+      correct: false
+      feedback: "Mantener v1 para siempre tiene un coste creciente. El objetivo de expand-contract es permitir la migración y luego deprecar v1 con un sunset explícito."

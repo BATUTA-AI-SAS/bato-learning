@@ -1,0 +1,113 @@
+{% extends "_layout.html" %}
+{% block title %}bato-learning · progreso{% endblock %}
+
+{% block main %}
+<header class="hero">
+  <h1>Tu progreso</h1>
+  <p class="lede">Dónde estás. Qué te queda. Sin filtros.</p>
+</header>
+
+{% if gam %}
+<section class="dash-level">
+  <div class="row1">
+    <span class="lvl-badge">L{{ gam.level.idx }}</span>
+    <div>
+      <h2>{{ gam.level.name }}</h2>
+      <div class="blurb">{{ gam.level.blurb }}</div>
+    </div>
+  </div>
+  <div class="xp-row">
+    <span>
+      {% if gam.next_level %}
+        a {{ gam.next_level.threshold - gam.xp }} XP de <strong>{{ gam.next_level.name }}</strong>
+      {% else %}
+        nivel máximo alcanzado
+      {% endif %}
+    </span>
+    <span><strong>{{ gam.xp }}</strong>
+      {% if gam.next_level %} / {{ gam.next_level.threshold }}{% endif %} XP
+    </span>
+  </div>
+  <div class="xp-bar"><div class="fill" style="--pct: {{ gam.pct_to_next_level }}%"></div></div>
+</section>
+{% endif %}
+
+<section class="dash-grid">
+  <div class="stat-card xp">
+    <div class="lbl">XP total</div>
+    <div class="big">{{ gam.xp if gam else 0 }}</div>
+    <div class="sub">acumulado, no se gasta</div>
+  </div>
+  <div class="stat-card streak">
+    <div class="lbl">Racha</div>
+    <div class="big">{{ gam.streak_days if gam else 0 }}</div>
+    <div class="sub">{% if gam and gam.streak_days == 1 %}día{% else %}días{% endif %} al hilo</div>
+  </div>
+  <div class="stat-card">
+    <div class="lbl">Módulos</div>
+    <div class="big">{{ summary.modules_visited }}<span class="muted" style="font-size: .55em;"> / {{ summary.modules_total }}</span></div>
+    <div class="sub">visitados</div>
+  </div>
+  <div class="stat-card">
+    <div class="lbl">Ejercicios</div>
+    <div class="big">{{ summary.attempts_passed }}<span class="muted" style="font-size: .55em;"> / {{ summary.attempts }}</span></div>
+    <div class="sub">pasados / intentos</div>
+  </div>
+  <div class="stat-card">
+    <div class="lbl">Quizzes</div>
+    <div class="big">{{ summary.quizzes_correct }}<span class="muted" style="font-size: .55em;"> / {{ summary.quizzes_answered }}</span></div>
+    <div class="sub">correctos / respondidos</div>
+  </div>
+  <div class="stat-card level">
+    <div class="lbl">Logros</div>
+    <div class="big">{{ (gam.achievements_earned | length) if gam else 0 }}<span class="muted" style="font-size: .55em;"> / {{ gam.achievements_total if gam else 0 }}</span></div>
+    <div class="sub">desbloqueados</div>
+  </div>
+</section>
+
+{% if gam %}
+<h2 class="section-title">Logros</h2>
+<section class="achievements-grid">
+  {% for a in gam.achievements_catalog %}
+    <div class="ach {% if a.unlocked %}unlocked{% else %}locked{% endif %}" title="{{ a.description }}">
+      <span class="icon">{{ a.icon }}</span>
+      <div>
+        <p class="ttl">{{ a.title }}</p>
+        <p class="desc">{{ a.description }}</p>
+      </div>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<h2 class="section-title">Progreso por track</h2>
+<section class="track-progress-list">
+  {% for track, mods in groups %}
+    {% set tp = (track_progress[track] if track_progress and track in track_progress else {"visited": 0, "total": (mods|length), "pct": 0}) %}
+    <div class="row" style="--track-color: var(--track-{{ track }});">
+      <span class="name">{{ track | track_label }}</span>
+      <div class="bar"><div class="fill" style="--pct: {{ tp.pct }}%"></div></div>
+      <span class="count">{{ tp.visited }} / {{ tp.total }}</span>
+    </div>
+  {% endfor %}
+</section>
+
+<h2 class="section-title">Módulos</h2>
+<section class="board">
+  {% for track, mods in groups %}
+    <article class="card" style="border-top: 3px solid var(--track-{{ track }});">
+      <h3>{{ track | track_label }}</h3>
+      <ul class="track-list" style="list-style:none; padding:0; margin:0;">
+        {% for m in mods %}
+          <li style="margin: 4px 0; font-size: 13px;">
+            <a href="/m/{{ m.slug }}" class="{% if m.id in visited %}done{% endif %}">
+              {{ m.ext_id }} · {{ m.title }}
+              {% if m.id in visited %}<span class="tag">visto</span>{% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </article>
+  {% endfor %}
+</section>
+{% endblock %}

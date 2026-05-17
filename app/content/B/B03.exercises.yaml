@@ -1,0 +1,258 @@
+# B03 — Jinja2 + HTMX: ejercicios con runner pyodide
+#
+# Los ejercicios enseñan HTML/Jinja2 como texto: el lector escribe o arregla
+# cadenas de template; los tests verifican presencia/ausencia de atributos y
+# directivas correctas en el output. Pyodide corre Python puro que analiza el
+# string resultante (no hay browser real; el análisis es textual).
+
+- slug: jinja-extends-block
+  title: "Herencia de plantilla: extends y block"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `render_child` debe devolver el HTML que produciría una plantilla
+    hija que:
+
+    1. Extiende `"_layout.html"`.
+    2. Define un bloque `title` con el texto `"Módulo B03"`.
+    3. Define un bloque `main` con `<h1>UI server-rendered</h1>`.
+
+    Completa la variable `child_template` con el texto de la plantilla Jinja2
+    y luego renderízala con el `env` provisto.
+
+    No modifiques `base_template` ni el `env`. Solo edita `child_template` y
+    la llamada a `env.from_string`.
+  hint: |
+    - `{% extends "nombre" %}` debe ser la primera línea de la plantilla hija.
+    - Cada bloque se abre con `{% block nombre %}` y se cierra con `{% endblock %}`.
+    - `env.from_string(child_template).render()` evalúa la plantilla en memoria.
+  starter: |
+    from jinja2 import Environment, DictLoader
+
+    base_template = (
+        "<!doctype html>"
+        "<html><head><title>{% block title %}base{% endblock %}</title></head>"
+        "<body>{% block main %}{% endblock %}</body></html>"
+    )
+
+    env = Environment(loader=DictLoader({"_layout.html": base_template}))
+
+    # Escribe la plantilla hija aquí
+    child_template = """
+    ???
+    """
+
+    result = env.from_string(child_template).render()
+    print(result)
+  test: |
+    import re
+    out = __cap.getvalue()
+    assert "Módulo B03" in out, "El bloque title debe contener 'Módulo B03'"
+    assert "<h1>UI server-rendered</h1>" in out, "El bloque main debe tener el <h1>"
+    assert "<!doctype html>" in out.lower(), "La plantilla base debe estar presente (extends funciona)"
+    assert out.count("<html>") == 1, "Solo debe haber un <html> — no anides dos layouts"
+    print("✓ herencia de plantilla correcta")
+  solution: |
+    from jinja2 import Environment, DictLoader
+
+    base_template = (
+        "<!doctype html>"
+        "<html><head><title>{% block title %}base{% endblock %}</title></head>"
+        "<body>{% block main %}{% endblock %}</body></html>"
+    )
+
+    env = Environment(loader=DictLoader({"_layout.html": base_template}))
+
+    child_template = """{% extends "_layout.html" %}
+    {% block title %}Módulo B03{% endblock %}
+    {% block main %}<h1>UI server-rendered</h1>{% endblock %}"""
+
+    result = env.from_string(child_template).render()
+    print(result)
+
+- slug: htmx-suggestion-row
+  title: "Atributos HTMX para aceptar una sugerencia"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `render_suggestion_row` recibe `suggestion_id: int` y devuelve
+    el HTML de una `<tr>` para el dashboard de soporte de F-CX-03.
+
+    La fila debe cumplir todos estos requisitos:
+    - El `<tr>` tiene `id="suggestion-{suggestion_id}"`.
+    - Contiene un `<button>` con:
+      - `hx-post="/api/suggestions/{suggestion_id}/accept"`
+      - `hx-target="#suggestion-{suggestion_id}"`
+      - `hx-swap="outerHTML"`
+    - El texto del botón es `"Aceptar"`.
+
+    Escribe la función usando Jinja2 `from_string` para que los tests puedan
+    verificar los atributos exactos.
+  hint: |
+    - Usa f-string o Jinja2 para interpolar `suggestion_id` en los atributos.
+    - `hx-swap` debe ser `"outerHTML"` (no `"innerHTML"`) porque la fila entera
+      cambia de estado.
+    - El `id` del `<tr>` debe coincidir con el selector de `hx-target`.
+  starter: |
+    from jinja2 import Environment
+
+    env = Environment()
+
+    ROW_TEMPLATE = """
+    <tr id="???">
+      <td>Artículo de devoluciones</td>
+      <td>0.92</td>
+      <td>
+        <button ???>Aceptar</button>
+      </td>
+    </tr>
+    """
+
+    def render_suggestion_row(suggestion_id: int) -> str:
+        tmpl = env.from_string(ROW_TEMPLATE)
+        return tmpl.render(suggestion_id=suggestion_id)
+
+    print(render_suggestion_row(42))
+  test: |
+    import re
+    out = __cap.getvalue()
+
+    # id del tr
+    assert 'id="suggestion-42"' in out, \
+        'El <tr> necesita id="suggestion-42"'
+
+    # hx-post con la ruta correcta
+    assert 'hx-post="/api/suggestions/42/accept"' in out, \
+        'hx-post debe apuntar a /api/suggestions/42/accept'
+
+    # hx-target apunta al propio tr
+    assert 'hx-target="#suggestion-42"' in out, \
+        'hx-target debe ser "#suggestion-42" para encontrar la fila'
+
+    # hx-swap es outerHTML (no innerHTML)
+    assert 'hx-swap="outerHTML"' in out, \
+        'hx-swap debe ser "outerHTML" — la fila entera cambia, no solo su interior'
+
+    assert ">Aceptar<" in out, 'El botón debe decir "Aceptar"'
+
+    print("✓ fila con atributos HTMX correctos")
+  solution: |
+    from jinja2 import Environment
+
+    env = Environment()
+
+    ROW_TEMPLATE = """
+    <tr id="suggestion-{{ suggestion_id }}">
+      <td>Artículo de devoluciones</td>
+      <td>0.92</td>
+      <td>
+        <button
+          hx-post="/api/suggestions/{{ suggestion_id }}/accept"
+          hx-target="#suggestion-{{ suggestion_id }}"
+          hx-swap="outerHTML"
+        >Aceptar</button>
+      </td>
+    </tr>
+    """
+
+    def render_suggestion_row(suggestion_id: int) -> str:
+        tmpl = env.from_string(ROW_TEMPLATE)
+        return tmpl.render(suggestion_id=suggestion_id)
+
+    print(render_suggestion_row(42))
+
+- slug: htmx-polling-and-swap
+  title: "Polling con hx-trigger y swap correcto"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El dashboard de F-CX-03 tiene un `<div>` que lista los tickets abiertos.
+    Debe refrescarse automáticamente cada 30 segundos.
+
+    Completa `render_ticket_list_container` para que devuelva un `<div>` que:
+    1. Tiene `id="ticket-list"`.
+    2. Tiene `hx-get="/api/tickets/open"`.
+    3. Tiene `hx-trigger="every 30s"`.
+    4. Tiene `hx-target="#ticket-list"`.
+    5. Tiene `hx-swap="innerHTML"` (actualiza solo el contenido, no el div contenedor).
+
+    También responde la pregunta en el comentario al final: ¿por qué `innerHTML`
+    y no `outerHTML` aquí?
+  hint: |
+    - `hx-trigger="every 30s"` dispara el GET sin interacción del usuario.
+    - `innerHTML` es correcto aquí porque el `<div>` contenedor debe preservar
+      sus propios atributos HTMX para que el polling continue en el siguiente
+      ciclo.
+  starter: |
+    from jinja2 import Environment
+
+    env = Environment()
+
+    CONTAINER_TEMPLATE = """
+    <div ???>
+      <!-- tickets cargados inicialmente por Jinja2 -->
+      <p>Cargando...</p>
+    </div>
+    """
+
+    def render_ticket_list_container() -> str:
+        return env.from_string(CONTAINER_TEMPLATE).render()
+
+    html = render_ticket_list_container()
+    print(html)
+
+    # ¿Por qué innerHTML y no outerHTML en este caso?
+    razon = "???"  # completa con una frase
+    print("razon:", razon)
+  test: |
+    lines = __cap.getvalue()
+
+    assert 'id="ticket-list"' in lines, \
+        'El div necesita id="ticket-list"'
+    assert 'hx-get="/api/tickets/open"' in lines, \
+        'hx-get debe apuntar a /api/tickets/open'
+    assert 'hx-trigger="every 30s"' in lines, \
+        'hx-trigger debe ser "every 30s"'
+    assert 'hx-target="#ticket-list"' in lines, \
+        'hx-target debe apuntar a #ticket-list'
+    assert 'hx-swap="innerHTML"' in lines, \
+        'hx-swap debe ser "innerHTML" para preservar el div con sus atributos HTMX'
+
+    # la razón debe mencionar algo sobre atributos o el div contenedor
+    assert "razon:" in lines, "Imprime la razón"
+    razon_line = [l for l in lines.splitlines() if l.startswith("razon:")][0]
+    razon_text = razon_line.replace("razon:", "").strip().lower()
+    assert len(razon_text) > 15, \
+        "Explica en al menos una frase corta por qué innerHTML (no outerHTML)"
+    assert razon_text != "???", "Reemplaza '???' con tu explicación"
+
+    print("✓ polling con innerHTML correcto y razón explicada")
+  solution: |
+    from jinja2 import Environment
+
+    env = Environment()
+
+    CONTAINER_TEMPLATE = """
+    <div
+      id="ticket-list"
+      hx-get="/api/tickets/open"
+      hx-trigger="every 30s"
+      hx-target="#ticket-list"
+      hx-swap="innerHTML"
+    >
+      <!-- tickets cargados inicialmente por Jinja2 -->
+      <p>Cargando...</p>
+    </div>
+    """
+
+    def render_ticket_list_container() -> str:
+        return env.from_string(CONTAINER_TEMPLATE).render()
+
+    html = render_ticket_list_container()
+    print(html)
+
+    # Si usáramos outerHTML, HTMX reemplazaría el div entero con la respuesta
+    # del servidor. El nuevo div no tendría los atributos hx-get/hx-trigger,
+    # así que el polling se detendría en el primer ciclo.
+    razon = "Con outerHTML el div se reemplaza y pierde sus atributos HTMX; el polling se detiene."
+    print("razon:", razon)

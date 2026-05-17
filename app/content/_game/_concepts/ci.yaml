@@ -1,0 +1,11 @@
+slug: ci
+title: "¿Qué es CI (Integración Continua)?"
+analogy_md: |
+  Es un proceso automático que cada vez que subes código ejecuta todos los tests, revisa
+  formato y reporta si algo se rompió, antes de que llegue a producción.
+example_md: |
+  ```yaml
+  # .github/workflows/ci.yml
+  - run: pytest
+  - run: ruff check .
+  ```

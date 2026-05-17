@@ -1,0 +1,55 @@
+slug: orm-model
+title: "Conecta la API a la DB sin SQL crudo"
+kind: code
+phase: PH02
+ord: 23
+trains_skill: sqlalchemy-orm
+xp: 20
+est_seconds: 180
+scenario_md: |
+  Escribir SQL a mano en cada endpoint es frágil. SQLAlchemy mapea tablas a
+  clases Python. Define el modelo `Invoice` y consulta las facturas de ACME
+  usando la sesión del ORM en vez de SQL crudo.
+payload:
+  starter: |
+    from sqlalchemy import create_engine, Column, Integer, String, Float, select
+    from sqlalchemy.orm import DeclarativeBase, Session
+
+    class Base(DeclarativeBase):
+        pass
+
+    # Define el modelo Invoice con columnas:
+    # id (Integer, PK), vendor (String, not null),
+    # amount (Float, not null), period (String, not null)
+    class Invoice(Base):
+        __tablename__ = "invoice"
+        # ... tu código aquí
+
+    engine = create_engine("sqlite:///:memory:", echo=False)
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        session.add_all([
+            Invoice(vendor="ACME Proveedor A", amount=4820.50, period="2024-03"),
+            Invoice(vendor="ACME Proveedor B", amount=12300.00, period="2024-03"),
+            Invoice(vendor="Globex Transport", amount=8100.00, period="2024-03"),
+        ])
+        session.commit()
+
+        # Usa `select(Invoice)` para obtener todas las facturas
+        # Guarda la lista de objetos en `invoices`
+        invoices = []
+  tests: |
+    assert len(invoices) == 3, f"Esperaba 3 facturas, obtuve {len(invoices)}"
+    assert all(isinstance(inv, Invoice) for inv in invoices), "Los items no son instancias de Invoice"
+    vendors = {inv.vendor for inv in invoices}
+    assert "ACME Proveedor A" in vendors
+    total = sum(inv.amount for inv in invoices)
+    assert abs(total - 25220.50) < 0.01, f"Total incorrecto: {total}"
+hint_md: |
+  En el modelo: `id = Column(Integer, primary_key=True)`, etc.
+  Para la query: `result = session.execute(select(Invoice)); invoices = result.scalars().all()`.
+solution_md: |
+  El ORM te protege del SQL injection y te da objetos Python con atributos.
+  El problema N+1 ocurre cuando en un loop haces `invoice.vendor_obj.name`:
+  cada iteración lanza una query. SQLAlchemy lo muestra con `echo=True`.

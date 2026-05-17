@@ -1,0 +1,172 @@
+# B06 — Ejercicios: SSE y arquitectura del chat tutor
+
+- slug: sse_format
+  title: "Formatea un evento SSE"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `make_sse_event(event_name, payload)` que devuelve bytes con el
+    formato SSE correcto:
+
+    ```
+    event: {event_name}\n
+    data: {json de payload}\n
+    \n
+    ```
+
+    El JSON debe manejar caracteres no-ASCII (español). Prueba con:
+    - `event_name = "delta"`, `payload = {"text": "Hola, tutorés"}`
+  hint: |
+    Usa `json.dumps(..., ensure_ascii=False)` y asegúrate de que el string
+    termina con dos saltos de línea antes de codificarlo a bytes.
+  starter: |
+    import json
+
+    def make_sse_event(event_name: str, payload: dict) -> bytes:
+        pass  # completa
+
+    result = make_sse_event("delta", {"text": "Hola, tutorés"})
+  test: |
+    assert isinstance(result, bytes), "debe devolver bytes"
+    text = result.decode("utf-8")
+    assert text.startswith("event: delta\n"), f"debe empezar con 'event: delta\\n', obtuve: {text[:30]!r}"
+    assert "data: " in text, "falta la línea 'data:'"
+    assert text.endswith("\n\n"), "debe terminar con doble salto de línea"
+    assert "tutorés" in text, "los caracteres no-ASCII deben estar sin escapar"
+    import json
+    data_line = [l for l in text.split("\n") if l.startswith("data: ")][0]
+    parsed = json.loads(data_line[6:])
+    assert parsed["text"] == "Hola, tutorés", f"payload incorrecto: {parsed}"
+    print("ok")
+  solution: |
+    import json
+
+    def make_sse_event(event_name: str, payload: dict) -> bytes:
+        data = json.dumps(payload, ensure_ascii=False)
+        return f"event: {event_name}\ndata: {data}\n\n".encode()
+
+    result = make_sse_event("delta", {"text": "Hola, tutorés"})
+
+- slug: cache_blocks
+  title: "Clasifica bloques de prompt: cacheable vs dinámico"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El context builder separa el prompt en bloques estáticos (cacheables) y
+    dinámicos (no cacheables). Dado el siguiente contenido, asigna a cada
+    variable si el bloque es `"cacheable"` o `"dynamic"`.
+
+    Bloques:
+    1. Las reglas del tutor (texto fijo, no cambia entre requests).
+    2. El body del módulo B06 (cargado de la DB, cambia solo cuando el contenido cambia).
+    3. Los últimos 5 intentos del ejercicio del lector.
+    4. El código que el lector tiene en el editor ahora mismo.
+    5. El historial de la conversación (últimos 10 mensajes).
+  hint: |
+    «Cacheable» significa que el mismo texto se envía en múltiples requests.
+    Si el bloque cambia con cada pregunta del usuario, es dinámico.
+  starter: |
+    block_1_tutor_rules = ""        # cacheable o dynamic
+    block_2_module_body = ""        # cacheable o dynamic
+    block_3_recent_attempts = ""    # cacheable o dynamic
+    block_4_editor_code = ""        # cacheable o dynamic
+    block_5_chat_history = ""       # cacheable o dynamic
+  test: |
+    assert block_1_tutor_rules == "cacheable", \
+        "Las reglas del tutor no cambian entre requests del mismo módulo."
+    assert block_2_module_body == "cacheable", \
+        "El body del módulo es estable mientras no cambie el contenido."
+    assert block_3_recent_attempts == "dynamic", \
+        "Los intentos cambian con cada ejercicio que el lector ejecuta."
+    assert block_4_editor_code == "dynamic", \
+        "El código del editor cambia en cada keystroke."
+    assert block_5_chat_history == "dynamic", \
+        "El historial crece con cada turno de la conversación."
+    print("ok")
+  solution: |
+    block_1_tutor_rules = "cacheable"
+    block_2_module_body = "cacheable"
+    block_3_recent_attempts = "dynamic"
+    block_4_editor_code = "dynamic"
+    block_5_chat_history = "dynamic"
+
+- slug: cost_calculation
+  title: "Calcula el costo de un turno del tutor"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado el siguiente objeto `usage` del SDK de Anthropic para un turno del tutor,
+    calcula el costo en USD usando la función `estimate_cost(usage)`.
+
+    Precios por millón de tokens para `claude-sonnet-4-6`:
+    - input: $3.00
+    - output: $15.00
+    - cache_read: $0.30
+    - cache_write: $3.75
+
+    ```python
+    usage = {
+        "input_tokens": 120,
+        "output_tokens": 80,
+        "cache_read_input_tokens": 4200,
+        "cache_creation_input_tokens": 0,
+    }
+    ```
+  hint: |
+    El costo total es la suma de cada tipo × su precio, dividido entre 1_000_000.
+    El `cache_read` es 10× más barato que el `input` normal.
+  starter: |
+    PRICE_PER_M = {
+        "input": 3.00,
+        "output": 15.00,
+        "cache_read": 0.30,
+        "cache_write": 3.75,
+    }
+
+    usage = {
+        "input_tokens": 120,
+        "output_tokens": 80,
+        "cache_read_input_tokens": 4200,
+        "cache_creation_input_tokens": 0,
+    }
+
+    def estimate_cost(usage: dict) -> float:
+        pass  # completa
+
+    cost = estimate_cost(usage)
+  test: |
+    expected = (
+        120 * 3.00
+        + 80 * 15.00
+        + 4200 * 0.30
+        + 0 * 3.75
+    ) / 1_000_000
+    assert abs(cost - expected) < 1e-9, \
+        f"Costo incorrecto. Esperaba {expected:.9f}, obtuve {cost:.9f}"
+    assert cost < 0.01, "El costo de un turno con cache hit debe ser bajo (< $0.01)"
+    print("ok")
+  solution: |
+    PRICE_PER_M = {
+        "input": 3.00,
+        "output": 15.00,
+        "cache_read": 0.30,
+        "cache_write": 3.75,
+    }
+
+    usage = {
+        "input_tokens": 120,
+        "output_tokens": 80,
+        "cache_read_input_tokens": 4200,
+        "cache_creation_input_tokens": 0,
+    }
+
+    def estimate_cost(usage: dict) -> float:
+        cost = (
+            usage.get("input_tokens", 0) * PRICE_PER_M["input"]
+            + usage.get("output_tokens", 0) * PRICE_PER_M["output"]
+            + usage.get("cache_read_input_tokens", 0) * PRICE_PER_M["cache_read"]
+            + usage.get("cache_creation_input_tokens", 0) * PRICE_PER_M["cache_write"]
+        )
+        return cost / 1_000_000
+
+    cost = estimate_cost(usage)

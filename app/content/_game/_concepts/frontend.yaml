@@ -1,0 +1,11 @@
+slug: frontend
+title: "¿Qué es el frontend?"
+analogy_md: |
+  Es la parte visible de la aplicación, lo que el usuario de ACME ve y toca en el navegador.
+  El backend procesa y guarda; el frontend muestra y recibe clics.
+example_md: |
+  ```html
+  <button hx-post="/api/facturas" hx-target="#lista">
+    Nueva factura
+  </button>
+  ```

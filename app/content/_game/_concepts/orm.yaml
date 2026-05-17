@@ -1,0 +1,11 @@
+slug: orm
+title: "¿Qué es un ORM?"
+analogy_md: |
+  Un ORM traduce objetos Python a filas en la base de datos sin que escribas SQL a mano,
+  como si Excel guardara automáticamente cada fila que creas en tu código.
+example_md: |
+  ```python
+  factura = Factura(id="F-001", monto=4200.0)
+  session.add(factura)
+  await session.commit()
+  ```

@@ -1,0 +1,96 @@
+- slug: staging-vs-committed
+  question: |
+    Ejecutas `git add invoice.py` y luego modificas `invoice.py` otra vez
+    **sin** hacer otro `git add`. ¿Qué incluye el próximo `git commit`?
+  explanation: |
+    `git add` captura el estado del archivo en ese momento exacto. Los cambios
+    posteriores al `add` quedan en el working directory — no pasan al staging.
+    El commit incluye solo lo que estaba en staging cuando se ejecutó `git commit`.
+  options:
+    - text: "La versión del archivo en el momento del `git add`"
+      correct: true
+      feedback: "Correcto. Staging captura una foto del archivo en el momento del `add`."
+    - text: "La versión más reciente del archivo, incluyendo los últimos cambios"
+      correct: false
+      feedback: "No. `git add` no es un 'link' al archivo — es una copia del estado en ese momento. Los cambios posteriores no se incluyen automáticamente."
+    - text: "Ambas versiones, Git las fusiona automáticamente"
+      correct: false
+      feedback: "Git no fusiona versiones del mismo archivo en un solo commit. Tendría que ser un commit separado para cada versión."
+    - text: "El commit falla porque el archivo tiene cambios sin añadir"
+      correct: false
+      feedback: "El commit no falla — simplemente incluye lo que está en staging y deja los cambios pendientes para el próximo commit."
+
+- slug: branch-mental-model
+  question: |
+    Tienes un repositorio con 10 commits en `main`. Ejecutas
+    `git switch -c experimento`. ¿Cuántos commits tiene la rama `experimento`
+    en este momento?
+  explanation: |
+    Crear una rama no duplica commits ni archivos. Una rama es solo un puntero
+    a un commit. Al crear `experimento` desde `main`, apunta al mismo commit
+    más reciente de `main` — así que tiene exactamente la misma historia: 10 commits.
+    Los nuevos commits que hagas en `experimento` no aparecerán en `main`
+    hasta que hagas merge.
+  options:
+    - text: "10 — la misma historia que `main` hasta el punto de creación"
+      correct: true
+      feedback: "Exacto. La rama nueva parte desde el estado actual de `main`."
+    - text: "0 — la rama empieza vacía"
+      correct: false
+      feedback: "No. Si empezara vacía, no tendrías el código de `main` para trabajar sobre él."
+    - text: "1 — el commit de creación de la rama"
+      correct: false
+      feedback: "Crear una rama no genera un commit. Es un puntero, no una operación de escritura."
+    - text: "Depende de cuántos archivos cambiaste antes de crear la rama"
+      correct: false
+      feedback: "Las ramas no dependen de cambios en archivos sin commitear. Dependen del historial de commits."
+
+- slug: conflict-resolution-order
+  question: |
+    Tienes un conflict después de `git merge`. ¿Cuál es el orden correcto
+    de pasos para resolverlo?
+  explanation: |
+    El flujo de resolución de conflictos en Git tiene un orden estricto:
+    primero editas el archivo manualmente (eliminas los marcadores y dejas
+    la versión correcta), luego haces `git add` para marcar el conflict como
+    resuelto, y finalmente `git commit` para cerrar el merge.
+    Si haces `git commit` sin el `git add`, Git aún ve el conflict sin resolver.
+  options:
+    - text: "Editar el archivo → `git add` → `git commit`"
+      correct: true
+      feedback: "Correcto. Editas, marcas como resuelto con add, y cierras el merge con commit."
+    - text: "Editar el archivo → `git commit` (sin add)"
+      correct: false
+      feedback: "Sin `git add`, Git no sabe que resolviste el conflict. El commit fallará."
+    - text: "`git reset --hard` para deshacer el merge y empezar de cero"
+      correct: false
+      feedback: "`git reset --hard` es válido si decides abandonar el merge completamente, pero no es 'resolución' — es rendición. Sí se usa cuando el conflict es demasiado complejo y necesitas más contexto antes de intentarlo."
+    - text: "Borrar el archivo y recrearlo desde cero"
+      correct: false
+      feedback: "Técnicamente funciona, pero es el enfoque más destructivo. Perderías cambios de ambas ramas. La resolución correcta preserva lo que es válido de cada una."
+
+- slug: gitignore-timing
+  question: |
+    Tienes `.env` commiteado desde hace 3 meses. Hoy añades `.env`
+    al `.gitignore`. ¿Qué pasa en los próximos commits?
+  explanation: |
+    `.gitignore` solo afecta archivos que Git aún no está rastreando.
+    Si `.env` ya tiene historial en el repo, Git lo sigue rastreando
+    aunque esté en `.gitignore`. Para que Git lo ignore, debes ejecutar
+    `git rm --cached .env` — esto quita el archivo del tracking sin
+    borrarlo de tu disco. Además, el archivo ya está en el historial:
+    cualquiera con acceso al repo puede ver el commit original.
+    El secreto debe considerarse comprometido y rotarse.
+  options:
+    - text: "Git sigue rastreando `.env` — añadirlo a `.gitignore` no deshace el tracking"
+      correct: true
+      feedback: "Exacto. `.gitignore` no afecta archivos ya rastreados. Usa `git rm --cached .env`."
+    - text: "`.env` se ignora automáticamente a partir del próximo commit"
+      correct: false
+      feedback: "No. `.gitignore` solo ignora archivos que Git **nunca ha rastreado**."
+    - text: "El próximo `git push` borra `.env` del historial remoto"
+      correct: false
+      feedback: "Un push nunca borra historial. El historial de Git es inmutable salvo operaciones explícitas de reescritura (`git filter-repo`)."
+    - text: "Git lanza un error al hacer `git add .`"
+      correct: false
+      feedback: "Git no lanza error. Simplemente sigue incluyendo `.env` en los cambios, como si el `.gitignore` no existiera para ese archivo."

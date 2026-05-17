@@ -1,0 +1,35 @@
+slug: first-api-endpoint
+title: "Expón el cálculo de IVA como API"
+kind: code
+trains_skill: fastapi
+concepts_introduced: [FastAPI, app.get, JSON, status-codes, uvicorn]
+concepts_reinforced: [funcion, Pydantic]
+scenario_md: |
+  El Director de TI de ACME quiere que el cálculo de IVA sea accesible desde
+  otras aplicaciones vía HTTP. Agrega el endpoint GET /iva que reciba la base
+  como query parameter y devuelva el IVA calculado en JSON.
+payload:
+  starter: |
+    from fastapi import FastAPI
+
+    app = FastAPI()
+
+    @app.get("/iva")
+    def calcular_iva(base: float):
+        # Devuelve un dict con la clave "iva"
+        ...
+  tests: |
+    from fastapi.testclient import TestClient
+    client = TestClient(app)
+    r = client.get("/iva?base=1000")
+    assert r.status_code == 200
+    assert r.json()["iva"] == 190.0
+    r2 = client.get("/iva?base=0")
+    assert r2.json()["iva"] == 0.0
+hint_md: "FastAPI convierte automáticamente el dict que retornas a JSON. El IVA es base × 0.19."
+solution_md: |
+  return {"iva": round(base * 0.19, 2)}
+  FastAPI serializa el dict a JSON. El query param base llega como float
+  gracias al type hint. status 200 es el default cuando no hay error.
+xp: 20
+est_seconds: 120

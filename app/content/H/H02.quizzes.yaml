@@ -1,0 +1,54 @@
+- slug: blameless-cause
+  question: |
+    El postmortem registra: «El ingeniero hizo el deploy en viernes a las 5pm, que es cuando ocurrió el outage.»
+    ¿Qué está mal con esta afirmación?
+  explanation: |
+    «El ingeniero hizo el deploy» es una observación de comportamiento humano, no una causa raíz sistémica.
+    Un postmortem blameless pregunta: «¿por qué el sistema permitió un deploy en viernes 5pm?»
+    La causa raíz debería apuntar a la ausencia de una freeze window automática o una política de CI/CD.
+  options:
+    - text: "Identifica un comportamiento humano como causa, no una falla del sistema."
+      correct: true
+      feedback: "Correcto. La causa raíz sistémica es 'ausencia de freeze window automática los viernes'. El ingeniero actuó con las herramientas que el sistema le daba."
+    - text: "No es un problema; registrar lo que hizo el ingeniero es parte del timeline."
+      correct: false
+      feedback: "El timeline sí registra acciones humanas. Pero la sección de causa raíz debe apuntar a fallas del sistema. Mezclar los dos confunde el análisis."
+    - text: "Habría que agregar más contexto: si el ingeniero sabía que era viernes."
+      correct: false
+      feedback: "Agregar contexto subjetivo ('sabía que era viernes') refuerza la narrativa de culpa. El análisis correcto pregunta por qué el sistema lo permitía."
+
+- slug: action-item-quality-quiz
+  question: |
+    ¿Cuál de estos action items tiene mayor calidad para un postmortem?
+  explanation: |
+    Un action item ejecutable tiene dueño nominado, fecha, métrica verificable y descripción específica.
+    «Revisar la arquitectura» es aspiracional. «Actualizar runbook» sin fecha no es compromiso.
+  options:
+    - text: "«Revisar la arquitectura de sesiones para mejorar el uso de memoria — equipo, en algún momento.»"
+      correct: false
+      feedback: "Aspiracional, sin dueño nominado, sin fecha, sin métrica. No es un action item: es una nota de diseño."
+    - text: "«Añadir límite de 50 turnos en get_session_history() — Ana, para el 2026-05-23, verificable con test existente.»"
+      correct: true
+      feedback: "Correcto. Dueño nominado, fecha concreta, métrica verificable (test), descripción específica (archivo + función). Cumple los 4 criterios."
+    - text: "«Actualizar el runbook RB-001 con la hipótesis de OOM — pendiente.»"
+      correct: false
+      feedback: "Descripción específica, pero sin dueño y sin fecha. 'Pendiente' no es un compromiso. Falta asignar a alguien con una fecha límite."
+
+- slug: postmortem-scope
+  question: |
+    El agente de auditoría de ACME produjo un reporte mensual con tres hallazgos incorrectos.
+    No hubo downtime. El cliente lo detectó y lo reportó. ¿Debería haber postmortem?
+  explanation: |
+    Un postmortem no es solo para outages. Un error de calidad del agente que llega al cliente
+    es un incidente SEV2/3 de calidad. Si no se documenta, el sistema no aprende y el error se repite.
+    La ausencia de downtime no elimina la necesidad de análisis causal.
+  options:
+    - text: "No, porque no hubo outage ni indisponibilidad del servicio."
+      correct: false
+      feedback: "La definición de incidente incluye errores de calidad que afectan al cliente. Un reporte incorrecto que llega al CFO de ACME es un incidente SEV2/3."
+    - text: "Sí, como mínimo SEV3; y si el cliente está molesto o hay riesgo de churn, SEV2."
+      correct: true
+      feedback: "Correcto. El impacto en el cliente es el criterio, no el tipo técnico del fallo. Reportes incorrectos = impacto = postmortem."
+    - text: "Solo si el cliente lo exige explícitamente."
+      correct: false
+      feedback: "Esperar a que el cliente exija el postmortem es reactive management. El postmortem sirve para que el sistema aprenda antes de que el cliente se vaya."

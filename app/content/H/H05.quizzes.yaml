@@ -1,0 +1,55 @@
+- slug: scale-trigger
+  question: |
+    Tienes 8 tenants activos. El CX22 está al 55% de CPU. La latencia p95 es 900ms.
+    El revenue mensual es $1.800. ¿Deberías migrar a Etapa 2?
+  explanation: |
+    Los criterios de migración a Etapa 2 son: CPU > 70%, latencia p95 > 3.000ms, o revenue > $1.500
+    con tenants activos ≥ 5. En este caso, revenue y tenants ya califican para Etapa 2,
+    pero CPU y latencia no indican saturación. La señal de revenue es suficiente para planificar
+    la migración, no para ejecutarla urgentemente.
+  options:
+    - text: "Sí, inmediatamente; el revenue ya supera el umbral de Etapa 2."
+      correct: false
+      feedback: "El revenue supera el umbral, pero CPU al 55% y latencia 900ms no indican saturación. Planifica la migración, no la hagas urgentemente."
+    - text: "No todavía; CPU y latencia están bien. Planifica la migración para el próximo mes."
+      correct: true
+      feedback: "Correcto. El revenue y los tenants sugieren que estás listo para Etapa 2, pero los indicadores técnicos no muestran presión. Planifica con calma."
+    - text: "No; con 8 tenants y revenue de $1.800 el CX22 es exagerado, deberías bajar al CX11."
+      correct: false
+      feedback: "El CX11 (€3.29/mes) no existe en el catálogo 2026; Hetzner eliminó esa línea. Además, bajar de spec con 8 tenants activos es incorrecto: el headroom es lo que permite crecer sin emergencia."
+
+- slug: vertical-vs-horizontal
+  question: |
+    Tienes el CX22 al 75% de CPU sostenido. ¿Cuál es el primer paso correcto?
+  explanation: |
+    La regla es vertical antes que horizontal. Subir de CX22 a CX32 (€2.31/mes más) resuelve
+    el 80% de los problemas de capacidad sin añadir complejidad de sesiones distribuidas,
+    coherencia de cache ni balanceo de carga.
+  options:
+    - text: "Añadir un segundo nodo CX22 con load balancer."
+      correct: false
+      feedback: "Escalar horizontalmente añade complejidad de sesiones distribuidas y coherencia de cache. El paso correcto primero es vertical: subir a CX32."
+    - text: "Subir a CX32 (vertical) antes de considerar escalar horizontalmente."
+      correct: true
+      feedback: "Correcto. CX32 tiene el doble de vCPU y RAM por €2.31/mes adicionales. Resuelve el problema de CPU sin añadir complejidad operativa."
+    - text: "Migrar a Kubernetes inmediatamente para poder escalar dinámicamente."
+      correct: false
+      feedback: "Kubernetes tiene sentido en Etapa 4 con 80+ tenants y un SRE dedicado. Para un problema de CPU en Etapa 1, es sobre-engineering."
+
+- slug: keda-timing
+  question: |
+    ¿Cuándo tiene sentido implementar KEDA para auto-scaling de workers de auditoría?
+  explanation: |
+    KEDA requiere Kubernetes (k3s). Kubernetes es Etapa 4. Antes de eso, un cron job en Temporal
+    o un scheduler manual cumple el mismo efecto sin la complejidad operativa. KEDA solo agrega
+    valor cuando hay patrones de tráfico documentados que justifican el scale-to-zero.
+  options:
+    - text: "Desde el inicio, para tener el sistema preparado para cualquier crecimiento."
+      correct: false
+      feedback: "Configurar KEDA antes de tener Kubernetes y datos históricos de tráfico es infraestructura sin retorno. El cron de Temporal cumple el mismo efecto en Etapas 1-3."
+    - text: "Cuando estás en Etapa 4 con k3s, tengas 3+ meses de datos de tráfico y el scale-to-zero reduzca costos medibles."
+      correct: true
+      feedback: "Correcto. KEDA es una herramienta de Etapa 4 que requiere k8s, patrones de tráfico conocidos y capacidad de operar el autoscaler. No antes."
+    - text: "En Etapa 3, cuando tienes 2 nodos CX32 y un load balancer."
+      correct: false
+      feedback: "En Etapa 3 usas Docker Compose con 2 nodos. KEDA requiere Kubernetes. La complejidad no se justifica hasta Etapa 4 con equipo técnico dedicado."

@@ -1,0 +1,11 @@
+slug: pydantic
+title: "¿Qué es Pydantic?"
+analogy_md: |
+  Es como la validación de datos de Excel ("solo números positivos en esta celda") pero para Python:
+  defines una clase con tipos, y Pydantic rechaza automáticamente los datos que no cumplan las reglas.
+example_md: |
+  ```python
+  from pydantic import BaseModel, Field
+  class Factura(BaseModel):
+      monto: float = Field(gt=0)
+  ```

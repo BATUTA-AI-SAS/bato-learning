@@ -1,0 +1,11 @@
+slug: escalar
+title: "¿Qué significa escalar una aplicación?"
+analogy_md: |
+  Cuando ACME pasa de 3 clientes a 300, la aplicación necesita manejar más carga. Escalar
+  horizontalmente es agregar más instancias del servicio; escalar verticalmente es darle más
+  CPU y RAM a la misma instancia.
+example_md: |
+  ```
+  docker service scale api=5
+  # corre 5 copias del servicio api en paralelo
+  ```

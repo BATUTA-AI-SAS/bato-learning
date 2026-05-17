@@ -1,0 +1,30 @@
+slug: htmx-dashboard
+title: "Actualiza el dashboard sin recargar la página"
+kind: fill_blank
+trains_skill: htmx
+concepts_introduced: [HTMX, hx-get, hx-swap, progressive-enhancement]
+concepts_reinforced: [HTML, API]
+scenario_md: |
+  El Director de TI de ACME quiere un botón que actualice la tabla de
+  facturas sin recargar toda la página. Con HTMX solo necesitas dos
+  atributos HTML. Completa el botón y el div receptor correctamente.
+payload:
+  code_template: |
+    <button ___="/api/facturas" ___="innerHTML:#tabla">
+      Actualizar facturas
+    </button>
+    <div id="tabla">
+      <!-- aquí llega el HTML de la respuesta -->
+    </div>
+  blanks:
+    - label: "atributo HTMX que define la URL a llamar con GET"
+      correct: ["hx-get"]
+    - label: "atributo HTMX que define dónde y cómo insertar la respuesta"
+      correct: ["hx-target", "hx-swap"]
+hint_md: "hx-get llama al endpoint. hx-target o hx-swap definen dónde va la respuesta."
+solution_md: |
+  hx-get="/api/facturas" hace la petición GET al endpoint.
+  hx-swap="innerHTML:#tabla" reemplaza el contenido interno del div#tabla
+  con el HTML que devuelve el servidor. Sin JS adicional.
+xp: 15
+est_seconds: 90

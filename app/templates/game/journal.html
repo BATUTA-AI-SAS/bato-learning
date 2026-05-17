@@ -1,0 +1,53 @@
+{% extends "_layout.html" %}
+{% block title %}bato-learning · diario{% endblock %}
+
+{% block main %}
+<header class="hero">
+  <h1>Diario</h1>
+  <p class="lede">Lore desbloqueado, recetas y decisiones tomadas.</p>
+</header>
+
+<section class="journal-section">
+  <h2>Lore desbloqueado</h2>
+  {% if lore_unlocks %}
+  <ul class="lore-list">
+    {% for unlock in lore_unlocks %}
+    <li>
+      <strong>{{ unlock.lore_drop.title }}</strong>
+      <span class="muted">— {{ unlock.unlocked_at.strftime('%Y-%m-%d') }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Nada desbloqueado aún. Pasa niveles para obtener lore.</p>
+  {% endif %}
+</section>
+
+<section class="journal-section">
+  <h2>Recetas</h2>
+  {% if recipes %}
+  <ul class="recipe-list">
+    {% for recipe in recipes %}
+    <li><strong>{{ recipe.title }}</strong></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Sin recetas todavía.</p>
+  {% endif %}
+</section>
+
+<section class="journal-section">
+  <h2>Decisiones</h2>
+  {% if decisions %}
+  <ul class="decision-list">
+    {% for choice in decisions %}
+    <li>
+      Decisión #{{ choice.decision_id }} &rarr; opción {{ choice.option_index }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No has tomado decisiones aún.</p>
+  {% endif %}
+</section>
+{% endblock %}

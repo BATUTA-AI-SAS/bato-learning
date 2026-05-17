@@ -1,0 +1,59 @@
+- slug: economic-buyer-vs-champion
+  question: |
+    Héctor (contador general) lleva 3 reuniones contigo, entiende el producto y
+    está convencido. Dice «tengo que consultarlo con el dueño». ¿Cómo describes
+    a Héctor en el marco de discovery?
+  explanation: |
+    Héctor es un champion: aliado interno valioso que defiende la propuesta
+    adentro, pero no tiene autoridad para firmar. El dueño es el comprador
+    económico. El discovery no está completo hasta hablar con el dueño.
+  options:
+    - text: "Comprador económico — él decide si contratan el servicio."
+      correct: false
+      feedback: "Si tuviera autoridad de decisión, no necesitaría consultar. «Tengo que consultarlo» es la señal definitiva de que no es el comprador económico."
+    - text: "Champion — aliado útil pero sin poder de firma."
+      correct: true
+      feedback: "Correcto. Héctor es un champion valioso: te da acceso al proceso, defiende la propuesta internamente, y es tu contacto técnico. Pero el dueño firma el contrato."
+    - text: "Influenciador — no tiene relevancia en el proceso de venta."
+      correct: false
+      feedback: "Los champions son muy relevantes — te abren el acceso al comprador económico y construyen credibilidad interna. No son simples influenciadores."
+
+- slug: bant-validation
+  question: |
+    En tu primer discovery, el contacto dice: «tenemos presupuesto para
+    herramientas de productividad». ¿El campo Budget de BANT está validado?
+  explanation: |
+    «Tenemos presupuesto» es vago. Budget validado significa un rango
+    numérico confirmado (e.g., «podemos llegar a 500 USD/mes») o una señal
+    muy concreta (e.g., «aprobamos herramientas de hasta 2 000 USD/mes sin
+    junta»). Una frase genérica no es validación.
+  options:
+    - text: "Sí, dijeron que tienen presupuesto."
+      correct: false
+      feedback: "'Tenemos presupuesto' no dice cuánto. Podrían estar pensando en 50 USD/mes o en 5 000 USD/mes. Budget validado requiere un rango numérico o una referencia concreta."
+    - text: "No — necesitas un rango numérico o una señal concreta de monto."
+      correct: true
+      feedback: "Correcto. Budget validado en BANT requiere algo cuantificable: un rango, una referencia a otras herramientas que ya pagan, o una autorización específica conocida."
+    - text: "Parcialmente — es suficiente para avanzar a propuesta."
+      correct: false
+      feedback: "No es suficiente. Avanzar a propuesta sin validar el presupuesto es arriesgarse a mandar una propuesta de 800 USD/mes a alguien que tenía en mente 100 USD/mes."
+
+- slug: discovery-timing
+  question: |
+    El cliente pide ver una demo a los 15 minutos del discovery. ¿Cuál es
+    la respuesta correcta?
+  explanation: |
+    La demo prematura es el error más común en ventas técnicas. Si shows el
+    producto antes de entender el caso, la demo es genérica y no conecta
+    con el dolor específico. La respuesta es posponer cortés pero firmemente
+    hasta completar el mapeo del proceso.
+  options:
+    - text: "Mostrar la demo inmediatamente — si la piden, es señal de interés alto."
+      correct: false
+      feedback: "Interés alto no significa que sea el momento correcto. Una demo genérica a los 15 minutos, antes de entender el caso, tiene una tasa de conversión muy baja."
+    - text: "Posponer: terminar el discovery primero para que la demo sea relevante al caso."
+      correct: true
+      feedback: "Correcto. La respuesta: 'Con gusto te muestro — dame 20 minutos más para entender bien tu proceso y te mostraré exactamente lo que resuelve tu problema de [X].'"
+    - text: "Posponer indefinidamente — la demo nunca se hace en el discovery."
+      correct: false
+      feedback: "La demo sí se puede hacer en la misma reunión, pero después de completar el discovery. 'Indefinidamente' es incorrecto."

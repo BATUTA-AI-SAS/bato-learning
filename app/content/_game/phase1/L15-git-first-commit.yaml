@@ -1,0 +1,26 @@
+slug: git-first-commit
+title: "Sube el script al repositorio del equipo"
+kind: order_steps
+trains_skill: git
+concepts_introduced: [git, init, add, commit, push, PR]
+concepts_reinforced: [terminal, archivo]
+scenario_md: |
+  María de ACME te pide que guardes el script de auditoría en el repositorio
+  compartido del equipo para que todos puedan usarlo. Es la primera vez que
+  subes código al proyecto. ¿Cuál es el orden correcto de los seis pasos?
+payload:
+  steps:
+    - "git init (solo si el proyecto no tiene repositorio aún)"
+    - "git add audit.py para preparar el archivo"
+    - "git commit -m 'feat: add audit script' para guardar el cambio"
+    - "git push origin main para subir al repositorio remoto"
+    - "Abrir un Pull Request para que el equipo revise"
+    - "Fusionar el PR después de la aprobación"
+  correct_order: [0, 1, 2, 3, 4, 5]
+hint_md: "No puedes hacer commit de lo que no está en staging (add), ni push antes de commit."
+solution_md: |
+  init → add → commit → push → PR → merge.
+  add lleva el archivo al staging area. commit lo guarda localmente.
+  push lo sube. El PR es la puerta de revisión antes de llegar a main.
+xp: 10
+est_seconds: 90

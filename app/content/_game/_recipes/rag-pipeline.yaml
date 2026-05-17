@@ -1,0 +1,22 @@
+slug: rag-pipeline
+title: "Receta: Pipeline RAG básico"
+chapter_ref: phase3
+ingredients: [rag, llm, base-de-datos, funcion]
+body_md: |
+  Tres pasos: indexar documentos en una base de vectores, recuperar los más relevantes para
+  la pregunta y pasarlos al LLM como contexto. El modelo responde con base en esos documentos,
+  no en su entrenamiento.
+yields_md: |
+  ```python
+  # 1. Recuperar
+  docs = vector_db.search(query=pregunta, top_k=3)
+
+  # 2. Construir contexto
+  contexto = "\n".join(d.text for d in docs)
+
+  # 3. Generar
+  resp = client.messages.create(
+      model=MODEL,
+      messages=[{"role": "user", "content": f"{contexto}\n\n{pregunta}"}]
+  )
+  ```

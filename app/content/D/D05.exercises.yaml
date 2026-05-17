@@ -1,0 +1,197 @@
+- slug: detect-pipeline-bug
+  title: "Detecta el bug en este workflow"
+  runner: backend
+  kind: design
+  prompt: |
+    Lee el siguiente workflow de GitHub Actions e identifica **todos los problemas** que pueden
+    causar que el deploy llegue a producción con código roto o que filtre un secreto.
+    Escribe tus hallazgos como una lista numerada con: problema, por qué es un riesgo,
+    y cómo corregirlo.
+
+    ```yaml
+    name: Deploy
+
+    on:
+      push:
+        branches: [main]
+
+    jobs:
+      deploy:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@latest
+
+          - name: Build image
+            run: docker build -t myapp:latest .
+
+          - name: Push image
+            run: |
+              echo ${{ secrets.REGISTRY_PASSWORD }} | docker login -u admin --password-stdin registry.example.com
+              docker push registry.example.com/myapp:latest
+
+          - name: Deploy
+            run: |
+              ssh -o StrictHostKeyChecking=no deploy@${{ secrets.HOST }} \
+                "docker pull registry.example.com/myapp:latest && docker compose up -d"
+    ```
+
+    Hay al menos **4 problemas** en este YAML. Encuéntralos todos.
+  hint: |
+    Pistas:
+    - ¿Qué pasa si los tests fallan pero el push a main se hace igual?
+    - ¿`@latest` en una action es reproducible?
+    - ¿La imagen con tag `latest` es auditable en producción?
+    - ¿El `echo ${{ secrets.X }}` puede filtrar el secreto en los logs?
+  solution: |
+    1. **No hay job de tests antes del deploy.**
+       Riesgo: código roto llega a producción porque no hay gate de calidad.
+       Corrección: añadir un job `test` con `ruff check` y `pytest`, y que `deploy` tenga `needs: test`.
+
+    2. **`actions/checkout@latest` sin versión pinada.**
+       Riesgo: si la action publica una versión incompatible, el pipeline se rompe sin cambio de código.
+       Corrección: usar `actions/checkout@v4` (o el SHA del commit de la action para máxima seguridad).
+
+    3. **`echo ${{ secrets.REGISTRY_PASSWORD }}` puede filtrar el secreto.**
+       Riesgo: GitHub intenta enmascarar el valor pero si el shell expande la variable antes, puede aparecer en logs de subcomandos.
+       Corrección: usar `docker/login-action@v3` que maneja la autenticación de forma segura, o pasar el secreto como variable de entorno del step: `env: REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}` y usar `echo "$REGISTRY_PASSWORD"`.
+
+    4. **Tag `latest` en la imagen.**
+       Riesgo: si el deploy falla a mitad, `latest` apunta a una imagen parcialmente desplegada. No hay forma de saber qué versión exacta está en producción.
+       Corrección: usar `${{ github.sha }}` como tag. La imagen es trazable al commit exacto.
+
+- slug: complete-ci-workflow
+  title: "Completa el workflow de CI para bato-learning"
+  runner: backend
+  kind: code
+  prompt: |
+    El siguiente workflow de CI tiene huecos marcados con `# COMPLETAR`. Rellena cada uno
+    con el valor correcto. El workflow debe:
+    1. Ejecutarse en push a `main` y en pull requests contra `main`.
+    2. Usar Python 3.12.
+    3. Instalar dependencias con `uv sync --dev`.
+    4. Correr lint con `uv run ruff check app/`.
+    5. Correr tests con `uv run pytest tests/ -v`.
+
+    ```yaml
+    name: CI
+
+    on:
+      push:
+        branches: [# COMPLETAR]
+      pull_request:
+        branches: [# COMPLETAR]
+
+    jobs:
+      test:
+        runs-on: ubuntu-24.04
+        steps:
+          - uses: # COMPLETAR (acción de checkout)
+
+          - uses: actions/setup-python@v5
+            with:
+              python-version: "# COMPLETAR"
+
+          - name: Install deps
+            run: pip install uv && uv sync # COMPLETAR (flag para incluir dev)
+
+          - name: Lint
+            run: # COMPLETAR
+
+          - name: Test
+            run: # COMPLETAR
+    ```
+
+    Entrega el YAML completo con todos los huecos rellenos y sin comentarios `# COMPLETAR`.
+  hint: |
+    - El evento de push a `main` se declara como `branches: [main]`.
+    - La action de checkout es `actions/checkout@v4`.
+    - El flag de uv para incluir dependencias de desarrollo es `--dev`.
+  solution: |
+    name: CI
+
+    on:
+      push:
+        branches: [main]
+      pull_request:
+        branches: [main]
+
+    jobs:
+      test:
+        runs-on: ubuntu-24.04
+        steps:
+          - uses: actions/checkout@v4
+
+          - uses: actions/setup-python@v5
+            with:
+              python-version: "3.12"
+
+          - name: Install deps
+            run: pip install uv && uv sync --dev
+
+          - name: Lint
+            run: uv run ruff check app/
+
+          - name: Test
+            run: uv run pytest tests/ -v
+
+- slug: design-migration-pipeline
+  title: "Diseña el pipeline de deploy con migraciones"
+  runner: backend
+  kind: design
+  prompt: |
+    ACME Manufacturing tiene una API FastAPI con Alembic para migraciones de base de datos.
+    Cada deploy puede incluir una migración nueva. Si la migración falla, la nueva versión
+    de la API no debe arrancar (el contenedor viejo debe seguir sirviendo tráfico).
+
+    Diseña el job `deploy` de un `deploy.yml` de GitHub Actions que:
+    1. Conecte al servidor por SSH.
+    2. Descargue la nueva imagen del registry (la imagen ya fue construida en un job anterior `build`).
+    3. Corra `alembic upgrade head` con la nueva imagen **antes** de levantar el servicio.
+    4. Solo si la migración fue exitosa, levante el nuevo contenedor.
+    5. Si la migración falla, no cambie nada en producción.
+
+    Escribe el YAML del job y explica en 3-4 líneas por qué el orden de los pasos es crítico.
+
+    Datos disponibles como secretos: `HETZNER_HOST`, `SSH_PRIVATE_KEY`.
+    El repo de GHCR es `ghcr.io/acme/monthly-audit-api`.
+    El SHA del commit está en `${{ github.sha }}`.
+  hint: |
+    - `appleboy/ssh-action@v1` puede ejecutar un script multilínea.
+    - En bash, si un comando falla con código de salida != 0, los comandos siguientes no corren (con `set -e` o usando `&&`).
+    - `docker compose run --rm app alembic upgrade head` corre la migración con la nueva imagen sin arrancar el servicio.
+  solution: |
+    jobs:
+      deploy:
+        needs: build
+        runs-on: ubuntu-24.04
+        steps:
+          - name: SSH deploy with migration
+            uses: appleboy/ssh-action@v1
+            with:
+              host: ${{ secrets.HETZNER_HOST }}
+              username: deploy
+              key: ${{ secrets.SSH_PRIVATE_KEY }}
+              script: |
+                set -e
+                cd /srv/monthly-audit-api
+                IMAGE="ghcr.io/acme/monthly-audit-api:${{ github.sha }}"
+
+                # 1. descargar la nueva imagen (sin levantar el servicio)
+                docker pull "$IMAGE"
+
+                # 2. correr migraciones con la nueva imagen
+                # si falla, set -e detiene el script aquí y el contenedor viejo sigue corriendo
+                IMAGE_TAG="$IMAGE" docker compose run --rm api uv run alembic upgrade head
+
+                # 3. solo si la migración pasó, levantar el nuevo contenedor
+                IMAGE_TAG="$IMAGE" docker compose up -d --no-build api
+
+                # 4. limpiar imágenes viejas
+                docker image prune -f
+
+    # Por qué importa el orden:
+    # Si levantamos el contenedor ANTES de la migración, la nueva versión del código
+    # puede intentar acceder a columnas que aún no existen → error 500 en producción.
+    # Corriendo la migración primero con `docker compose run --rm`, si falla, el
+    # contenedor viejo sigue sirviendo tráfico sin interrupción. El `set -e` garantiza
+    # que cualquier fallo detiene el script antes de llegar al `up -d`.

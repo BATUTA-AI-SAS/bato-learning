@@ -1,0 +1,96 @@
+# D01 — Docker: imágenes, contenedores, capas, multi-stage
+
+- slug: image-vs-container
+  question: |
+    Un colega dice: «tengo la imagen corriendo en el servidor». ¿Qué está mal en esa afirmación?
+  explanation: |
+    Las imágenes son artefactos inmutables almacenados en disco. Lo que «corre»
+    es un contenedor — un proceso iniciado a partir de la imagen. Puedes tener
+    diez contenedores corriendo desde la misma imagen simultáneamente.
+  options:
+    - text: "Nada — imagen y contenedor son sinónimos en Docker."
+      correct: false
+      feedback: "No son sinónimos. La imagen es el artefacto estático (la receta); el contenedor es el proceso en ejecución (el plato). Confundirlos lleva a errores en diagnóstico y en comandos."
+    - text: "Lo que corre es un contenedor, no la imagen. La imagen está en disco."
+      correct: true
+      feedback: "Exacto. `docker run imagen` crea y arranca un contenedor. La imagen no «corre» — se instancia."
+    - text: "Las imágenes solo existen en registries remotos; localmente siempre son contenedores."
+      correct: false
+      feedback: "Las imágenes pueden existir localmente (verlas con `docker images`). Un registry es solo un servidor que las almacena y distribuye."
+    - text: "En Docker moderno la distinción ya no aplica — los contenedores son imágenes mutables."
+      correct: false
+      feedback: "Las imágenes siguen siendo inmutables en todas las versiones de Docker. Lo que cambia en tiempo de ejecución es la capa de escritura del contenedor, que desaparece al detenerlo (salvo volúmenes)."
+
+- slug: cache-invalidation-rule
+  question: |
+    Tienes este Dockerfile:
+    ```
+    FROM python:3.12-slim
+    RUN pip install uv
+    COPY . .
+    RUN uv sync --no-dev
+    COPY app ./app
+    ```
+    Cambias un archivo en `app/services/audit.py`. ¿Cuáles capas se reconstruyen?
+  explanation: |
+    Docker evalúa el cache instrucción por instrucción, en orden. La primera
+    instrucción cuyo input cambia invalida esa capa y todas las siguientes.
+    `COPY . .` en la tercera posición copia `app/` — si cambió, esa capa se
+    invalida, y con ella el `RUN uv sync --no-dev` que le sigue.
+  options:
+    - text: "Solo el último `COPY app ./app` — es el que copia el archivo que cambió."
+      correct: false
+      feedback: "Incorrecto. `COPY . .` también copia `app/`, así que esa capa se invalida primero. Todo lo que sigue (incluido `uv sync`) se reconstruye también."
+    - text: "`COPY . .`, `RUN uv sync --no-dev`, y `COPY app ./app` — las tres capas posteriores al cambio."
+      correct: true
+      feedback: "Correcto. `COPY . .` incluye `app/`, por lo que se invalida al cambiar cualquier archivo en `app/`. Las capas 3, 4 y 5 se reconstruyen completas."
+    - text: "Ninguna — Docker detecta que solo cambió un archivo en `app/` y solo reconstruye esa capa."
+      correct: false
+      feedback: "Docker no analiza qué archivos dentro del contexto cambiaron individualmente por instrucción. Compara el hash del contenido completo de la instrucción. Si el contexto de `COPY . .` cambió, toda esa capa se invalida."
+    - text: "Solo `RUN uv sync --no-dev` — las dependencias deben reinstalarse."
+      correct: false
+      feedback: "La lógica de cache es secuencial. La invalidación de `COPY . .` arrastra a todas las capas siguientes, incluyendo `uv sync`. Y en este Dockerfile, `uv sync` está después del `COPY . .` problemático."
+
+- slug: expose-vs-ports
+  question: |
+    El `Dockerfile` de bato-learning tiene `EXPOSE 8080`. Corres el contenedor con
+    `docker run bato-learning:local`. ¿Puedes acceder a la app desde `http://localhost:8080`?
+  explanation: |
+    `EXPOSE` es declarativo — documenta el puerto que el proceso interno usa.
+    No abre nada en el host. Para acceder desde el host necesitas `-p 8080:8080`
+    en `docker run`, o el campo `ports` en `compose.yaml`.
+  options:
+    - text: "Sí — `EXPOSE` abre el puerto automáticamente en el host."
+      correct: false
+      feedback: "`EXPOSE` no abre puertos. Es documentación para quien lee el Dockerfile y para herramientas como Compose que usan el valor por defecto. Sin `-p`, el puerto solo es accesible dentro de la red Docker."
+    - text: "No — necesitas `-p 8080:8080` en `docker run` para mapear el puerto al host."
+      correct: true
+      feedback: "Exacto. `-p host_port:container_port` es el mecanismo real. `EXPOSE` solo anuncia qué puerto el contenedor usa internamente."
+    - text: "Solo si el contenedor corre en modo `--network=host`."
+      correct: false
+      feedback: "`--network=host` comparte la red del host directamente (sin aislamiento de red), pero eso es un caso distinto. El camino normal es `-p 8080:8080`."
+    - text: "Sí, pero solo desde otros contenedores en la misma red Docker, no desde el host."
+      correct: false
+      feedback: "Dentro de una red Docker los contenedores se hablan por nombre de servicio en el puerto declarado, sin `-p`. Pero desde el host, siempre necesitas el mapeo explícito con `-p`."
+
+- slug: multistage-benefit
+  question: |
+    ¿Cuándo un multi-stage build reduce significativamente el tamaño de la imagen final?
+  explanation: |
+    Multi-stage reduce la imagen final cuando el proceso de build requiere
+    herramientas (compiladores, SDK, linters, tests) que no son necesarias en runtime.
+    Si tu app Python solo usa `uv sync --no-dev` y ninguna extensión C que requiera
+    compilar, el beneficio de multi-stage es marginal para Python puro.
+  options:
+    - text: "Siempre — cualquier Dockerfile multi-stage produce una imagen más pequeña."
+      correct: false
+      feedback: "No siempre. Si el build no genera artefactos extra (compilaciones, assets), un multi-stage con Python puro puede incluso añadir complejidad sin beneficio apreciable de tamaño."
+    - text: "Cuando el proceso de build usa compiladores, SDKs o herramientas que no necesitas en runtime."
+      correct: true
+      feedback: "Exacto. El caso clásico: compilar extensiones C (numpy, cryptography) o assets frontend con Node. El stage final solo copia el resultado compilado, sin llevar el compilador."
+    - text: "Cuando la imagen base es `python:3.12-slim` en vez de `python:3.12-alpine`."
+      correct: false
+      feedback: "La elección de base image y el número de stages son decisiones independientes. Multi-stage no depende de qué base usas — depende de si el build genera artefactos que no necesitas en runtime."
+    - text: "Solo cuando hay más de 3 servicios en el compose."
+      correct: false
+      feedback: "El número de servicios en Compose es irrelevante para multi-stage. Multi-stage es una característica del Dockerfile de un servicio individual."

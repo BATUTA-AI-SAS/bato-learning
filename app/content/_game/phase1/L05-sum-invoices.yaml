@@ -1,0 +1,28 @@
+slug: sum-invoices
+title: "Suma las facturas del mes"
+kind: code
+trains_skill: lista
+concepts_introduced: [lista, for, acumulador]
+concepts_reinforced: [variable, aritmetica]
+scenario_md: |
+  María de ACME te pasa una lista con los montos de cinco facturas del mes de
+  marzo. Necesitas sumarlas todas y devolver el total. El CFO espera el
+  resultado antes de que llegue el auditor esta tarde.
+payload:
+  starter: |
+    def sumar_facturas(montos: list) -> float:
+        total = 0
+        # Recorre la lista y acumula
+        ...
+        return total
+  tests: |
+    assert sumar_facturas([100, 200, 300]) == 600
+    assert sumar_facturas([1_000_000, 487_500]) == 1_487_500
+    assert sumar_facturas([]) == 0
+hint_md: "Dentro del for, suma cada elemento al acumulador total."
+solution_md: |
+  for monto in montos:
+      total += monto
+  El patrón acumulador: inicializar en cero, sumar en cada vuelta del loop.
+xp: 20
+est_seconds: 90

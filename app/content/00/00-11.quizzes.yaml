@@ -1,0 +1,64 @@
+- slug: list-index-zero
+  question: |
+    Dada la lista `vendors = ["acme_global", "andina_co", "globex_log"]`,
+    ¿cuál es el valor de `vendors[1]`?
+  explanation: |
+    En Python los índices empiezan en 0. `vendors[0]` es `"acme_global"`,
+    `vendors[1]` es `"andina_co"`, `vendors[2]` es `"globex_log"`.
+  options:
+    - text: "`\"acme_global\"`"
+      correct: false
+      feedback: "Ese es el índice 0, el primero. Python empieza a contar en 0, no en 1."
+    - text: "`\"andina_co\"`"
+      correct: true
+      feedback: "Correcto. Índice 1 es el segundo elemento porque Python empieza en 0."
+    - text: "`\"globex_log\"`"
+      correct: false
+      feedback: "Ese es el índice 2, el tercero."
+    - text: "Error — los índices en Python empiezan en 1"
+      correct: false
+      feedback: "No. En Python, Excel y la mayoría de lenguajes modernos, los índices de lista empiezan en 0."
+
+- slug: dict-keyerror
+  question: |
+    ¿Qué ocurre al ejecutar `invoice["discount"]` si `invoice` no tiene
+    la clave `"discount"`?
+  explanation: |
+    Python lanza `KeyError` cuando intentas acceder a una clave que no existe.
+    Para evitarlo usa `.get("discount", 0.0)` que devuelve el valor por defecto,
+    o comprueba con `if "discount" in invoice:` antes de acceder.
+  options:
+    - text: "Devuelve `None` automáticamente"
+      correct: false
+      feedback: "No. `dict[clave]` lanza `KeyError` si la clave no existe. `None` solo lo devuelve `.get('clave')` sin default."
+    - text: "Lanza `KeyError: 'discount'`"
+      correct: true
+      feedback: "Correcto. El acceso directo `dict['clave']` falla si la clave no existe."
+    - text: "Devuelve `0`"
+      correct: false
+      feedback: "Python no supone ningún valor por defecto. Para tener un default usa `.get('discount', 0)`."
+    - text: "Lanza `IndexError`"
+      correct: false
+      feedback: "`IndexError` es para listas cuando el índice está fuera de rango. Para dicts el error es `KeyError`."
+
+- slug: append-vs-assign
+  question: |
+    Tienes `amounts = [4820.0, 1500.0]`. ¿Cuál de estas formas añade
+    `3100.0` al final de la lista correctamente?
+  explanation: |
+    `.append(valor)` añade un elemento al final de la lista existente.
+    `amounts = amounts + [3100.0]` también funciona pero crea una lista nueva.
+    `amounts[2] = 3100.0` lanzaría `IndexError` porque el índice 2 no existe todavía.
+  options:
+    - text: "`amounts.append(3100.0)`"
+      correct: true
+      feedback: "Correcto. `.append()` añade el elemento al final de la lista en su lugar."
+    - text: "`amounts[2] = 3100.0`"
+      correct: false
+      feedback: "Lanza `IndexError`: la posición 2 no existe aún. `.append()` es la forma correcta."
+    - text: "`amounts.add(3100.0)`"
+      correct: false
+      feedback: "Las listas no tienen método `.add()`. Ese método existe en `set`, no en `list`."
+    - text: "`amounts = amounts.push(3100.0)`"
+      correct: false
+      feedback: "`.push()` no existe en Python. Es un método de arrays en JavaScript."

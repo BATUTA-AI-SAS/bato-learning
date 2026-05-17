@@ -1,0 +1,10 @@
+slug: paquete
+title: "¿Qué es un paquete?"
+analogy_md: |
+  Un paquete es una colección de módulos, como una carpeta de plantillas de Excel con varios archivos
+  relacionados. pip install descarga e instala el paquete para que lo puedas importar.
+example_md: |
+  ```
+  pip install pandas
+  ```
+  Luego en Python: `import pandas as pd`.

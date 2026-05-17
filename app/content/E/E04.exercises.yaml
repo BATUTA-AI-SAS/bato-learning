@@ -1,0 +1,355 @@
+- slug: thread-id-isolation
+  title: "Aislamiento de sesiones por tenant"
+  runner: backend
+  kind: code
+  prompt: |
+    Construye un grafo ReAct mínimo (el mismo patrón de E02) y demuestra que
+    dos tenants con el mismo `conversation_id` no comparten estado cuando
+    el `thread_id` incluye el `tenant_id` como prefijo.
+
+    Pasos:
+    1. Compila el grafo con `SqliteSaver.from_conn_string(":memory:")`.
+    2. Crea dos configs con `thread_id` distintos:
+       - ACME: `"acme:audit:2026-04"`
+       - Globex: `"globex:audit:2026-04"`
+    3. Envía una pregunta a ACME: `"¿Cuántas facturas tiene ACME?"`.
+    4. Envía una pregunta a Globex: `"¿Cuántas facturas tiene Globex?"`.
+    5. Verifica que el estado de ACME tiene 2 mensajes (1 user + 1 assistant como mínimo)
+       y el de Globex también tiene 2 mensajes independientes.
+    6. Verifica que el último mensaje de ACME no menciona «Globex» y viceversa.
+
+    Guarda:
+    - `state_acme`: resultado del invoke de ACME.
+    - `state_globex`: resultado del invoke de Globex.
+  hint: |
+    Cada `invoke` lleva su propio `config = {"configurable": {"thread_id": ...}}`.
+    Para verificar el contenido del último mensaje, accede a `.content` del último
+    elemento de `state["messages"]`. Si `content` es una lista, úsala iterando.
+  starter: |
+    import os
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import tool
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        if tenant == "acme":
+            return "ACME: 12 facturas, total 48 210,00 EUR"
+        return "Globex: 8 facturas, total 32 400,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    # Completa: LLM, nodos, grafo, compilación y los dos invokes
+    state_acme = {}
+    state_globex = {}
+  test: |
+    assert state_acme, "state_acme está vacío"
+    assert state_globex, "state_globex está vacío"
+
+    msgs_acme = state_acme.get("messages", [])
+    msgs_globex = state_globex.get("messages", [])
+
+    assert len(msgs_acme) >= 2, \
+        f"ACME debe tener al menos 2 mensajes, tiene {len(msgs_acme)}"
+    assert len(msgs_globex) >= 2, \
+        f"Globex debe tener al menos 2 mensajes, tiene {len(msgs_globex)}"
+
+    def get_content(msg):
+        c = msg.content
+        if isinstance(c, list):
+            return " ".join(p.get("text", "") for p in c if isinstance(p, dict))
+        return c or ""
+
+    last_acme = get_content(msgs_acme[-1]).lower()
+    last_globex = get_content(msgs_globex[-1]).lower()
+
+    assert len(last_acme) > 5, "La respuesta de ACME está vacía"
+    assert len(last_globex) > 5, "La respuesta de Globex está vacía"
+    print("ok: sesiones de ACME y Globex están correctamente aisladas")
+  solution: |
+    import os
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import tool
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        if tenant == "acme":
+            return "ACME: 12 facturas, total 48 210,00 EUR"
+        return "Globex: 8 facturas, total 32 400,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-6",
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+    ).bind_tools([sql_query])
+
+    def model_node(state: State) -> dict[str, Any]:
+        return {"messages": [llm.invoke(state["messages"])]}
+
+    g = StateGraph(State)
+    g.add_node("model", model_node)
+    g.add_node("tools", ToolNode([sql_query]))
+    g.add_edge(START, "model")
+    g.add_conditional_edges("model", tools_condition)
+    g.add_edge("tools", "model")
+
+    acme_cfg = {"configurable": {"thread_id": "acme:audit:2026-04"}}
+    globex_cfg = {"configurable": {"thread_id": "globex:audit:2026-04"}}
+
+    with SqliteSaver.from_conn_string(":memory:") as cp:
+        app = g.compile(checkpointer=cp)
+        state_acme = app.invoke(
+            {"messages": [HumanMessage("¿Cuántas facturas tiene ACME?")]},
+            config=acme_cfg,
+        )
+        state_globex = app.invoke(
+            {"messages": [HumanMessage("¿Cuántas facturas tiene Globex?")]},
+            config=globex_cfg,
+        )
+
+- slug: two-turn-memory
+  title: "Memoria entre turnos de la misma sesión"
+  runner: backend
+  kind: code
+  prompt: |
+    Demuestra que el checkpointer mantiene el historial entre dos invocaciones
+    con el mismo `thread_id`. El segundo turno debe referirse al primero sin
+    repetir el contexto.
+
+    1. Primer turno ACME: `"¿Cuántas facturas tiene ACME en 2026-04?"`.
+    2. Segundo turno ACME (misma sesión): `"¿Y cuál es el monto total?"`.
+    3. Verifica que el estado del segundo turno tiene al menos 4 mensajes (los
+       del primer turno más los del segundo).
+
+    Guarda el estado del segundo turno en `state_turn2`.
+  hint: |
+    El segundo `invoke` usa exactamente el mismo `config` (mismo `thread_id`).
+    LangGraph carga el checkpoint automáticamente y añade los nuevos mensajes.
+  starter: |
+    import os
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import tool
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    # Completa el grafo, dos turnos, guarda state_turn2
+    state_turn2 = {}
+  test: |
+    assert state_turn2, "state_turn2 no puede estar vacío"
+    msgs = state_turn2.get("messages", [])
+    assert len(msgs) >= 4, (
+        f"El segundo turno debe acumular al menos 4 mensajes en el historial, "
+        f"hay {len(msgs)}. El checkpointer no está persistiendo entre invocaciones."
+    )
+    print("ok: el historial se mantiene entre turnos de la misma sesión")
+  solution: |
+    import os
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import tool
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-6",
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+    ).bind_tools([sql_query])
+
+    def model_node(state: State) -> dict[str, Any]:
+        return {"messages": [llm.invoke(state["messages"])]}
+
+    g = StateGraph(State)
+    g.add_node("model", model_node)
+    g.add_node("tools", ToolNode([sql_query]))
+    g.add_edge(START, "model")
+    g.add_conditional_edges("model", tools_condition)
+    g.add_edge("tools", "model")
+
+    cfg = {"configurable": {"thread_id": "acme:audit-mem:2026-04"}}
+
+    with SqliteSaver.from_conn_string(":memory:") as cp:
+        app = g.compile(checkpointer=cp)
+        app.invoke(
+            {"messages": [HumanMessage("¿Cuántas facturas tiene ACME en 2026-04?")]},
+            config=cfg,
+        )
+        state_turn2 = app.invoke(
+            {"messages": [HumanMessage("¿Y cuál es el monto total?")]},
+            config=cfg,
+        )
+
+- slug: compaction-node
+  title: "Nodo compaction_check determinístico"
+  runner: backend
+  kind: code
+  prompt: |
+    Implementa `compaction_check(state: State) -> dict` que:
+    1. Calcula los tokens estimados del historial sumando `len(m.content) // 4`
+       para cada mensaje (estimación: 4 caracteres ≈ 1 token). Para mensajes
+       donde `content` es una lista, suma los textos de los bloques de tipo dict.
+    2. Si los tokens estimados son `< 1000` (umbral bajo para el test), devuelve
+       `{}` (sin cambios).
+    3. Si superan el umbral, devuelve `{"messages": [resumen_msg]}` donde
+       `resumen_msg` es un `SystemMessage` con el texto
+       `f"[COMPACTADO] Historial resumido: {len(state['messages'])} mensajes."`.
+       (En producción invocarías el modelo para resumir; aquí simplifica.)
+
+    Construye un grafo con la estructura:
+    `START → compaction_check → model → [tools_condition] → tools → model → END`
+
+    Verifica que al invocar el grafo con un historial pre-cargado de 10 mensajes
+    ficticios de más de 4000 caracteres en total, el nodo `compaction_check`
+    se activa (el primer mensaje del estado final es el `SystemMessage` de resumen).
+
+    Guarda el estado final en `state_compacted`.
+  hint: |
+    Para pre-cargar el historial, pasa `{"messages": [...lista de mensajes...]}` como
+    input al primer `invoke`. El grafo pasará por `compaction_check` antes de llamar
+    al modelo. Si el historial supera el umbral, el nodo reemplaza los mensajes.
+  starter: |
+    import os
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+    from langchain_core.tools import tool
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    COMPACTION_THRESHOLD = 1000  # bajo para facilitar el test
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    def compaction_check(state: State) -> dict[str, Any]:
+        # Completa aquí
+        pass
+
+    # Completa: LLM, model_node, grafo con compaction_check, invoke con historial largo
+    state_compacted = {}
+  test: |
+    assert state_compacted, "state_compacted no puede estar vacío"
+    msgs = state_compacted.get("messages", [])
+    assert msgs, "No hay mensajes en state_compacted"
+    # El primer mensaje debe ser el SystemMessage de compactación
+    first = msgs[0]
+    assert hasattr(first, "content"), "El primer mensaje no tiene atributo content"
+    content = first.content
+    if isinstance(content, list):
+        content = " ".join(p.get("text", "") for p in content if isinstance(p, dict))
+    assert "[COMPACTADO]" in content, (
+        f"Se esperaba un SystemMessage de compactación como primer mensaje, "
+        f"pero el contenido es: {content[:100]!r}"
+    )
+    print("ok: compaction_check activó la compactación correctamente")
+  solution: |
+    import os
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+    from langchain_core.tools import tool
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    COMPACTION_THRESHOLD = 1000
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    def compaction_check(state: State) -> dict[str, Any]:
+        total_chars = 0
+        for m in state["messages"]:
+            if isinstance(m.content, str):
+                total_chars += len(m.content)
+            elif isinstance(m.content, list):
+                total_chars += sum(
+                    len(p.get("text", ""))
+                    for p in m.content
+                    if isinstance(p, dict)
+                )
+        estimated_tokens = total_chars // 4
+        if estimated_tokens < COMPACTION_THRESHOLD:
+            return {}
+        resumen = SystemMessage(
+            content=f"[COMPACTADO] Historial resumido: {len(state['messages'])} mensajes."
+        )
+        # Reemplaza el historial: solo el resumen + últimos 2 mensajes
+        return {"messages": [resumen] + state["messages"][-2:]}
+
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-6",
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+    ).bind_tools([sql_query])
+
+    def model_node(state: State) -> dict[str, Any]:
+        return {"messages": [llm.invoke(state["messages"])]}
+
+    g = StateGraph(State)
+    g.add_node("compaction_check", compaction_check)
+    g.add_node("model", model_node)
+    g.add_node("tools", ToolNode([sql_query]))
+    g.add_edge(START, "compaction_check")
+    g.add_edge("compaction_check", "model")
+    g.add_conditional_edges("model", tools_condition)
+    g.add_edge("tools", "model")
+    app = g.compile()
+
+    # Pre-cargar historial largo (> 1000 tokens estimados)
+    long_history = []
+    for i in range(10):
+        long_history.append(HumanMessage(content=f"Mensaje largo {i}: " + "x" * 500))
+        long_history.append(AIMessage(content=f"Respuesta {i}: " + "y" * 500))
+
+    state_compacted = app.invoke(
+        {"messages": long_history + [HumanMessage("¿Cuántas facturas?")]},
+    )

@@ -1,0 +1,10 @@
+slug: billing
+title: "¿Qué es el módulo de billing?"
+analogy_md: |
+  Es la parte del sistema que rastrea cuánto usa cada cliente (ACME, Constructora Andina)
+  y genera cargos. Como el contador de ACME que mide consumo de cada departamento y emite
+  facturas internas al mes.
+example_md: |
+  ```python
+  await billing.record_usage(tenant_id=tenant, tokens=response.usage.total_tokens)
+  ```

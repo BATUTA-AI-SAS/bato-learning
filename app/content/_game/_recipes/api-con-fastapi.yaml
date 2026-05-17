@@ -1,0 +1,17 @@
+slug: api-con-fastapi
+title: "Receta: API con FastAPI"
+chapter_ref: phase1
+ingredients: [api, http, pydantic, funcion]
+body_md: |
+  FastAPI convierte una función Python en un endpoint HTTP. Define el schema de entrada y
+  salida con Pydantic y FastAPI genera la documentación, validación y serialización
+  automáticamente.
+yields_md: |
+  ```python
+  from fastapi import FastAPI
+  app = FastAPI()
+
+  @app.post("/facturas", status_code=201)
+  async def crear_factura(data: FacturaIn) -> FacturaOut:
+      return await factura_service.crear(data)
+  ```

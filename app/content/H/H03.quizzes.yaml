@@ -1,0 +1,56 @@
+- slug: drift-sources
+  question: |
+    El agente de auditoría de ACME tenía un `pass_rate` de 0.97 en enero. En abril es 0.81.
+    No hubo ningún cambio en el código ni en el prompt. ¿Cuál es la explicación más probable?
+  explanation: |
+    El drift sin cambio de código tiene tres fuentes: (1) el modelo proveedor actualizó su versión;
+    (2) los datos del cliente cambiaron (nuevos proveedores, nuevos formatos de factura);
+    (3) el prompt no cubre los nuevos patrones que aparecieron en los datos.
+    Un sistema de golden set detectaría la caída a tiempo.
+  options:
+    - text: "Es un problema aleatorio del proveedor; con reiniciar el agente se resuelve."
+      correct: false
+      feedback: "Una caída de 97% a 81% en tres meses no es ruido aleatorio. Es drift sistemático que requiere investigación causal."
+    - text: "El modelo proveedor puede haber cambiado silenciosamente, o los datos del cliente evolucionaron."
+      correct: true
+      feedback: "Correcto. Estas son las dos causas más comunes de drift sin cambio de código. El golden set debería haberlo detectado antes."
+    - text: "Imposible que el agente cambie sin modificar el código; algo en los logs debe explicarlo."
+      correct: false
+      feedback: "El proveedor puede actualizar el modelo sin cambiar el nombre del endpoint. Los datos del cliente cambian fuera del control del código."
+
+- slug: llm-judge-bias
+  question: |
+    Usas `claude-sonnet-4-6` tanto como agente como juez evaluador. ¿Cuál es el riesgo principal?
+  explanation: |
+    Un modelo evaluando sus propias respuestas tiene sesgo de auto-confirmación: tiende a aprobar
+    respuestas que él mismo produciría, incluso cuando son incorrectas.
+    La mitigación es usar un modelo diferente (Opus evaluando Sonnet) o human spot-check.
+  options:
+    - text: "El costo se duplica porque son dos llamadas al mismo modelo."
+      correct: false
+      feedback: "El costo sí aumenta, pero no es el riesgo principal. El problema es epistemológico: el evaluador favorece lo que él mismo diría."
+    - text: "El juez tiene sesgo hacia aprobar respuestas que él mismo produciría."
+      correct: true
+      feedback: "Correcto. Para mitigarlo: usa Opus para evaluar Sonnet, o reserva human spot-check para el 10-20% de casos dudosos."
+    - text: "No hay riesgo; los modelos son objetivos y no tienen sesgo hacia sus propias respuestas."
+      correct: false
+      feedback: "Los LLMs tienen sesgos de posición, longitud y auto-confirmación documentados. Usar el mismo modelo como juez de sí mismo amplifica estos sesgos."
+
+- slug: ab-test-timing
+  question: |
+    Decides arrancar un A/B test entre Rama A (actual) y Rama B (nueva). A los dos días,
+    la Rama B tiene un `pass_rate` de 0.98 vs 0.91 de A. ¿Qué deberías hacer?
+  explanation: |
+    La decisión de promover o revertir debe seguir la métrica y la duración pre-declaradas.
+    Si la métrica dice "100 conversaciones o 48h", esperar a cumplir el criterio evita
+    conclusiones prematuras por variabilidad aleatoria de los primeros días.
+  options:
+    - text: "Promover B inmediatamente: los resultados son claros."
+      correct: false
+      feedback: "Los primeros días de un A/B tienen alta varianza. La decisión temprana es un error clásico de conclusión prematura. Cumple el criterio pre-declarado."
+    - text: "Esperar a cumplir el criterio pre-declarado (mínimo de conversaciones o tiempo) antes de decidir."
+      correct: true
+      feedback: "Correcto. La disciplina del A/B es respetar el criterio pre-declarado. Si el criterio era 72h o 100 conversaciones, espera."
+    - text: "Revertir B porque una diferencia tan grande es sospechosa."
+      correct: false
+      feedback: "Una diferencia grande no es señal de problema; puede ser genuina. Pero la decisión correcta es esperar los datos suficientes, no revertir por sospecha."

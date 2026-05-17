@@ -1,0 +1,62 @@
+- slug: stdlib-vs-external
+  question: |
+    ¿Cuáles de estos módulos forman parte de la librería estándar de Python y
+    **no** requieren instalación previa?
+  explanation: |
+    La librería estándar incluye módulos como `csv`, `json`, `math`, `datetime`,
+    `random`, `os`, `pathlib`. `pandas`, `fastapi`, y `anthropic` son librerías
+    externas que se instalan con `uv add`.
+  options:
+    - text: "`csv`, `json`, `math`"
+      correct: true
+      feedback: "Correcto. Los tres son librería estándar: se importan directamente sin `uv add`."
+    - text: "`pandas`, `fastapi`, `anthropic`"
+      correct: false
+      feedback: "Los tres son librerías externas. Requieren `uv add pandas`, `uv add fastapi`, `uv add anthropic` antes de importarlos."
+    - text: "`math`, `pandas`, `random`"
+      correct: false
+      feedback: "`math` y `random` son librería estándar, pero `pandas` es externa. La mezcla hace que la respuesta sea incorrecta."
+
+- slug: import-vs-from-import
+  question: |
+    Tienes este código:
+    ```python
+    from math import sqrt
+    resultado = sqrt(16)
+    ```
+    ¿Qué pasa si además escribes `from os import sqrt` después?
+  explanation: |
+    `from módulo import nombre` trae el nombre al espacio de nombres actual. Si
+    dos módulos diferentes exportan el mismo nombre y haces `from X import nombre`
+    seguido de `from Y import nombre`, el segundo sobreescribe al primero en
+    silencio. Por eso, cuando hay riesgo de colisión de nombres, es mejor usar
+    `import math` y `math.sqrt`, que mantiene el prefijo como disambiguador.
+  options:
+    - text: "El segundo `from os import sqrt` sobreescribe el primero en silencio; `sqrt` ahora apunta a la versión de `os`."
+      correct: true
+      feedback: "Correcto. Python no avisa de la sobreescritura. Por eso se prefiere `import math` y `math.sqrt` cuando hay riesgo de colisión."
+    - text: "Python lanza un error porque `sqrt` ya está definido."
+      correct: false
+      feedback: "No. Python no impide redefinir nombres. La segunda asignación simplemente sobreescribe la primera sin aviso."
+    - text: "Ambas versiones de `sqrt` coexisten; Python elige la correcta según el contexto."
+      correct: false
+      feedback: "No. En Python solo existe un espacio de nombres por ámbito. El segundo `from X import sqrt` reemplaza el primero. No hay coexistencia automática."
+
+- slug: module-not-found
+  question: |
+    Ejecutas `import pandas` y obtienes `ModuleNotFoundError: No module named 'pandas'`.
+    ¿Cuál es la causa y el arreglo correcto?
+  explanation: |
+    `pandas` es una librería externa. No viene con Python. Hay que instalarla
+    antes de importarla. En este curso se usa `uv add pandas` en la terminal.
+    Una vez instalada en el entorno del proyecto, `import pandas` funciona.
+  options:
+    - text: "`pandas` no está instalada. Ejecuta `uv add pandas` en la terminal del proyecto."
+      correct: true
+      feedback: "Correcto. Las librerías externas se instalan con `uv add` antes de importar."
+    - text: "El nombre es incorrecto. La librería se llama `Pandas` con mayúscula."
+      correct: false
+      feedback: "No. El módulo se llama `pandas` en minúscula. El error no es de capitalización sino de instalación."
+    - text: "Hay que actualizar Python a una versión más nueva que incluya `pandas`."
+      correct: false
+      feedback: "No. `pandas` no es parte de la librería estándar en ninguna versión de Python. Siempre es una librería externa que se instala por separado."

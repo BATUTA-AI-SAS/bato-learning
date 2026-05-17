@@ -1,0 +1,11 @@
+slug: seguridad-web
+title: "Seguridad web básica"
+analogy_md: |
+  Es el conjunto de prácticas para que nadie externo lea las facturas de ACME ni inyecte
+  datos falsos. Los ataques más comunes (SQL injection, XSS) ocurren cuando confías en datos del usuario.
+example_md: |
+  ```python
+  # Nunca: f"SELECT * FROM users WHERE id = {user_id}"
+  # Siempre usar el ORM o parámetros preparados
+  await session.execute(select(User).where(User.id == user_id))
+  ```

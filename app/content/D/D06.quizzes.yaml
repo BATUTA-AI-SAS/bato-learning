@@ -1,0 +1,64 @@
+- slug: worker-no-port
+  question: |
+    ¿Por qué un servicio worker de background jobs no necesita `ports:` en el `compose.yaml`?
+  explanation: |
+    Un worker consume tareas de una cola o un workflow engine (Temporal, Redis). No
+    recibe requests HTTP del exterior ni de otros servicios que hagan conexiones entrantes
+    a él. La comunicación va en la dirección opuesta: el worker es el que llama a la cola,
+    a la base de datos y a las APIs externas. Por tanto, no hay ningún puerto que necesite
+    abrir.
+  options:
+    - text: "Porque Docker no permite `ports:` en servicios con `command:` personalizado."
+      correct: false
+      feedback: "Docker permite `ports:` en cualquier servicio independientemente de si tiene `command:`. La razón es arquitectónica, no técnica."
+    - text: "Porque el worker consume de una cola y no recibe conexiones entrantes, así que no hay ningún puerto que abrir."
+      correct: true
+      feedback: "Exacto. El worker inicia las conexiones salientes (hacia Temporal, Postgres, Anthropic). No hay ningún cliente que necesite conectarse al worker directamente."
+    - text: "Porque los workers no pueden usar la red de Docker Compose."
+      correct: false
+      feedback: "Los workers sí usan la red de compose para conectarse a Postgres y a Temporal por nombre de servicio. Simplemente no tienen puertos *expuestos al exterior*."
+    - text: "Por razones de seguridad: exponer el puerto del worker podría comprometer la cola."
+      correct: false
+      feedback: "La razón principal es funcional, no de seguridad: el worker no tiene un servidor HTTP que recibir. No hay nada que escuche en ningún puerto."
+
+- slug: pgvector-vs-dedicated
+  question: |
+    Un nuevo cliente tiene 300 000 documentos con embeddings y las búsquedas vectoriales
+    se usan en reportes que corren una vez al día. La latencia de 1-2 segundos es aceptable.
+    ¿Qué eliges?
+  explanation: |
+    pgvector es suficiente cuando el volumen está por debajo de ~5 millones de vectores
+    y la latencia requerida no es tiempo real (< 50 ms). Con 300 000 documentos y un SLA
+    de 1-2 segundos para reportes batch, pgvector aguanta con mucho margen. El vector
+    store dedicado añade costo operativo ($25-$100/mes) y complejidad sin beneficio
+    medible en este escenario.
+  options:
+    - text: "Qdrant Cloud, porque 300 000 documentos es mucho para pgvector."
+      correct: false
+      feedback: "300 000 vectores está muy dentro del rango donde pgvector con índice hnsw funciona bien. pgvector comienza a necesitar alternativas cerca de los 5 millones de vectores o cuando la latencia requerida es < 50 ms en tiempo real."
+    - text: "pgvector integrado en Postgres, porque el volumen y la latencia requerida no justifican un servicio extra."
+      correct: true
+      feedback: "Correcto. El criterio de decisión es volumen (< 5 M) + latencia aceptable (1-2 s) + simplificación operativa. Un vector store dedicado añade costo y un servicio más para monitorear sin beneficio en este caso."
+    - text: "Pinecone, porque es más moderno que pgvector."
+      correct: false
+      feedback: "La decisión no se basa en modernidad sino en fit para el caso: volumen, latencia, costo y capacidad operativa del equipo. Pinecone añade $70+/mes sin beneficio medible para 300k documentos con SLA de 2 s."
+
+- slug: static-ui-cost
+  question: |
+    Una PYME LATAM tiene una UI en React (HTML+JS buildado) con ~50 000 visitas/mes.
+    ¿Cuánto cuesta desplegarla en Cloudflare Pages?
+  explanation: |
+    Cloudflare Pages tiene un free tier con bandwidth ilimitado. No hay cargos por
+    visitas ni por transferencia de datos en el tier gratuito. Solo se cobra si superas
+    500 builds/mes en el free tier. 50 000 visitas/mes es tráfico normal para una PYME
+    y no genera ningún costo adicional.
+  options:
+    - text: "Depende del bandwidth; aproximadamente $15-20/mes por 50 000 visitas."
+      correct: false
+      feedback: "Cloudflare Pages tiene bandwidth ilimitado en el free tier. No hay cargos por visitas ni por transferencia de datos, a diferencia de Netlify que sí tiene límites de bandwidth."
+    - text: "$0/mes, porque Cloudflare Pages incluye bandwidth ilimitado en el free tier."
+      correct: true
+      feedback: "Correcto. Cloudflare Pages es gratis para este caso de uso. El único límite del free tier que podría importar son los 500 builds/mes, que una PYME con 1-2 deploys por semana nunca supera."
+    - text: "$5/mes porque todas las plataformas de CDN cobran por las visitas."
+      correct: false
+      feedback: "No todas las plataformas cobran por visitas. Cloudflare Pages es una excepción notable: bandwidth ilimitado sin cargo en el free tier. Netlify y Vercel sí tienen límites de bandwidth en sus free tiers."

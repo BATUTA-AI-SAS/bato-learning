@@ -1,0 +1,10 @@
+slug: tool-calling
+title: "¿Qué es tool calling?"
+analogy_md: |
+  Es darle al LLM una lista de herramientas que puede pedir usar (buscar en la base de datos,
+  enviar un email) y el código decide si ejecutarlas. El LLM no ejecuta nada directamente, solo pide.
+example_md: |
+  ```python
+  tools = [{"name": "buscar_factura", "input_schema": {"id": {"type": "string"}}}]
+  response = client.messages.create(model=..., tools=tools, messages=msgs)
+  ```

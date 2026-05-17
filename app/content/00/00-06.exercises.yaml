@@ -1,0 +1,110 @@
+- slug: declare-invoice-variables
+  title: "Declarar variables de una factura"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Declara las siguientes variables para la factura INV-042 de ACME:
+
+    - `invoice_id`: el string `"INV-042"`
+    - `vendor`: el string `"ACME Manufacturing"`
+    - `amount`: el float `9350.0`
+    - `period`: el string `"2026-04"`
+    - `is_paid`: `False` (booleano)
+    - `approver`: `None` (sin aprobador asignado todavía)
+
+    Luego imprime el tipo de cada variable en orden, usando `type(variable).__name__`.
+    La salida debe ser una línea por variable.
+  hint: |
+    `type(valor).__name__` devuelve el nombre del tipo como string: `"str"`, `"float"`, etc.
+    Usa un `print(type(...).__name__)` por cada variable.
+  starter: |
+    invoice_id = ...
+    vendor = ...
+    amount = ...
+    period = ...
+    is_paid = ...
+    approver = ...
+
+    print(type(invoice_id).__name__)
+    # añade las otras cinco líneas
+  test: |
+    assert invoice_id == "INV-042", f"invoice_id debe ser 'INV-042', obtuve {invoice_id!r}"
+    assert vendor == "ACME Manufacturing", f"vendor incorrecto: {vendor!r}"
+    assert amount == 9350.0, f"amount debe ser 9350.0, obtuve {amount}"
+    assert isinstance(amount, float), "amount debe ser float"
+    assert period == "2026-04", f"period incorrecto: {period!r}"
+    assert is_paid is False, "is_paid debe ser False"
+    assert approver is None, "approver debe ser None"
+    out = __cap.getvalue().strip().splitlines()
+    assert len(out) == 6, f"Deben imprimirse 6 líneas, imprimiste {len(out)}"
+    assert out[0] == "str"
+    assert out[1] == "str"
+    assert out[2] == "float"
+    assert out[3] == "str"
+    assert out[4] == "bool"
+    assert out[5] == "NoneType"
+    print("ok")
+  solution: |
+    invoice_id = "INV-042"
+    vendor = "ACME Manufacturing"
+    amount = 9350.0
+    period = "2026-04"
+    is_paid = False
+    approver = None
+
+    print(type(invoice_id).__name__)
+    print(type(vendor).__name__)
+    print(type(amount).__name__)
+    print(type(period).__name__)
+    print(type(is_paid).__name__)
+    print(type(approver).__name__)
+
+- slug: reassign-and-track
+  title: "Reasignación paso a paso"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El sistema de auditoría aplica correcciones a una factura en tres pasos:
+
+    1. El monto inicial de la factura es `4820.0`.
+    2. Se detecta un descuento del 5 %: el nuevo monto es `amount * 0.95`.
+    3. Se añade un recargo de envío de `75.0` EUR: el monto final es el resultado del
+       paso 2 más `75.0`.
+
+    Usa la misma variable `amount` en los tres pasos (reasignándola). Al final,
+    imprime el valor de `amount`.
+
+    Además, guarda en `steps_count` el número entero `3` (los pasos aplicados)
+    e imprímelo también.
+  hint: |
+    Cada reasignación tiene la forma `amount = <nueva expresión usando amount>`.
+    No necesitas variables extra para los pasos intermedios.
+  starter: |
+    # paso 1: monto inicial
+    amount = 4820.0
+
+    # paso 2: aplicar descuento del 5 %
+    amount = ...
+
+    # paso 3: añadir recargo de envío
+    amount = ...
+
+    steps_count = 3
+
+    print(amount)
+    print(steps_count)
+  test: |
+    expected = (4820.0 * 0.95) + 75.0
+    assert abs(amount - expected) < 1e-9, f"amount debe ser {expected}, obtuve {amount}"
+    assert steps_count == 3, f"steps_count debe ser 3, obtuve {steps_count}"
+    assert isinstance(steps_count, int), "steps_count debe ser int"
+    out = __cap.getvalue().strip().splitlines()
+    assert len(out) == 2, f"Deben imprimirse 2 líneas, imprimiste {len(out)}"
+    print("ok")
+  solution: |
+    amount = 4820.0
+    amount = amount * 0.95
+    amount = amount + 75.0
+    steps_count = 3
+    print(amount)
+    print(steps_count)

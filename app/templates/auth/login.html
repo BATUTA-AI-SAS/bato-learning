@@ -1,0 +1,43 @@
+{% extends "_layout.html" %}
+
+{% block title %}Iniciar sesión · bato-learning{% endblock %}
+
+{% block main %}
+<div class="auth-page">
+  <div class="auth-card">
+    <h1>Iniciar sesión</h1>
+
+    {% if error %}
+    <div class="auth-error" role="alert">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/login" class="auth-form">
+      <label for="email">Correo electrónico</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        required
+        autocomplete="email"
+        placeholder="tu@correo.com"
+      />
+
+      <label for="password">Contraseña</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+        autocomplete="current-password"
+        placeholder="••••••••"
+      />
+
+      <button type="submit" class="btn-primary">Entrar</button>
+    </form>
+
+    <p class="auth-switch">
+      ¿No tienes cuenta? <a href="/register">Regístrate</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

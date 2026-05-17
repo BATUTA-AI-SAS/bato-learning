@@ -1,0 +1,97 @@
+- slug: variable-is-label
+  question: |
+    Después de ejecutar estas dos líneas:
+    ```python
+    amount = 4820.0
+    amount = 9000.0
+    ```
+    ¿Qué valor tiene `amount`?
+  explanation: |
+    En Python, una variable es una etiqueta que apunta a un valor. La segunda
+    asignación no modifica el objeto `4820.0`; mueve la etiqueta `amount` para que
+    apunte al nuevo objeto `9000.0`. El float `4820.0` sigue en memoria hasta que
+    el garbage collector lo elimina, pero `amount` ya no lo señala.
+  options:
+    - text: "`4820.0`, porque la primera asignación fija el valor."
+      correct: false
+      feedback: |
+        En Python no hay «asignación fija». Cada `=` mueve la etiqueta al nuevo
+        valor. La segunda asignación reemplaza a la primera.
+    - text: "`9000.0`, porque la segunda asignación actualiza la etiqueta."
+      correct: true
+      feedback: |
+        Correcto. `amount` apunta ahora a `9000.0`. El `4820.0` anterior no está
+        modificado; simplemente `amount` ya no lo referencia.
+    - text: "`13820.0`, porque Python acumula las asignaciones."
+      correct: false
+      feedback: |
+        Python no acumula asignaciones. Si quisieras sumar, necesitarías
+        `amount = amount + 9000.0`. Una asignación simple reemplaza.
+    - text: "Error `NameError`, porque `amount` se declaró dos veces."
+      correct: false
+      feedback: |
+        Python no prohíbe reasignar una variable. A diferencia de lenguajes con
+        `val` o `const`, en Python puedes asignar el mismo nombre cuantas veces quieras.
+
+- slug: none-vs-zero
+  question: |
+    El sistema de auditoría guarda el aprobador de una factura. Para una factura
+    sin aprobador asignado, ¿qué valor es el más correcto?
+  explanation: |
+    `None` es la señal explícita de «este dato no existe». `0` significa «el número
+    cero», que no tiene sentido para un nombre de persona. `""` es una cadena vacía,
+    que podría confundirse con un aprobador con nombre en blanco. `False` es un
+    booleano, no tiene relación semántica con un nombre.
+  options:
+    - text: "`approver = 0`"
+      correct: false
+      feedback: |
+        `0` es un entero. Asignarlo a un campo que debería contener un nombre
+        de persona confunde el tipo: ¿es el cero el aprobador número cero o
+        significa «sin aprobador»? `None` es más claro.
+    - text: "`approver = \"\"`"
+      correct: false
+      feedback: |
+        Un string vacío es un valor distinto de «sin dato». Si después filtras
+        facturas donde `approver` es None para detectar las pendientes de aprobación,
+        las que tengan `""` no aparecerían.
+    - text: "`approver = None`"
+      correct: true
+      feedback: |
+        Correcto. `None` es la señal estándar de Python para «este valor no existe
+        o no se sabe». Se comprueba con `approver is None`, no con `approver == None`.
+    - text: "`approver = False`"
+      correct: false
+      feedback: |
+        `False` es un booleano (sí/no). No tiene sentido semántico para un nombre
+        de aprobador. `None` expresa «sin dato» de forma más precisa.
+
+- slug: snake-case-convention
+  question: |
+    ¿Cuál de estos nombres de variable sigue las convenciones del curso?
+  explanation: |
+    El curso exige identificadores en inglés con `snake_case`: palabras en minúsculas
+    separadas por guión bajo. `PascalCase` y `camelCase` se reservan para clases
+    y métodos en otras convenciones; `SCREAMING_SNAKE_CASE` es para constantes.
+    Los acentos y caracteres especiales no son convencionales en Python.
+  options:
+    - text: "`PrecioUnitario`"
+      correct: false
+      feedback: |
+        Dos problemas: está en español y usa `PascalCase`, que en este curso
+        se reserva para nombres de clases. El equivalente correcto sería `unit_price`.
+    - text: "`unitPrice`"
+      correct: false
+      feedback: |
+        `camelCase` es la convención de JavaScript, no de Python. En Python,
+        la convención estándar del lenguaje y el curso usan `snake_case`: `unit_price`.
+    - text: "`unit_price`"
+      correct: true
+      feedback: |
+        Correcto. Inglés, minúsculas, palabras separadas por `_`. Es la convención
+        estándar de Python y la que exige este curso.
+    - text: "`precio_unitario`"
+      correct: false
+      feedback: |
+        `snake_case` correcto, pero en español. El curso exige inglés para
+        todos los identificadores, sin excepción.

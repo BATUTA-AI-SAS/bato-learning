@@ -1,0 +1,25 @@
+{% extends "_layout.html" %}
+{% block title %}bato-learning · {{ phase.title }}{% endblock %}
+
+{% block main %}
+<header class="hero">
+  <h1>{{ phase.title }}</h1>
+  <p class="lede">{{ phase.setting }}</p>
+  <a href="/game" class="btn-secondary">&larr; Todas las fases</a>
+</header>
+
+<section class="level-map">
+  {% for item in levels_state %}
+  {% set lv = item.level %}
+  <a class="level-card {% if item.passed %}passed{% endif %}"
+     href="/game/{{ phase.slug }}/{{ lv.slug }}">
+    <span class="level-ord">{{ lv.ord }}</span>
+    <span class="level-title">{{ lv.title }}</span>
+    <span class="level-kind muted">{{ lv.kind }}</span>
+    {% if item.passed %}<span class="level-check">&#10003;</span>{% endif %}
+  </a>
+  {% else %}
+  <p class="muted">Esta fase no tiene niveles todavía.</p>
+  {% endfor %}
+</section>
+{% endblock %}

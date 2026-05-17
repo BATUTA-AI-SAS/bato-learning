@@ -1,0 +1,11 @@
+slug: hitl
+title: "¿Qué es Human-in-the-Loop (HITL)?"
+analogy_md: |
+  Es el punto en que el agente pausa y le pide aprobación a una persona antes de continuar,
+  como el flujo de ACME donde un pago mayor a $50,000 requiere firma del Director Financiero
+  antes de ejecutarse.
+example_md: |
+  ```python
+  if requiere_aprobacion(accion):
+      await esperar_aprobacion_humana(accion.id)
+  ```

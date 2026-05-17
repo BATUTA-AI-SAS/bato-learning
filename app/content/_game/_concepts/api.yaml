@@ -1,0 +1,10 @@
+slug: api
+title: "¿Qué es una API?"
+analogy_md: |
+  Cuando el sistema de contabilidad de ACME manda datos al ERP, no copia archivos a mano:
+  llama a una API, un contrato de comunicación que dice "envía estos campos y te respondo con este formato".
+example_md: |
+  ```
+  GET /api/facturas/F-001
+  → {"id": "F-001", "monto": 4200.0, "estado": "pagada"}
+  ```

@@ -1,0 +1,44 @@
+slug: async-session
+title: "La DB bloquea el thread — pásala a async"
+kind: predict
+phase: PH02
+ord: 25
+trains_skill: async-sqlalchemy
+xp: 20
+est_seconds: 120
+scenario_md: |
+  Tu endpoint de facturas tarda 3 segundos. El profiler muestra que la DB
+  bloquea el thread del event loop. Lee este código y predice qué imprime.
+payload:
+  code: |
+    import asyncio
+    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy import text
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def fetch_count():
+        async with engine.begin() as conn:
+            await conn.run_sync(lambda c: c.execute(
+                text("CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY)")
+            ))
+            await conn.run_sync(lambda c: c.execute(text("INSERT INTO t VALUES (1)")))
+            await conn.run_sync(lambda c: c.execute(text("INSERT INTO t VALUES (2)")))
+
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(text("SELECT COUNT(*) FROM t"))
+            count = result.scalar()
+            return count
+
+    result = asyncio.run(fetch_count())
+    print(f"filas: {result}")
+  expected_output: "filas: 2"
+hint_md: |
+  Sigue el flujo: crea la tabla, inserta 2 filas, hace COUNT(*).
+  `scalar()` devuelve el primer valor de la primera fila.
+solution_md: |
+  `async with` y `await` no cambian qué hace el código — cambian cuándo cede
+  el thread. El event loop puede servir otras requests mientras espera la DB.
+  `AsyncSession` con `aiosqlite` es el equivalente async del `Session` síncrono.

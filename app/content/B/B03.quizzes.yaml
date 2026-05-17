@@ -1,0 +1,155 @@
+# B03 — Jinja2 + HTMX: quizzes de comprensión
+
+- slug: hx-swap-outerhtml-vs-innerhtml
+  question: |
+    Un `<button>` tiene estos atributos:
+
+    ```html
+    <button
+      hx-post="/api/suggestions/7/accept"
+      hx-target="#suggestion-7"
+      hx-swap="innerHTML"
+    >Aceptar</button>
+    ```
+
+    El servidor responde con:
+
+    ```html
+    <tr id="suggestion-7" class="accepted">
+      <td>Artículo de devoluciones</td><td>✓ Aceptado</td>
+    </tr>
+    ```
+
+    ¿Qué aparece en el DOM después del swap?
+  explanation: |
+    `hx-swap="innerHTML"` reemplaza el *contenido interior* del elemento
+    `#suggestion-7` (el `<tr>`), no el elemento mismo. El servidor devolvió un
+    `<tr>` completo, pero HTMX solo insertará su interior como hijos del `<tr>`
+    existente, que además pierde la clase `accepted` porque el `<tr>` original
+    no cambia. Para que el `<tr>` sea reemplazado por el que devolvió el servidor
+    — incluyendo su clase — se necesita `hx-swap="outerHTML"`.
+  options:
+    - text: "El `<tr id=\"suggestion-7\">` original se reemplaza por el que vino del servidor, con clase `accepted`."
+      correct: false
+      feedback: |
+        Eso sería `outerHTML`. Con `innerHTML`, el elemento target (`#suggestion-7`)
+        no se reemplaza; solo se reemplaza su contenido interior.
+    - text: "El interior del `<tr id=\"suggestion-7\">` original se rellena con el contenido del `<tr>` recibido, resultando en un `<tr>` anidado dentro del original."
+      correct: true
+      feedback: |
+        Exacto. `innerHTML` inyecta la cadena recibida como contenido del target.
+        Si la cadena es un `<tr>`, ese `<tr>` queda anidado dentro del `<tr>`
+        original — HTML inválido. La clase `accepted` tampoco llega al elemento
+        visible. Esto es el error clásico de confundir `innerHTML` con `outerHTML`.
+    - text: "HTMX lanza un error porque el servidor devolvió un `<tr>` en lugar de un fragmento sin etiqueta raíz."
+      correct: false
+      feedback: |
+        HTMX no valida el tipo de HTML que devuelve el servidor; inserta lo que
+        llegue. El problema no es un error de HTMX sino un resultado visual incorrecto
+        (anidamiento inválido de `<tr>`).
+    - text: "El `<tr>` original desaparece del DOM y el nuevo queda en su lugar."
+      correct: false
+      feedback: |
+        Eso sería `outerHTML`. Con `innerHTML` el elemento target queda en el DOM;
+        solo cambia su contenido interior.
+
+- slug: jinja-extends-partial-distinction
+  question: |
+    En la app `bato-learning`, `module.html` empieza con:
+
+    ```html
+    {% extends "_layout.html" %}
+    ```
+
+    Y dentro del bloque `main` usa:
+
+    ```html
+    {% include "partials/exercise.html" %}
+    ```
+
+    ¿Cuál es la diferencia correcta entre `extends` e `include`?
+  explanation: |
+    `extends` establece herencia: la plantilla hija hereda la estructura completa
+    de la plantilla base y solo reemplaza los bloques que define. Hay exactamente
+    una plantilla base activa por render. `include` inserta el contenido de otro
+    archivo en el punto exacto donde aparece la directiva, en el mismo contexto
+    de variables. No hay herencia; solo composición por inclusión. Un partial
+    incluido no puede definir bloques ni extender nada.
+  options:
+    - text: "`extends` inserta el archivo base en la plantilla hija; `include` hace herencia inversa."
+      correct: false
+      feedback: |
+        Al revés. `extends` declara que la plantilla hija *hereda de* la base;
+        la base define los bloques, la hija los llena. `include` no es herencia:
+        es inclusión de texto en un punto del template.
+    - text: "`extends` define herencia (la hija llena bloques de la base); `include` inserta el contenido de un archivo en el punto de la directiva."
+      correct: true
+      feedback: |
+        Correcto. La diferencia operativa: con `extends`, la estructura
+        de la página viene de la base. Con `include`, la plantilla principal
+        decide dónde insertar el partial y el partial se renderiza con el
+        contexto local disponible en ese punto.
+    - text: "Son sinónimos; solo difieren en que `include` acepta rutas relativas y `extends` rutas absolutas."
+      correct: false
+      feedback: |
+        No son sinónimos ni difieren en el tipo de ruta. La diferencia es
+        conceptual: herencia de bloques (`extends`) vs inclusión de fragmento
+        (`include`). Ambos usan el mismo sistema de carga de plantillas del
+        `Environment`.
+    - text: "`extends` se puede usar dentro de un loop; `include` no."
+      correct: false
+      feedback: |
+        Es al contrario y más estricto: `extends` debe ser la primera directiva
+        del archivo y no puede estar dentro de un loop. `include` sí puede usarse
+        dentro de un `{% for %}`, que es exactamente cómo `module.html` incluye
+        `partials/exercise.html` para cada ejercicio.
+
+- slug: when-not-htmx
+  question: |
+    El equipo de ACME quiere añadir al dashboard de auditoría un gráfico de
+    barras interactivo: el usuario puede filtrar por mes, hacer zoom sobre un
+    rango de fechas, y ver tooltips al pasar el cursor. Los datos cambian en
+    tiempo real.
+
+    ¿Cuál es la decisión de arquitectura más adecuada?
+  explanation: |
+    HTMX premia interacciones donde el servidor produce un fragmento HTML y el
+    cliente lo inserta. Un gráfico con zoom, filtro local y tooltips en tiempo
+    real requiere estado cliente continuo (qué rango está seleccionado, posición
+    del cursor, datos en buffer). Ese estado no vive bien en el servidor porque
+    cada interacción de zoom dispararía un request HTTP, con latencia visible y
+    carga innecesaria. La solución correcta es una isla JavaScript — ya sea
+    vanilla con Canvas/SVG, o una librería específica de gráficos — que gestione
+    el estado visual localmente y solo consulte el servidor para nuevos datos.
+    HTMX puede coexistir en la misma página para otras partes que sí se benefician
+    del patrón server-rendered.
+  options:
+    - text: "Usar `hx-trigger=\"every 2s\"` para refrescar el gráfico completo desde el servidor cada 2 segundos."
+      correct: false
+      feedback: |
+        Polling frecuente funciona para listas de texto, no para gráficos
+        interactivos. Cada refresh reemplazaría el gráfico en el DOM, perdiendo
+        el estado de zoom y la posición del cursor. La experiencia sería
+        inutilizable.
+    - text: "Implementar el gráfico como una isla JavaScript vanilla o con una librería de gráficos, sin HTMX para esa pieza."
+      correct: true
+      feedback: |
+        Correcto. HTMX no es la herramienta adecuada cuando la interacción
+        requiere estado cliente continuo. Una isla JS gestiona el estado visual
+        localmente; puede pedir datos frescos al servidor con `fetch` puntualmente.
+        HTMX puede seguir usándose en otras partes de la misma página.
+    - text: "Usar `hx-swap=\"outerHTML\"` con un SVG completo devuelto por el servidor en cada interacción."
+      correct: false
+      feedback: |
+        El servidor podría devolver un SVG, pero cada zoom o movimiento de cursor
+        generaría un request HTTP. La latencia de red haría el gráfico
+        inutilizable. Esta solución confunde «el servidor puede producir SVG»
+        con «es la arquitectura correcta para interacción en tiempo real».
+    - text: "Añadir Alpine.js al layout para gestionar el estado del gráfico junto con HTMX."
+      correct: false
+      feedback: |
+        El stack de la app descartó Alpine.js explícitamente (ver ARCHITECTURE.md §2.3):
+        «Alpine.js se descartó: HTMX cubre todo lo que necesitamos en este sitio.
+        Si una interacción exige estado local profundo, va en JS vanilla con
+        `module` import.» Para un gráfico complejo, una librería específica +
+        JS vanilla es la ruta correcta, sin añadir Alpine.

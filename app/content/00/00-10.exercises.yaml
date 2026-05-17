@@ -1,0 +1,160 @@
+- slug: classify-invoice-amount
+  title: "Clasificar factura por monto"
+  runner: pyodide
+  kind: code
+  prompt: |
+    ACME clasifica sus facturas en tres niveles:
+    - `"alto"` si el monto supera 1 000 EUR
+    - `"medio"` si supera 100 EUR pero no llega a 1 000
+    - `"bajo"` en cualquier otro caso
+
+    Escribe un bloque `if/elif/else` que asigne el nivel correcto a la variable
+    `level` para el monto dado en `amount`.
+    Luego imprime `level`.
+  hint: |
+    Ordena las condiciones de mayor a menor: primero comprueba > 1000, luego > 100.
+    Si lo haces al revés, `elif amount > 100` capturará también los de 1 000+.
+  starter: |
+    amount = 4820.0
+
+    # escribe aquí el if/elif/else
+    # ...
+
+    print(level)
+  test: |
+    import io, sys
+
+    def classify(amt):
+        if amt > 1000:
+            return "alto"
+        elif amt > 100:
+            return "medio"
+        else:
+            return "bajo"
+
+    cases = [
+        (4820.0, "alto"),
+        (350.0,  "medio"),
+        (50.0,   "bajo"),
+        (1000.1, "alto"),
+        (100.0,  "bajo"),   # exactamente 100 no supera > 100
+    ]
+    for val, expected in cases:
+        ns = {}
+        exec(f"amount = {val}\n" + __source__, ns)
+        result = ns.get("level")
+        assert result == expected, (
+            f"amount={val}: esperaba {expected!r}, obtuve {result!r}"
+        )
+    print("ok")
+  solution: |
+    amount = 4820.0
+
+    if amount > 1000:
+        level = "alto"
+    elif amount > 100:
+        level = "medio"
+    else:
+        level = "bajo"
+
+    print(level)
+
+- slug: vendor-alert
+  title: "Alerta de proveedor nuevo"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado un `vendor` (string) y una lista `known_vendors`, escribe código que:
+    1. Asigne `True` a `is_new` si `vendor` NO está en `known_vendors`.
+    2. Asigne `False` en caso contrario.
+    3. Imprima `is_new`.
+
+    Combina `not in` con el contexto de ACME: los proveedores conocidos son
+    `["acme_global", "globex_log", "initech_svc"]`.
+  hint: |
+    Usa `if vendor not in known_vendors:` para detectar que el proveedor es nuevo.
+  starter: |
+    vendor = "andina_co"
+    known_vendors = ["acme_global", "globex_log", "initech_svc"]
+
+    # escribe aquí la lógica
+
+    print(is_new)
+  test: |
+    cases = [
+        ("andina_co",   ["acme_global", "globex_log", "initech_svc"], True),
+        ("acme_global", ["acme_global", "globex_log", "initech_svc"], False),
+        ("globex_log",  ["acme_global", "globex_log", "initech_svc"], False),
+        ("nuevo_prv",   ["acme_global", "globex_log", "initech_svc"], True),
+    ]
+    for vnd, kv, expected in cases:
+        ns = {}
+        code = f"vendor = {vnd!r}\nknown_vendors = {kv!r}\n" + __source__
+        exec(code, ns)
+        result = ns.get("is_new")
+        assert result == expected, (
+            f"vendor={vnd!r}: esperaba {expected}, obtuve {result!r}"
+        )
+    print("ok")
+  solution: |
+    vendor = "andina_co"
+    known_vendors = ["acme_global", "globex_log", "initech_svc"]
+
+    if vendor not in known_vendors:
+        is_new = True
+    else:
+        is_new = False
+
+    print(is_new)
+
+- slug: combined-condition
+  title: "Condición compuesta con and/or"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El equipo de ACME quiere marcar una factura como `"urgente"` cuando
+    se cumpla **al menos una** de estas dos condiciones:
+    - El monto supera 5 000 EUR.
+    - El proveedor es `"andina_co"` y el monto supera 2 000 EUR.
+
+    En todos los demás casos, la factura es `"normal"`.
+
+    Escribe el `if/else` (puedes usar `and`/`or`) y asigna el resultado a
+    `status`. Imprime `status`.
+  hint: |
+    Recuerda: `or` une dos condiciones; basta con que una sea verdadera.
+    Para la segunda condición necesitas `and` entre proveedor y monto.
+  starter: |
+    amount = 3500.0
+    vendor = "andina_co"
+
+    # escribe aquí
+
+    print(status)
+  test: |
+    cases = [
+        (6000.0, "acme_global", "urgente"),
+        (3500.0, "andina_co",   "urgente"),
+        (3500.0, "acme_global", "normal"),
+        (500.0,  "andina_co",   "normal"),
+        (1000.0, "globex_log",  "normal"),
+    ]
+    for amt, vnd, expected in cases:
+        ns = {}
+        code = f"amount = {amt}\nvendor = {vnd!r}\n" + __source__
+        exec(code, ns)
+        result = ns.get("status")
+        assert result == expected, (
+            f"amount={amt}, vendor={vnd!r}: esperaba {expected!r}, obtuve {result!r}"
+        )
+    print("ok")
+  solution: |
+    amount = 3500.0
+    vendor = "andina_co"
+
+    if amount > 5000 or (vendor == "andina_co" and amount > 2000):
+        status = "urgente"
+    else:
+        status = "normal"
+
+    print(status)

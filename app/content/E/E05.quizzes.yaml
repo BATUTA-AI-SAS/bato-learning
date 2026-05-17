@@ -1,0 +1,90 @@
+# E05 — Quizzes: Temporal, determinismo, schedules
+
+- slug: e05_q_determinism_rule
+  question: |
+    ¿Cuál de estas operaciones está **permitida** dentro de un `@workflow.run`?
+  explanation: |
+    El workflow solo puede llamar a `workflow.execute_activity`. Todo IO, tiempo real,
+    random y LLM van en activities. La única operación permitida de la lista es
+    `workflow.execute_activity(...)`.
+  options:
+    - text: "`result = await workflow.execute_activity(fetch_data, args=[tenant_id], start_to_close_timeout=timedelta(minutes=5))`"
+      correct: true
+      feedback: "Correcto. Esta es la única forma válida de hacer IO desde un workflow: delegarlo a una activity."
+    - text: "`ts = datetime.now().isoformat()`"
+      correct: false
+      feedback: "Prohibido. `datetime.now()` en workflow code viola el determinismo: el replay produce un timestamp distinto, lo que causa `NonDeterminismError`."
+    - text: "`dataset_id = str(uuid.uuid4())`"
+      correct: false
+      feedback: "Prohibido. Cada replay genera un UUID distinto; el historial no coincide. UUID va en una activity."
+    - text: "`data = httpx.get('http://erp/api/invoices').json()`"
+      correct: false
+      feedback: "Prohibido. IO de red directo en el workflow; si falla, no hay retry policy aplicable y el replay puede divergir."
+
+- slug: e05_q_heartbeat_purpose
+  question: |
+    El `heartbeat_timeout` en `workflow.execute_activity(...)` sirve para:
+  explanation: |
+    `heartbeat_timeout` no es el timeout total de la activity (eso es `start_to_close_timeout`).
+    Es el tiempo máximo entre dos llamadas a `activity.heartbeat(...)`. Si la activity
+    no late en ese tiempo, Temporal asume que el worker murió y reintenta la activity.
+    Para un agente LLM que puede tardar minutos, el heartbeat periódico es la señal
+    de vida que mantiene la activity activa.
+  options:
+    - text: "Definir el tiempo máximo que tiene la activity para completarse desde que se asigna."
+      correct: false
+      feedback: "Eso es `start_to_close_timeout`. El `heartbeat_timeout` es distinto: es el intervalo máximo entre heartbeats, no el tiempo total."
+    - text: "Detectar activities de larga duración que dejaron de responder, reintentándolas en otro worker."
+      correct: true
+      feedback: "Correcto. Si `activity.heartbeat()` no se llama dentro del `heartbeat_timeout`, Temporal cancela y reintenta la activity. Para un agente LLM que tarda minutos, un loop de heartbeat cada 15-20 s mantiene la activity viva."
+    - text: "Limitar cuántos tokens puede usar el LLM dentro de la activity."
+      correct: false
+      feedback: "Temporal no sabe nada de tokens. El límite de tokens lo gestiona el SDK de Anthropic o el presupuesto de la activity. `heartbeat_timeout` solo detecta workers muertos."
+    - text: "Hacer log del progreso en Phoenix automáticamente."
+      correct: false
+      feedback: "El heartbeat envía datos a Temporal (visible en la UI), no a Phoenix. La observabilidad en Phoenix es responsabilidad del tracer OpenInference dentro de la activity."
+
+- slug: e05_q_imports_passthrough
+  question: |
+    ¿Para qué sirve `with workflow.unsafe.imports_passed_through():` en el módulo del workflow?
+  explanation: |
+    Durante el replay, Temporal re-ejecuta el módulo del workflow. Si un import tiene
+    side-effects al importarse (abrir un socket, escribir a un log, inicializar un pool),
+    contamina el entorno de replay. `imports_passed_through` indica a Temporal que
+    no ejecute esos imports durante el replay — los toma como pasantes.
+  options:
+    - text: "Permite importar módulos externos que de otro modo estarían bloqueados por el sandbox de Temporal."
+      correct: false
+      feedback: "Temporal no tiene un sandbox que bloquee imports. El problema no es seguridad, sino que los imports con side-effects rompen la reproducibilidad del replay."
+    - text: "Evita que Temporal ejecute los imports durante el replay, previniendo side-effects no reproducibles."
+      correct: true
+      feedback: "Correcto. El workflow code se re-ejecuta en cada replay. Un import que abre un socket al importarse es un side-effect no reproducible. `imports_passed_through` marca esos imports como seguros para el replay."
+    - text: "Acelera la carga del módulo del workflow cacheando los imports."
+      correct: false
+      feedback: "No hay caching de imports involucrado. El bloque es semántico: le dice al runtime de Temporal cómo tratar esos imports durante el replay."
+    - text: "Es necesario para importar las activities desde un módulo separado."
+      correct: false
+      feedback: "Puedes importar activities desde cualquier módulo; el bloque no es un requisito de ubicación. Es un requisito de semántica de replay cuando los imports tienen side-effects."
+
+- slug: e05_q_schedule_multitenant
+  question: |
+    En un sistema multitenant con 50 tenants, ¿cuál es la forma correcta de programar
+    un workflow mensual por tenant con Temporal Schedules?
+  explanation: |
+    Cada tenant necesita su propio schedule con id único que incluya el `tenant_id`.
+    Un schedule genérico que itera sobre todos los tenants dentro del workflow violaría
+    el principio de aislamiento: si el workflow falla para un tenant, no debe afectar a los demás.
+    Además, el id del workflow lanzado debe incluir el `tenant_id` para que sea idempotente.
+  options:
+    - text: "Un solo schedule que lanza un workflow global que itera sobre los 50 tenants con un `for` loop."
+      correct: false
+      feedback: "Si el workflow global falla a mitad del loop (en el tenant 25), reintentas desde el principio y los tenants 1-24 procesan dos veces. El aislamiento por tenant es obligatorio."
+    - text: "50 schedules, uno por tenant, con id `f'monthly-audit-{tenant_id}'` y workflow id `f'audit-{tenant_id}-scheduled'`."
+      correct: true
+      feedback: "Correcto. Cada tenant es una ejecución independiente. Un fallo en ACME no afecta a Globex. El id del schedule y del workflow incluyen `tenant_id` para garantizar idempotencia y visibilidad."
+    - text: "Un cron job del sistema operativo que llama a `curl /api/trigger-all` cada mes."
+      correct: false
+      feedback: "Un cron del SO es un disparo-y-olvida: no tiene retry, no tiene historial, no puedes cancelar ni pausar un run en curso. Temporal resuelve todos esos problemas."
+    - text: "Una sola activity que recorre todos los tenants y lanza subworkflows sin timeout."
+      correct: false
+      feedback: "Las activities sin `start_to_close_timeout` son una bomba de tiempo. Y lanzar subworkflows desde una activity mezcla responsabilidades: la orquestación es rol del workflow, no de una activity."

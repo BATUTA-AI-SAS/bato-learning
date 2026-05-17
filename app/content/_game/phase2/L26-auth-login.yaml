@@ -1,0 +1,47 @@
+slug: auth-login
+title: "Solo usuarios registrados acceden al sistema"
+kind: code
+phase: PH02
+ord: 26
+trains_skill: auth-bcrypt
+xp: 20
+est_seconds: 180
+scenario_md: |
+  El sistema de ACME está expuesto sin contraseña. Necesitas hashear contraseñas
+  al registrar y verificarlas al hacer login. Completa las funciones de hash
+  y verificación usando bcrypt.
+payload:
+  starter: |
+    import bcrypt
+
+    def hash_password(plain: str) -> bytes:
+        """Retorna el hash bcrypt de `plain`."""
+        # usa bcrypt.hashpw y bcrypt.gensalt()
+        ...
+
+    def verify_password(plain: str, hashed: bytes) -> bool:
+        """Retorna True si `plain` coincide con `hashed`."""
+        # usa bcrypt.checkpw
+        ...
+
+    # No modifiques el bloque de pruebas abajo
+    pw = "acme-secret-2024"
+    h = hash_password(pw)
+    same = verify_password(pw, h)
+    wrong = verify_password("wrong-pass", h)
+  tests: |
+    assert isinstance(h, bytes), "hash_password debe retornar bytes"
+    assert h != pw.encode(), "El hash NO debe ser igual al texto plano"
+    assert same is True, "verify_password debe retornar True con la contraseña correcta"
+    assert wrong is False, "verify_password debe retornar False con contraseña incorrecta"
+    # Dos hashes del mismo texto deben ser distintos (bcrypt usa salt aleatorio)
+    h2 = hash_password(pw)
+    assert h != h2, "Cada hash debe ser único (salt distinto)"
+hint_md: |
+  `bcrypt.hashpw(plain.encode(), bcrypt.gensalt())` para hashear.
+  `bcrypt.checkpw(plain.encode(), hashed)` para verificar.
+solution_md: |
+  Nunca guardes contraseñas en texto plano. bcrypt añade un salt aleatorio
+  antes de hashear — por eso dos hashes del mismo texto son distintos.
+  JWT vs sesión es la siguiente decisión: JWT es stateless (sin DB), sesión
+  requiere almacenamiento pero es revocable al instante.

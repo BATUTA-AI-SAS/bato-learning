@@ -1,0 +1,59 @@
+- slug: pricing-model-pyme-latam
+  question: |
+    Un cliente PYME LATAM te pide un precio por uso (per transaction).
+    El CFO dice: «necesito saber exactamente cuánto voy a pagar el mes
+    que viene para el presupuesto». ¿Qué modelo propones?
+  explanation: |
+    El cliente está describiendo la necesidad de predictibilidad, que es
+    la limitación principal del modelo por uso puro. Un modelo híbrido
+    (flat base + variable con cap) satisface ambas partes.
+  options:
+    - text: "Precio por uso puro — es el más justo para el cliente."
+      correct: false
+      feedback: "Justo no significa adecuado. Si el CFO no puede predecir la factura, el precio por uso genera fricción y desconfianza, aunque en teoría sea 'más justo'."
+    - text: "Flat mensual fijo — predecible pero no escala con el uso."
+      correct: false
+      feedback: "El flat resuelve la predictibilidad pero no captura el crecimiento del cliente. Si el volumen crece 3×, tú sigues cobrando lo mismo."
+    - text: "Híbrido: tarifa base fija + variable con cap mensual máximo."
+      correct: true
+      feedback: "Correcto. La tarifa base da la predictibilidad que necesita el CFO ('como mínimo pago X'). El variable captura el crecimiento. El cap elimina el miedo al bill-shock ('como máximo pago Y')."
+
+- slug: margin-below-minimum
+  question: |
+    Calculas que el costo real de atender a un cliente es 280 USD/mes.
+    El cliente negoció el precio a 320 USD/mes. El margen es del 12.5 %.
+    ¿Qué haces?
+  explanation: |
+    Un margen del 12.5 % no es sostenible: no cubre el tiempo de soporte
+    real, los imprevistos, ni la amortización del costo de ventas. El
+    mínimo aceptable para un servicio de agentes IA es 60 %.
+  options:
+    - text: "Firmas — tener al cliente vale más que el margen ahora."
+      correct: false
+      feedback: "Un cliente a pérdida 'estratégica' solo funciona si tienes un plan explícito de cuándo y cómo sube el precio. Sin ese plan, en 12 meses tienes un cliente que no paga lo que cuesta atender y que espera el mismo precio para siempre."
+    - text: "Negocias: reduces el scope para mantener el margen objetivo, o subes el precio."
+      correct: true
+      feedback: "Correcto. La negociación siempre es precio ↔ scope. Si el cliente quiere 320 USD/mes, el scope que cubre ese precio es 1 cuenta bancaria, no 3. El margen objetivo (60 %+) es no negociable en el largo plazo."
+    - text: "Rechazas el deal — por debajo del 60 % no trabajas."
+      correct: false
+      feedback: "Rechazar es una opción, pero antes de rechazar, negocia el scope. Un cliente con menos scope a precio razonable es mejor que perder el deal completamente."
+
+- slug: upsell-trigger
+  question: |
+    En el QBR del Q3, el cliente menciona: «el reporte de conciliación lo
+    estamos usando en las reuniones de junta». ¿Qué significa esto para
+    el pricing?
+  explanation: |
+    «Lo usan en junta» es una señal de que el servicio es estratégico para
+    el cliente, no solo operativo. Eso justifica una revisión de precio
+    al alza en la próxima renovación y abre la conversación de upsell.
+  options:
+    - text: "Nada — el precio acordado en el contrato es el precio hasta el vencimiento."
+      correct: false
+      feedback: "El precio del contrato vigente no cambia, correcto. Pero el QBR es el momento de documentar el valor estratégico para justificar el nuevo precio cuando llegue la renovación."
+    - text: "Es una señal de que el precio puede subir en la renovación — documentar y preparar la justificación."
+      correct: true
+      feedback: "Correcto. 'Lo usan en junta' significa que el ROI del servicio supera el costo operativo: es una herramienta de decisión ejecutiva. Eso vale más que 650 USD/mes. Documenta la cita para usarla en la propuesta de renovación."
+    - text: "Subirle el precio inmediatamente — si lo usan tanto, puede pagar más."
+      correct: false
+      feedback: "Subir el precio en medio del contrato sin aviso es una ruptura de confianza. El momento correcto es 90 días antes del vencimiento, con justificación de valor y oferta de bloqueo."

@@ -1,0 +1,10 @@
+slug: lista
+title: "¿Qué es una lista?"
+analogy_md: |
+  Imagina una columna de Excel con varios valores uno debajo del otro.
+  En Python, eso es una lista: valores ordenados que puedes recorrer, agregar o quitar.
+example_md: |
+  ```python
+  clientes = ["ACME", "Constructora Andina", "Clínica San Rafael"]
+  print(clientes[0])  # "ACME"
+  ```

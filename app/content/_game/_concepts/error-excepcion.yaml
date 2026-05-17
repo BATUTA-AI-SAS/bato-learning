@@ -1,0 +1,12 @@
+slug: error-excepcion
+title: "¿Qué es una excepción?"
+analogy_md: |
+  En Excel, #DIV/0! o #N/A son errores que detienen tu fórmula. En Python, una excepción
+  detiene el programa si no la capturas; el bloque try/except te deja manejarla con gracia.
+example_md: |
+  ```python
+  try:
+      total = ventas / dias
+  except ZeroDivisionError:
+      total = 0
+  ```

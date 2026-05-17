@@ -1,0 +1,21 @@
+slug: validacion-datos
+title: "Receta: Validación de datos"
+chapter_ref: phase1
+ingredients: [variable, pydantic, funcion, error-excepcion]
+body_md: |
+  Cuando recibes datos de afuera (CSV, API, usuario) siempre pueden venir rotos.
+  Combina Pydantic con try/except para rechazar lo malo antes de que llegue a la base de datos.
+  Nunca confíes en datos externos sin validar.
+yields_md: |
+  ```python
+  from pydantic import BaseModel, Field, ValidationError
+
+  class Factura(BaseModel):
+      id: str
+      monto: float = Field(gt=0)
+
+  try:
+      f = Factura(**raw_data)
+  except ValidationError as e:
+      log_error(e)
+  ```

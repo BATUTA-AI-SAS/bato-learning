@@ -1,0 +1,33 @@
+slug: rbac-permissions
+title: "Admin ve todo; usuario solo sus facturas"
+kind: multi_choice
+phase: PH02
+ord: 27
+trains_skill: rbac-authorization
+xp: 15
+est_seconds: 90
+scenario_md: |
+  ACME tiene dos roles: `admin` y `viewer`. Un viewer intenta acceder al
+  endpoint `GET /invoices/all` que lista todas las facturas del sistema.
+  ¿Cuál es la respuesta HTTP correcta que debe devolver el servidor?
+payload:
+  options:
+    - text: "200 OK con todas las facturas"
+      correct: false
+      feedback: "El servidor no debe entregar datos que el rol no tiene permitido ver, aunque el usuario esté autenticado."
+    - text: "401 Unauthorized"
+      correct: false
+      feedback: "401 significa que no hay credenciales válidas. Este usuario sí está autenticado — el problema es que no tiene permiso."
+    - text: "403 Forbidden"
+      correct: true
+      feedback: "Exacto. Autenticado ≠ autorizado. El usuario es conocido (401 no aplica) pero su rol no tiene permiso para este recurso."
+    - text: "404 Not Found"
+      correct: false
+      feedback: "404 ocultaría que el endpoint existe. La práctica OWASP recomienda 403 para que el error sea claro, no confuso."
+hint_md: |
+  Distingue: ¿el servidor conoce quién es el usuario? Sí → no es 401.
+  ¿Tiene permiso para este recurso? No → es 403.
+solution_md: |
+  401 = "no sé quién eres". 403 = "sé quién eres pero no puedes".
+  RBAC asigna permisos a roles, no a usuarios directamente. Cuando el rol
+  cambia, todos los usuarios del rol heredan el cambio sin modificar código.

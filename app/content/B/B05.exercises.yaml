@@ -1,0 +1,125 @@
+# B05 — Ejercicios: CodeMirror + Pyodide
+
+- slug: namespace_isolation
+  title: "Namespace aislado con exec"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Simula el mecanismo de aislamiento de namespace que usa el runner de Pyodide.
+    Implementa `run_in_ns(code, ns)` que:
+    1. Ejecuta `code` en el namespace `ns` usando `exec`.
+    2. Devuelve el valor de la variable `result` del namespace si existe, o `None`.
+
+    Prueba con el código: `"result = 2 + 2"` y un namespace vacío.
+  hint: |
+    `exec(code, namespace_dict)` ejecuta el código y deposita las variables en el dict.
+    Para leer una variable del namespace: `ns.get("result")`.
+  starter: |
+    def run_in_ns(code: str, ns: dict):
+        pass  # completa
+
+    ns = {}
+    value = run_in_ns("result = 2 + 2", ns)
+  test: |
+    assert value == 4, f"esperaba 4, obtuve {value!r}"
+    assert "result" in ns, "la variable 'result' debe estar en el namespace"
+    assert ns["result"] == 4
+    # verifica aislamiento: otro namespace distinto
+    ns2 = {}
+    run_in_ns("x = 99", ns2)
+    assert "x" not in ns, "los namespaces no deben contaminarse entre sí"
+    print("ok")
+  solution: |
+    def run_in_ns(code: str, ns: dict):
+        exec(code, ns)
+        return ns.get("result")
+
+    ns = {}
+    value = run_in_ns("result = 2 + 2", ns)
+
+- slug: stdout_capture
+  title: "Captura de stdout con StringIO"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `capture_output(code)` que ejecuta `code` (string de Python) y
+    devuelve lo que ese código imprimió en stdout, como string.
+    No uses Pyodide directamente — simula el mecanismo con `sys.stdout` y `io.StringIO`.
+  hint: |
+    1. Guarda el `sys.stdout` original.
+    2. Asigna `sys.stdout = io.StringIO()`.
+    3. Ejecuta el código.
+    4. Restaura `sys.stdout` y devuelve `cap.getvalue()`.
+  starter: |
+    import sys
+    import io
+
+    def capture_output(code: str) -> str:
+        pass  # completa
+
+    result = capture_output('print("hola")\nprint("mundo")')
+  test: |
+    assert result == "hola\nmundo\n", (
+        f"esperaba 'hola\\nmundo\\n', obtuve {result!r}"
+    )
+    # verifica que stdout se restauró
+    import sys, io
+    cap = io.StringIO()
+    sys.stdout = cap
+    print("test")
+    sys.stdout = sys.__stdout__
+    assert cap.getvalue() == "test\n"
+    print("ok")
+  solution: |
+    import sys
+    import io
+
+    def capture_output(code: str) -> str:
+        cap = io.StringIO()
+        old = sys.stdout
+        sys.stdout = cap
+        try:
+            exec(code)
+        finally:
+            sys.stdout = old
+        return cap.getvalue()
+
+    result = capture_output('print("hola")\nprint("mundo")')
+
+- slug: runner_decision
+  title: "Decide el runner correcto"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Para cada ejercicio, decide si usar `"pyodide"` o `"backend"` como runner.
+    Asigna el string correcto a cada variable.
+
+    1. Un ejercicio que suma dos listas de números con comprensiones.
+    2. Un ejercicio que hace una query async con SQLAlchemy contra la DB.
+    3. Un ejercicio que parsea un string de fecha con la stdlib `datetime`.
+    4. Un ejercicio que usa `aiosqlite` para abrir una conexión async.
+  hint: |
+    Pyodide es el runner correcto cuando el código solo usa la stdlib de Python o
+    paquetes compilados para WebAssembly. Si el ejercicio importa algo con C
+    extensions que no está disponible en Pyodide (SQLAlchemy, asyncpg, aiosqlite),
+    el runner debe ser `backend`.
+  starter: |
+    exercise_1 = ""  # suma de listas
+    exercise_2 = ""  # query SQLAlchemy async
+    exercise_3 = ""  # parseo de fecha con datetime
+    exercise_4 = ""  # aiosqlite
+  test: |
+    assert exercise_1 == "pyodide", \
+        "Operaciones con listas y comprensiones son stdlib pura — pyodide."
+    assert exercise_2 == "backend", \
+        "SQLAlchemy async requiere C extensions — backend."
+    assert exercise_3 == "pyodide", \
+        "datetime es stdlib de Python — pyodide."
+    assert exercise_4 == "backend", \
+        "aiosqlite usa una extensión C — backend."
+    print("ok")
+  solution: |
+    exercise_1 = "pyodide"
+    exercise_2 = "backend"
+    exercise_3 = "pyodide"
+    exercise_4 = "backend"

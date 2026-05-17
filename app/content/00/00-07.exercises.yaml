@@ -1,0 +1,142 @@
+- slug: invoice-totals
+  title: "Calcular totales de factura"
+  runner: pyodide
+  kind: code
+  prompt: |
+    ACME Manufacturing recibió dos facturas en el período 2026-04:
+    - INV-101: base 4820.0 EUR, IVA 21 %
+    - INV-102: base 2150.5 EUR, IVA 10 %
+
+    Calcula:
+    1. `total_101`: base más IVA de la primera factura.
+    2. `total_102`: base más IVA de la segunda factura.
+    3. `grand_total`: suma de los dos totales.
+    4. Imprime `grand_total` formateado con exactamente 2 decimales usando una f-string.
+  hint: |
+    Total con IVA = base * (1 + tasa). Por ejemplo: `4820.0 * (1 + 0.21)`.
+    Para formatear con 2 decimales: `f"{valor:.2f}"`.
+  starter: |
+    base_101 = 4820.0
+    tax_rate_101 = 0.21
+
+    base_102 = 2150.5
+    tax_rate_102 = 0.10
+
+    total_101 = ...
+    total_102 = ...
+    grand_total = ...
+
+    print(f"Grand total: {grand_total:.2f} EUR")
+  test: |
+    expected_101 = 4820.0 * 1.21
+    expected_102 = 2150.5 * 1.10
+    expected_grand = expected_101 + expected_102
+    assert abs(total_101 - expected_101) < 1e-9, f"total_101 debe ser {expected_101:.4f}, obtuve {total_101}"
+    assert abs(total_102 - expected_102) < 1e-9, f"total_102 debe ser {expected_102:.4f}, obtuve {total_102}"
+    assert abs(grand_total - expected_grand) < 1e-9, f"grand_total debe ser {expected_grand:.4f}, obtuve {grand_total}"
+    out = __cap.getvalue().strip()
+    assert "8991.75" in out, f"La salida debe contener '8991.75', obtuve: {out!r}"
+    print("ok")
+  solution: |
+    base_101 = 4820.0
+    tax_rate_101 = 0.21
+    base_102 = 2150.5
+    tax_rate_102 = 0.10
+    total_101 = base_101 * (1 + tax_rate_101)
+    total_102 = base_102 * (1 + tax_rate_102)
+    grand_total = total_101 + total_102
+    print(f"Grand total: {grand_total:.2f} EUR")
+
+- slug: fstring-report-line
+  title: "Construir línea de reporte con f-string"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El sistema de auditoría genera líneas de reporte con este formato exacto:
+
+    ```
+    [2026-04] INV-001 | ACME Manufacturing | 5832.20 EUR | PENDIENTE
+    ```
+
+    Construye la variable `report_line` usando los datos dados y una f-string.
+    El monto debe mostrarse con exactamente 2 decimales.
+    El estado es la variable `status`.
+
+    Imprime `report_line`.
+  hint: |
+    Usa `f"[{period}] {invoice_id} | {vendor} | {total:.2f} EUR | {status}"`.
+    Los corchetes y barras son texto literal dentro de la f-string.
+  starter: |
+    period = "2026-04"
+    invoice_id = "INV-001"
+    vendor = "ACME Manufacturing"
+    base = 4820.0
+    tax = base * 0.21
+    total = base + tax
+    status = "PENDIENTE"
+
+    report_line = f"..."
+
+    print(report_line)
+  test: |
+    expected = "[2026-04] INV-001 | ACME Manufacturing | 5832.20 EUR | PENDIENTE"
+    assert report_line == expected, (
+        f"report_line incorrecto.\nEsperado: {expected!r}\nObtuve:   {report_line!r}"
+    )
+    out = __cap.getvalue().strip()
+    assert out == expected, f"La salida no coincide con el formato esperado"
+    print("ok")
+  solution: |
+    period = "2026-04"
+    invoice_id = "INV-001"
+    vendor = "ACME Manufacturing"
+    base = 4820.0
+    tax = base * 0.21
+    total = base + tax
+    status = "PENDIENTE"
+    report_line = f"[{period}] {invoice_id} | {vendor} | {total:.2f} EUR | {status}"
+    print(report_line)
+
+- slug: integer-division-and-modulo
+  title: "División entera y módulo"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El equipo de auditoría de ACME procesa facturas en lotes de 8.
+
+    Tienes 53 facturas en total. Calcula:
+    - `full_batches`: número de lotes completos de 8 (usa `//`).
+    - `remaining`: facturas que sobran después de los lotes completos (usa `%`).
+    - `is_exact`: booleano `True` si no sobra ninguna factura, `False` si sobran.
+
+    Imprime los tres valores.
+  hint: |
+    `53 // 8` da los lotes completos. `53 % 8` da el resto.
+    `is_exact` es `True` cuando `remaining == 0`.
+  starter: |
+    total_invoices = 53
+    batch_size = 8
+
+    full_batches = ...
+    remaining = ...
+    is_exact = ...
+
+    print(full_batches)
+    print(remaining)
+    print(is_exact)
+  test: |
+    assert full_batches == 6, f"full_batches debe ser 6, obtuve {full_batches}"
+    assert remaining == 5, f"remaining debe ser 5, obtuve {remaining}"
+    assert is_exact is False, "is_exact debe ser False (sobran 5 facturas)"
+    out = __cap.getvalue().strip().splitlines()
+    assert len(out) == 3, f"Deben imprimirse 3 líneas, imprimiste {len(out)}"
+    print("ok")
+  solution: |
+    total_invoices = 53
+    batch_size = 8
+    full_batches = total_invoices // batch_size
+    remaining = total_invoices % batch_size
+    is_exact = remaining == 0
+    print(full_batches)
+    print(remaining)
+    print(is_exact)

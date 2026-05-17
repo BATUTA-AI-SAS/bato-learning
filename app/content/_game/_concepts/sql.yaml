@@ -1,0 +1,10 @@
+slug: sql
+title: "¿Qué es SQL?"
+analogy_md: |
+  SQL es el idioma para hablar con bases de datos relacionales. Si Excel tiene fórmulas,
+  SQL tiene SELECT, INSERT, UPDATE y DELETE para leer, guardar, modificar y borrar datos.
+example_md: |
+  ```sql
+  INSERT INTO facturas (id, cliente, monto)
+  VALUES ('F-042', 'ACME', 8500.0);
+  ```

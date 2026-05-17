@@ -1,0 +1,10 @@
+slug: mcp
+title: "¿Qué es MCP?"
+analogy_md: |
+  MCP (Model Context Protocol) es un estándar para conectar LLMs a herramientas externas,
+  como un conector USB universal. En lugar de integrar cada herramienta por separado, un servidor
+  MCP expone todo lo que el agente puede usar.
+example_md: |
+  ```
+  agente ←→ MCP Server ←→ [base de datos, email, CRM, ERP de ACME]
+  ```

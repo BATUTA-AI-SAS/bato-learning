@@ -1,0 +1,24 @@
+slug: orm-crud
+title: "Receta: CRUD con ORM"
+chapter_ref: phase2
+ingredients: [orm, async, pydantic, migracion]
+body_md: |
+  SQLAlchemy 2.x async cubre las cuatro operaciones básicas. Usa modelos tipados para que
+  el editor detecte errores antes de ejecutar. Siempre filtra por tenant_id en cada query.
+yields_md: |
+  ```python
+  # Crear
+  session.add(Factura(**data.model_dump(), tenant_id=tid))
+  await session.commit()
+
+  # Leer
+  row = await session.get(Factura, factura_id)
+
+  # Actualizar
+  row.estado = "pagada"
+  await session.commit()
+
+  # Borrar
+  await session.delete(row)
+  await session.commit()
+  ```

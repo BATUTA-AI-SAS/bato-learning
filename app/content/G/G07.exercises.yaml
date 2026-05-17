@@ -1,0 +1,316 @@
+- slug: capstone-discovery-script
+  title: "Discovery script completo para Andina"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Completa el discovery script para Constructora Andina con los 8 campos
+    del BANT validado + champion + comprador económico + next step.
+
+    Usa los datos del módulo:
+    - Héctor Rivas: contador general (champion)
+    - Carlos Mendoza: gerente general (comprador económico)
+    - Dolor: conciliación bancaria 3 bancos, 2 días/mes, duplicado $1.8M COP en febrero
+    - Intentaron: macro Excel que se rompe con cada PDF nuevo
+    - Carlos puede aprobar herramientas < 3 000 USD/mes sin junta
+
+    El BANT debe reflejar qué fue validado en el discovery y qué no.
+  hint: |
+    Budget está parcialmente validado: sabemos que Carlos puede aprobar
+    < 3000 USD/mes, que nuestro precio (650 USD) está muy por debajo.
+    Pero el rango exacto del presupuesto de software de Andina no se preguntó.
+  starter: |
+    discovery_result = {
+        "client": "Constructora Andina S.A.S.",
+        "date": "2026-05-16",
+        "interviewer": "",  # tu nombre o rol
+        "pain": {
+            "description": "",
+            "monthly_cost_usd": 0.0,
+            "incident": "",
+            "incident_cost_usd": 0.0
+        },
+        "tried_before": "",
+        "champion": {"name": "", "role": "", "motivation": ""},
+        "economic_buyer": {"name": "", "role": "", "authority": "", "validated": False},
+        "bant": {
+            "budget": {"validated": False, "evidence": ""},
+            "authority": {"validated": False, "evidence": ""},
+            "need": {"validated": False, "evidence": ""},
+            "timing": {"validated": False, "next_step": "", "date": ""}
+        },
+        "qualification_status": "",  # QUALIFIED | PARTIALLY_QUALIFIED | NOT_QUALIFIED
+        "next_action": ""
+    }
+  test: |
+    assert isinstance(discovery_result, dict)
+
+    pain = discovery_result["pain"]
+    assert pain["description"] != "", "pain.description no puede estar vacío"
+    assert pain["monthly_cost_usd"] > 50, \
+        "monthly_cost_usd debe ser > 50 USD (16h × $25k COP / 4300 ≈ 93 USD)"
+    assert pain["incident"] != "", "pain.incident no puede estar vacío"
+    assert pain["incident_cost_usd"] > 300, \
+        "incident_cost_usd debe ser > 300 USD ($1.8M COP / 4300 ≈ 419 USD)"
+
+    assert discovery_result["tried_before"] != "", "tried_before no puede estar vacío"
+
+    ch = discovery_result["champion"]
+    assert ch["name"] != "" and "hector" in ch["name"].lower() or "héctor" in ch["name"].lower(), \
+        "El champion es Héctor Rivas"
+    assert ch["role"] != "", "champion.role no puede estar vacío"
+
+    eb = discovery_result["economic_buyer"]
+    assert eb["name"] != "", "economic_buyer.name no puede estar vacío"
+    assert "carlos" in eb["name"].lower(), "El comprador económico es Carlos Mendoza"
+    assert eb["validated"] is False, \
+        "economic_buyer.validated debe ser False — no hablaste directamente con Carlos en el primer discovery"
+
+    bant = discovery_result["bant"]
+    # Need validado: dolor cuantificado
+    assert bant["need"]["validated"] is True, "Need sí fue validado — dolor cuantificado"
+    # Authority no validada directamente (Héctor dijo 'el gerente decide')
+    assert bant["authority"]["validated"] is False, \
+        "Authority no validada en el primer discovery — acceso a Carlos pendiente"
+
+    assert discovery_result["qualification_status"] in ("QUALIFIED", "PARTIALLY_QUALIFIED"), \
+        "El status debe ser QUALIFIED o PARTIALLY_QUALIFIED — hay dolor real y champion claro"
+    assert discovery_result["next_action"] != "", "next_action no puede estar vacío"
+    print("ok")
+  solution: |
+    discovery_result = {
+        "client": "Constructora Andina S.A.S.",
+        "date": "2026-05-16",
+        "interviewer": "Proveedor de servicios de agentes IA",
+        "pain": {
+            "description": "Conciliación bancaria de 3 cuentas (Bancolombia, BBVA, Banco de Occidente) toma 2 días/mes. Los PDFs de cada banco tienen formatos distintos que rompen el macro de Excel. No hay detección automática de duplicados.",
+            "monthly_cost_usd": 93.0,  # 16h × 25000 COP / 4300
+            "incident": "Febrero 2026: cargo duplicado de Bancolombia de $1.8M COP no detectado hasta 40 días después, fuera de la ventana de reclamo bancario.",
+            "incident_cost_usd": 419.0  # 1800000 / 4300
+        },
+        "tried_before": "Macro de Excel construido internamente. Se rompía cada vez que Bancolombia o BBVA actualizaban el formato del PDF de estado de cuenta.",
+        "champion": {
+            "name": "Héctor Rivas",
+            "role": "Contador general",
+            "motivation": "Liberar 14+ horas/mes de trabajo manual repetitivo. Tiene el dolor directamente y puede facilitar el acceso a Carlos."
+        },
+        "economic_buyer": {
+            "name": "Carlos Mendoza",
+            "role": "Gerente general",
+            "authority": "Puede aprobar herramientas de software < 3 000 USD/mes sin aprobación de junta directiva.",
+            "validated": False
+        },
+        "bant": {
+            "budget": {
+                "validated": False,
+                "evidence": "Inferido: Carlos puede aprobar < 3 000 USD/mes. Nuestro precio (650 USD/mes) está dentro del rango. Presupuesto exacto de software no preguntado."
+            },
+            "authority": {
+                "validated": False,
+                "evidence": "Héctor dijo 'el gerente decide estas cosas'. Confirmado que es Carlos pero no hubo reunión directa."
+            },
+            "need": {
+                "validated": True,
+                "evidence": "Dolor cuantificado: 16h/mes × $93 USD + incidente $419 USD en febrero. Proceso identificado y mapeado."
+            },
+            "timing": {
+                "validated": True,
+                "next_step": "Reunión con Carlos Mendoza + Héctor para demo + propuesta",
+                "date": "2026-05-21 (5 días hábiles)"
+            }
+        },
+        "qualification_status": "PARTIALLY_QUALIFIED",
+        "next_action": "Pedir a Héctor que agende a Carlos en reunión de 30 min para demo — esta semana o la próxima."
+    }
+  hints:
+    - "PARTIALLY_QUALIFIED es correcto: hay dolor real y champion, pero no tienes acceso directo al firmante todavía."
+    - "incident_cost_usd = 1800000 COP / 4300 (tipo de cambio 2026 aprox.)"
+
+- slug: capstone-one-page-proposal
+  title: "Redacta la propuesta de 1 página para Andina"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Redacta el cuerpo completo de la propuesta de 1 página para Andina
+    en el campo `proposal`. Debe incluir todos los campos del template
+    del módulo G07 (El Problema Hoy, Lo que Entregamos, Fuera del Alcance,
+    Precio, Cronograma, Garantía).
+
+    Restricciones:
+    - Precio: 650 USD/mes + 500 USD setup
+    - No más de 250 palabras en total
+    - Debe ser firmable sin modificación adicional
+  hint: |
+    La propuesta habla con los números del cliente: 16h/mes, $1.8M COP
+    del incidente, 2 días → 20 minutos. El cliente debe reconocer su
+    propio problema en las primeras 2 líneas.
+  starter: |
+    proposal = {
+        "client": "Constructora Andina S.A.S.",
+        "prepared_by": "Tu nombre / empresa",
+        "date": "2026-05-21",
+        "validity_days": 15,
+        "sections": {
+            "el_problema_hoy": "",
+            "lo_que_entregamos": "",
+            "fuera_del_alcance": "",
+            "precio": "",
+            "cronograma": "",
+            "garantia": ""
+        }
+    }
+  test: |
+    assert isinstance(proposal, dict)
+    sections = proposal["sections"]
+
+    required_sections = [
+        "el_problema_hoy", "lo_que_entregamos", "fuera_del_alcance",
+        "precio", "cronograma", "garantia"
+    ]
+    for s in required_sections:
+        assert sections.get(s, "") != "", f"Sección '{s}' no puede estar vacía"
+
+    # El problema debe mencionar datos concretos del discovery
+    problem_lower = sections["el_problema_hoy"].lower()
+    has_time_ref = any(w in problem_lower for w in ["días", "horas", "tiempo", "2 día"])
+    assert has_time_ref, "El problema debe referenciar el tiempo que tarda el proceso hoy"
+
+    # El precio debe ser explícito
+    price_section = sections["precio"]
+    assert "650" in price_section, "El precio mensual (650 USD/mes) debe estar en la propuesta"
+    assert "500" in price_section, "El setup (500 USD) debe estar en la propuesta"
+
+    # La garantía debe ser específica
+    garantia = sections["garantia"]
+    assert len(garantia) > 30, "La garantía debe ser específica (> 30 caracteres)"
+    has_guarantee_trigger = any(w in garantia.lower() for w in
+        ["85", "90", "no cumpl", "devol", "crédito", "reembolso"])
+    assert has_guarantee_trigger, \
+        "La garantía debe especificar el trigger (% de match) y la consecuencia (devolución / crédito)"
+
+    # Validez de la propuesta
+    assert proposal["validity_days"] > 0, "validity_days debe ser > 0"
+
+    # Longitud total: no más de 250 palabras
+    total_text = " ".join(sections.values())
+    word_count = len(total_text.split())
+    assert word_count <= 300, \
+        f"La propuesta tiene {word_count} palabras — debe caber en 1 página (≤ 250 palabras)"
+    print("ok")
+  solution: |
+    proposal = {
+        "client": "Constructora Andina S.A.S.",
+        "prepared_by": "Servicios de Automatización IA",
+        "date": "2026-05-21",
+        "validity_days": 15,
+        "sections": {
+            "el_problema_hoy": (
+                "La conciliación bancaria de las 3 cuentas de Andina (Bancolombia, BBVA, Banco de Occidente) "
+                "consume 2 días del contador cada mes — 16 horas de trabajo manual en PDFs de formatos distintos. "
+                "En febrero, un cargo duplicado de $1.8M COP pasó desapercibido 40 días."
+            ),
+            "lo_que_entregamos": (
+                "Agente de conciliación bancaria multi-cuenta: match automático ≥ 85 % de transacciones, "
+                "reporte de excepciones listo en 20 minutos, alerta automática por duplicados y cargos fuera de rango. "
+                "Corrida mensual + corrida de verificación bajo demanda."
+            ),
+            "fuera_del_alcance": (
+                "Integración directa API con Siigo y auditoría de facturas de proveedores (Fase 2)."
+            ),
+            "precio": (
+                "Plan Profesional (3 cuentas): 650 USD/mes. Setup único: 500 USD. "
+                "Pago: transferencia los primeros 5 días hábiles del mes. Propuesta válida por 15 días."
+            ),
+            "cronograma": (
+                "Firma: 2026-05-23. Kick-off: 2026-05-26. Go-live: 2026-06-09 (14 días calendario)."
+            ),
+            "garantia": (
+                "Si al Día 21 el agente no matchea ≥ 85 % de las transacciones del mes de prueba, "
+                "devolvemos el 100 % del setup y el primer mes de suscripción."
+            )
+        }
+    }
+  hints:
+    - "La propuesta habla de días y de $1.8M COP — datos del cliente, no del proveedor."
+    - "La garantía tiene trigger claro (85 %) y consecuencia clara (devolución 100 %). Sin ambigüedad."
+
+- slug: capstone-kpi-agreement
+  title: "Define los KPIs de éxito acordados con Andina"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Define la tabla de KPIs de éxito que incluirías en el SOW de Andina.
+    Cada KPI debe tener: nombre, meta, cómo se mide, quién lo verifica,
+    y período de medición.
+
+    Mínimo 4 KPIs. Al menos 2 deben ser verificables por el cliente sin
+    conocimiento técnico.
+  hint: |
+    «Verificable por el cliente sin conocimiento técnico» significa que el
+    contador puede mirarlo en el reporte del agente o en una encuesta simple,
+    sin necesitar acceso al backend ni saber qué es una API.
+  starter: |
+    kpis = []  # lista de dicts con los campos indicados
+  test: |
+    assert isinstance(kpis, list)
+    assert len(kpis) >= 4, f"Se requieren al menos 4 KPIs, hay {len(kpis)}"
+
+    required_fields = ["name", "target", "measurement", "verifier", "period"]
+    for i, kpi in enumerate(kpis, 1):
+        for field in required_fields:
+            assert field in kpi and kpi[field] != "", \
+                f"KPI {i}: campo '{field}' faltante o vacío"
+
+    # Al menos 2 verificables por el cliente
+    client_verifiable = [k for k in kpis if "héctor" in k["verifier"].lower()
+                         or "carlos" in k["verifier"].lower()
+                         or "cliente" in k["verifier"].lower()
+                         or "andina" in k["verifier"].lower()]
+    assert len(client_verifiable) >= 2, \
+        f"Al menos 2 KPIs deben ser verificables por el cliente. Verificables: {len(client_verifiable)}"
+
+    # Match automático debe estar
+    has_match_kpi = any("match" in k["name"].lower() or "automát" in k["name"].lower()
+                        for k in kpis)
+    assert has_match_kpi, "Debe haber un KPI de % de match automático"
+    print("ok")
+  solution: |
+    kpis = [
+        {
+            "name": "Match automático mensual",
+            "target": "≥ 85 % (meta aspiracional: ≥ 90 %)",
+            "measurement": "Número de transacciones matcheadas automáticamente / total transacciones del mes",
+            "verifier": "Héctor Rivas (Andina) — visible en el reporte mensual del agente",
+            "period": "Mensual"
+        },
+        {
+            "name": "Excepciones para revisión manual",
+            "target": "≤ 30 excepciones/mes",
+            "measurement": "Número de filas en la tabla de excepciones del reporte",
+            "verifier": "Héctor Rivas (Andina) — contador de filas en el reporte PDF",
+            "period": "Mensual"
+        },
+        {
+            "name": "Tiempo de revisión de excepciones",
+            "target": "≤ 30 minutos por corrida mensual",
+            "measurement": "Encuesta breve de 1 pregunta a Héctor al final de cada corrida",
+            "verifier": "Héctor Rivas (Andina) — autoreporte por WhatsApp o email",
+            "period": "Mensual"
+        },
+        {
+            "name": "Uptime del servicio",
+            "target": "≥ 99.5 % mensual",
+            "measurement": "Monitoreo de disponibilidad del endpoint de la plataforma",
+            "verifier": "Proveedor — dashboard de monitoreo; reporte mensual enviado al cliente",
+            "period": "Mensual"
+        },
+        {
+            "name": "Satisfacción del cliente (NPS proxy)",
+            "target": "≥ 8/10",
+            "measurement": "Encuesta de 1 pregunta: '¿Cuánto recomendarías este servicio a otro gerente? (0–10)'",
+            "verifier": "Carlos Mendoza (Andina) — respuesta en email trimestral",
+            "period": "Trimestral"
+        }
+    ]
+  hints:
+    - "KPI verificable por el cliente = algo que puede medir mirando el reporte o respondiendo una encuesta simple."
+    - "No necesitas 8 KPIs perfectos. 4-5 concretos son más valiosos que 10 vagos."

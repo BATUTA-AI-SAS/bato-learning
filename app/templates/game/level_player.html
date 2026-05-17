@@ -1,0 +1,48 @@
+{% extends "_layout.html" %}
+{% block title %}bato-learning · {{ level.title }}{% endblock %}
+
+{% block main %}
+<header class="hero">
+  <div class="breadcrumb">
+    <a href="/game">arena</a> &rsaquo;
+    <a href="/game/{{ phase.slug }}">{{ phase.title }}</a> &rsaquo;
+    {{ level.title }}
+  </div>
+  <h1>{{ level.title }}</h1>
+  <p class="muted">{{ level.kind }} &middot; {{ level.xp }} XP &middot; ~{{ level.est_seconds }}s</p>
+</header>
+
+{% if new_concepts %}
+<div class="concept-popups" id="concept-popups">
+  {% for popup in new_concepts %}
+  <div class="concept-popup" data-slug="{{ popup.slug }}">
+    <strong>{{ popup.title }}</strong>
+    <div class="analogy">{{ popup.analogy_md }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<section class="level-scenario">
+  <div class="scenario-body">{{ level.scenario_md }}</div>
+</section>
+
+<section class="level-widget" id="level-widget"
+         data-level-slug="{{ level.slug }}"
+         data-kind="{{ level.kind }}"
+         data-payload="{{ level.payload | tojson | e }}">
+  <p class="muted">[Widget de ejercicio — pendiente tarea 5]</p>
+  <button type="button" id="hint-btn" class="btn-secondary">Ver pista</button>
+  <div id="hint-panel" hidden>{{ level.hint_md }}</div>
+</section>
+
+<section class="mentor-panel">
+  <p class="muted">Panel del mentor — pendiente integración con tutor IA.</p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.__BL_LEVEL_PAYLOAD = {{ level.payload | tojson }};
+</script>
+{% endblock %}

@@ -1,0 +1,34 @@
+slug: testing-pyramid
+title: "¿Qué tipo de test usar aquí?"
+kind: multi_choice
+phase: PH02
+ord: 31
+trains_skill: testing-strategy
+xp: 15
+est_seconds: 90
+scenario_md: |
+  El equipo de ACME debate qué test escribir para verificar que la función
+  `calculate_total` retorna el valor correcto. ¿Cuál es el tipo correcto
+  según la pirámide de testing?
+payload:
+  options:
+    - text: "Test end-to-end: lanzar el navegador y hacer click en 'Calcular'"
+      correct: false
+      feedback: "E2E es para flujos completos de usuario. Para una función pura es lento, costoso y difícil de mantener."
+    - text: "Test de integración: llamar al endpoint HTTP que internamente usa `calculate_total`"
+      correct: false
+      feedback: "Integración verifica que capas distintas se conectan. Aquí solo tienes una función pura — no hace falta levantar servidor."
+    - text: "Test unitario: llamar `calculate_total(1000, 0.19)` directamente y hacer assert"
+      correct: true
+      feedback: "Exacto. Tests unitarios para lógica pura: rápidos, baratos, sin dependencias externas. Son la base de la pirámide."
+    - text: "No hace falta test — es una función de una línea"
+      correct: false
+      feedback: "Las funciones de una línea también tienen bugs (bordes de redondeo, signos). El test documenta el contrato además de verificarlo."
+hint_md: |
+  La pirámide: muchos unitarios (base) → pocos de integración → muy pocos E2E (cúspide).
+  Una función pura sin IO vive en la base.
+solution_md: |
+  Unitario = función aislada, sin DB, sin red, sin tiempo real.
+  Integración = dos capas que se hablan (router + repo, por ejemplo).
+  E2E = el flujo completo desde el navegador hasta la DB.
+  Más arriba en la pirámide = más lento, más costoso, más difícil de debuggear.

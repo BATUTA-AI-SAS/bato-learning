@@ -1,0 +1,10 @@
+slug: docker
+title: "¿Qué es Docker?"
+analogy_md: |
+  Imagina empacar toda tu aplicación (código, dependencias, configuración) en una caja sellada
+  que funciona igual en tu laptop, en el servidor del cliente y en producción. Eso es un contenedor Docker.
+example_md: |
+  ```
+  docker compose up --build
+  ```
+  Levanta todos los servicios definidos en docker-compose.yml.

@@ -1,0 +1,109 @@
+- slug: squash-vs-merge-commit
+  question: |
+    Tu equipo tiene una política de «historial limpio en main». El branch
+    `feat/invoice-export` tiene 14 commits, varios con mensajes como
+    «wip», «arreglando», «otro intento». Al mergear el PR, ¿qué estrategia
+    de merge es más apropiada?
+  explanation: |
+    Squash and merge combina todos los commits del branch en uno solo al
+    llegar a main. El historial de main queda con un commit por feature/fix,
+    legible y navegable. Los 14 commits intermedios (incluyendo los «wip»)
+    desaparecen del historial de main — pero quedan en el branch si lo necesitas.
+    Merge commit preserva todos los commits, incluyendo los «wip» y «arreglando»,
+    que ensucian el historial de main.
+  options:
+    - text: "Squash and merge — un solo commit limpio entra a main"
+      correct: true
+      feedback: "Correcto. Squash agrupa los 14 commits en uno con el mensaje del PR. El historial de main queda legible."
+    - text: "Merge commit — preserva el historial completo del desarrollo"
+      correct: false
+      feedback: "Merge commit preserva los 14 commits, incluyendo los mensajes de trabajo en progreso. El historial de main se vuelve ruidoso y difícil de navegar con git log."
+    - text: "Rebase and merge — los 14 commits entran linealmente a main"
+      correct: false
+      feedback: "Rebase preserva los 14 commits (incluyendo los wip) pero los reescribe encima de main. Mismo problema que merge commit para el historial, más complejidad."
+    - text: "Push directo a main después de hacer squash local"
+      correct: false
+      feedback: "Push directo a main salta el PR y el CI. Aunque hagas squash local, el cambio llega sin revisión ni validación automática."
+
+- slug: branch-protection-bypass
+  question: |
+    Eres el único admin del repositorio y también el único desarrollador.
+    Tienes activada la regla «Require status checks to pass before merging».
+    El CI está fallando por un test flaky (intermitente) que no tiene relación
+    con tu cambio. ¿Cuál es la respuesta correcta?
+  explanation: |
+    Desactivar la protección «porque era solo una vez» es el inicio de un patrón
+    de excepciones que termina en «siempre lo saltamos cuando hay urgencia».
+    La respuesta correcta es arreglar el test flaky — marcarlo como skipped
+    con una issue abierta, o desacoplarlo del check requerido si verdaderamente
+    es ruido. La excepción limpia es cambiar qué tests son «requeridos», no
+    desactivar la protección.
+  options:
+    - text: "Arreglar o skipear el test flaky con una issue abierta, luego mergear"
+      correct: true
+      feedback: "Correcto. El test flaky es un problema real que hay que resolver o aislar explícitamente. Saltarse la protección enseña al equipo que las protecciones son opcionales."
+    - text: "Desactivar temporalmente la branch protection para este merge"
+      correct: false
+      feedback: "La «excepción temporal» crea precedente. La siguiente vez que el CI moleste, alguien recuerda que «la otra vez lo desactivamos». Las protecciones pierden credibilidad."
+    - text: "Hacer force push a main desde la línea de comandos"
+      correct: false
+      feedback: "Force push a main reescribe el historial y salta toda protección. Es la opción más destructiva y la más difícil de revertir limpiamente."
+    - text: "Esperar indefinidamente a que el test pase solo"
+      correct: false
+      feedback: "Un test flaky puede pasar en el próximo run, pero también puede seguir fallando indefinidamente. La acción correcta es intervenir: diagnosticar, skipear con razón documentada, o arreglar."
+
+- slug: hotfix-flow
+  question: |
+    Son las 11 p.m. del viernes. El agente de ACME está rechazando todas
+    las facturas porque un regex cambió en el último deploy. El fix es
+    una sola línea. ¿Cuál es el flujo correcto?
+  explanation: |
+    El hotfix flow es idéntico al flujo normal en su estructura:
+    branch → commit → push → PR → CI → merge → deploy.
+    La única diferencia es la urgencia y que el branch se crea desde main
+    directamente (no desde otra branch en desarrollo).
+    El CI sigue siendo obligatorio, incluso a las 11 p.m. El tiempo que
+    tarda el CI (2-3 minutos) es insignificante comparado con el riesgo de
+    introducir un segundo bug al saltárselo.
+  options:
+    - text: "Branch desde main → fix → commit → PR → CI → merge → deploy automático"
+      correct: true
+      feedback: "Correcto. El flujo es el mismo; la urgencia no cambia el proceso. El CI tarda 2-3 minutos y vale la pena."
+    - text: "Push directo a main porque es urgente y el fix es trivial"
+      correct: false
+      feedback: "«Trivial» es una opinión en el momento del pánico. Los peores bugs de producción son los 'fixes triviales' de las 11 p.m. que no pasaron por CI."
+    - text: "Rollback al deploy anterior, luego arreglar con calma el lunes"
+      correct: false
+      feedback: "Rollback es válido para ganar tiempo, pero no reemplaza el fix. Si el rollback es la acción correcta, hazlo. Pero el fix sigue necesitando el flujo normal cuando esté listo."
+    - text: "Editar el archivo directamente en el servidor por SSH"
+      correct: false
+      feedback: "Editar en producción directamente crea inconsistencia: el código en el servidor difiere del repo. El próximo deploy sobrescribe el fix. Y no hay historial de qué se cambió ni por qué."
+
+- slug: revert-vs-rollback
+  question: |
+    Mergeaste un PR ayer que introdujo un bug crítico. Tienes dos opciones:
+    (A) `git revert` del commit del merge, y (B) `git reset --hard` al commit
+    anterior + force push a main. ¿Cuál eliges y por qué?
+  explanation: |
+    `git revert` crea un **nuevo commit** que deshace los cambios del commit
+    anterior. El historial queda intacto: se puede ver qué se revirtió, cuándo,
+    y por qué. Es reversible: si resulta que el revert fue un error, se vierte
+    el revert.
+
+    `git reset --hard` + force push **reescribe el historial**. Los commits
+    borrados desaparecen del historial público. Cualquier dev que ya clonó
+    el repo tiene un historial diferente al servidor. Crea conflictos garantizados
+    y borra la evidencia de qué pasó.
+  options:
+    - text: "`git revert` — crea un nuevo commit que deshace el cambio, historial intacto"
+      correct: true
+      feedback: "Correcto. Revert es la operación correcta: no destruye historial, es auditable, y es reversible."
+    - text: "`git reset --hard` + force push — más limpio, como si el bug nunca hubiera existido"
+      correct: false
+      feedback: "Reescribir el historial público destruye la evidencia y rompe los repos locales de cualquier dev que ya sincronizó. La apariencia de 'limpieza' viene a costa de trazabilidad y colaboración."
+    - text: "Depende — si el bug no llegó a producción, usa reset; si llegó, usa revert"
+      correct: false
+      feedback: "La distinción correcta no es prod vs no-prod. Es: ¿alguien más ya tiene ese historial? Si el branch es privado y nadie más sincronizó, reset puede ser aceptable. Si el commit está en main y otros lo tienen, siempre revert."
+    - text: "Ninguna — lo correcto es esperar al siguiente deploy con el fix"
+      correct: false
+      feedback: "Si el bug es crítico, esperar no es una opción. Revert despliega el estado anterior en minutos."

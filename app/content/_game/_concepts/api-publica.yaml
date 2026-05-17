@@ -1,0 +1,11 @@
+slug: api-publica
+title: "¿Qué es una API pública?"
+analogy_md: |
+  Es una API diseñada para que clientes externos la usen directamente, con versionado,
+  documentación y contratos estables. Como el portal de proveedores de ACME: cualquier
+  proveedor puede conectarse siguiendo las reglas publicadas.
+example_md: |
+  ```
+  GET /v1/facturas          # versión pública con contrato estable
+  Authorization: Bearer {api_key}
+  ```

@@ -1,0 +1,22 @@
+{% set meta = q.meta_json | fromjson %}
+<article class="quiz match" data-quiz-id="{{ q.id }}" data-slug="{{ q.slug }}" data-kind="match">
+  <div class="q">{{ q.question_md | md | safe }}</div>
+  <div class="match-pairs">
+    {% for pair in meta.get("pairs", []) %}
+    <div class="pair" data-index="{{ loop.index0 }}">
+      <span class="left">{{ pair.left }}</span>
+      <span class="connector">→</span>
+      <span class="right-opts">
+        {% for p2 in meta.get("pairs", []) %}
+          <button type="button" class="right-opt" data-pair-idx="{{ loop.index0 }}">{{ p2.right }}</button>
+        {% endfor %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  <button type="button" class="submit-match btn-primary">Verificar pares</button>
+  <div class="feedback" hidden></div>
+  {% if q.explanation_md %}
+    <div class="explanation" hidden>{{ q.explanation_md | md | safe }}</div>
+  {% endif %}
+</article>

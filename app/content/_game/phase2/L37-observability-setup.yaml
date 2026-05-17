@@ -1,0 +1,30 @@
+slug: observability-setup
+title: "Registra qué pasa en producción: errores, latencia, uso"
+kind: order_steps
+phase: PH02
+ord: 37
+trains_skill: observability
+xp: 20
+est_seconds: 120
+scenario_md: |
+  El servicio de ACME está en producción pero cuando algo falla el equipo
+  no sabe qué pasó. Hay que instrumentar el sistema con logs, métricas
+  y trazas. Ordena los pasos para montar observabilidad básica.
+payload:
+  steps:
+    - "Añadir un log estructurado en cada request: `logger.info('request', method=method, path=path, duration_ms=t, status=status)`"
+    - "Definir las tres señales que quieres medir: errores 5xx, latencia p95, requests/segundo"
+    - "Conectar el servicio a un dashboard (Grafana o similar) que lea las métricas"
+    - "Añadir un bloque try/except global que capture excepciones no manejadas y las loguee con `logger.exception`"
+    - "Configurar alertas: si errores 5xx > 1% en 5 minutos, notificar al equipo en Slack"
+    - "Verificar en staging que los logs llegan al agregador y las métricas aparecen en el dashboard"
+  correct_order: [1, 3, 0, 2, 5, 4]
+hint_md: |
+  Primero defines QUÉ medir. Luego instrumentas el código (captura errores,
+  logs). Luego conectas el dashboard. Luego verificas en staging.
+  Las alertas son el último paso — alertar sobre datos que no llegan no sirve.
+solution_md: |
+  Los tres pilares: logs (qué pasó), métricas (cuántas veces y qué tan rápido),
+  trazas (el camino completo de un request entre servicios). Para un monolito
+  con SQLite, logs estructurados + métricas básicas es suficiente. Las trazas
+  distribuidas se vuelven críticas cuando hay microservicios.

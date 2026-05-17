@@ -1,0 +1,10 @@
+slug: git
+title: "¿Qué es Git?"
+analogy_md: |
+  En Excel guardas versiones como "facturacion_v2_FINAL.xlsx". Git hace eso automáticamente
+  con historial, fecha, autor y la posibilidad de volver a cualquier punto sin perder nada.
+example_md: |
+  ```
+  git add .
+  git commit -m "agrega validacion de facturas"
+  ```

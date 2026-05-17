@@ -1,0 +1,89 @@
+- slug: workspace-structure
+  title: "Construir la estructura de un workspace"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Cuando abres una carpeta en VS Code, el Explorer muestra el árbol de archivos.
+    La función `list_python_files` recibe un diccionario que representa un árbol
+    de directorios y devuelve una lista de todos los archivos `.py` encontrados,
+    con su ruta relativa desde la raíz del proyecto.
+
+    El árbol se representa así:
+    ```python
+    tree = {
+        "audit.py": None,          # None indica archivo (no carpeta)
+        "facturas": {              # dict indica carpeta
+            "loader.py": None,
+            "acme_2026-04.csv": None,
+        },
+        "reportes": {},            # carpeta vacía
+    }
+    ```
+    Para el árbol anterior, el resultado debe ser: `["audit.py", "facturas/loader.py"]`
+  hint: |
+    Usa recursión o una pila. Para cada clave del dict: si el valor es `None`,
+    es un archivo — añádelo si termina en `.py`. Si el valor es un dict, es
+    una carpeta — llama a la función recursivamente con el prefijo actualizado.
+  starter: |
+    def list_python_files(tree: dict, prefix: str = "") -> list:
+        """Lista todos los archivos .py del árbol con ruta relativa."""
+        result = []
+        # implementa aquí
+        return result
+
+    tree = {
+        "audit.py": None,
+        "hola.py": None,
+        "facturas": {
+            "loader.py": None,
+            "acme_2026-04.csv": None,
+        },
+        "reportes": {},
+    }
+    print(sorted(list_python_files(tree)))
+  test: |
+    tree = {
+        "audit.py": None,
+        "hola.py": None,
+        "facturas": {
+            "loader.py": None,
+            "acme_2026-04.csv": None,
+        },
+        "reportes": {},
+        "utils": {
+            "helpers.py": None,
+            "config.yaml": None,
+        },
+    }
+    result = sorted(list_python_files(tree))
+    assert "audit.py" in result, "audit.py debe estar en el resultado"
+    assert "hola.py" in result, "hola.py debe estar en el resultado"
+    assert "facturas/loader.py" in result, "facturas/loader.py debe estar en el resultado"
+    assert "utils/helpers.py" in result, "utils/helpers.py debe estar en el resultado"
+    assert "facturas/acme_2026-04.csv" not in result, ".csv no debe incluirse"
+    assert "utils/config.yaml" not in result, ".yaml no debe incluirse"
+    assert len(result) == 4, f"Deben ser 4 archivos .py, hay {len(result)}: {result}"
+    print("ok")
+  solution: |
+    def list_python_files(tree: dict, prefix: str = "") -> list:
+        """Lista todos los archivos .py del árbol con ruta relativa."""
+        result = []
+        for name, content in tree.items():
+            path = f"{prefix}{name}" if not prefix else f"{prefix}/{name}"
+            if content is None:
+                if name.endswith(".py"):
+                    result.append(path)
+            else:
+                result.extend(list_python_files(content, path))
+        return result
+
+    tree = {
+        "audit.py": None,
+        "hola.py": None,
+        "facturas": {
+            "loader.py": None,
+            "acme_2026-04.csv": None,
+        },
+        "reportes": {},
+    }
+    print(sorted(list_python_files(tree)))

@@ -1,0 +1,19 @@
+slug: auth-session
+title: "Receta: Autenticación con JWT"
+chapter_ref: phase2
+ingredients: [autenticacion, autorizacion, http, seguridad-web]
+body_md: |
+  El flujo estándar: el cliente envía credenciales, el servidor emite un JWT firmado, y cada
+  solicitud posterior incluye ese token en el header. El servidor verifica firma y expiración
+  sin tocar la base de datos.
+yields_md: |
+  ```python
+  from jose import jwt
+
+  def crear_token(sub: str) -> str:
+      return jwt.encode({"sub": sub, "exp": tiempo_expiracion()}, SECRET_KEY)
+
+  def verificar_token(token: str) -> str:
+      payload = jwt.decode(token, SECRET_KEY)
+      return payload["sub"]
+  ```

@@ -1,0 +1,12 @@
+slug: feature-flags
+title: "¿Qué son los feature flags?"
+analogy_md: |
+  Son interruptores en el código que activan o desactivan funcionalidades sin redesplegar.
+  Puedes mostrar el nuevo módulo de facturación solo a los usuarios de ACME mientras el resto
+  sigue con la versión anterior.
+example_md: |
+  ```python
+  if flags.is_enabled("nuevo-modulo-facturacion", tenant_id):
+      return nueva_vista()
+  return vista_actual()
+  ```

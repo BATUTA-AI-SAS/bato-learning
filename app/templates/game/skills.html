@@ -1,0 +1,38 @@
+{% extends "_layout.html" %}
+{% block title %}bato-learning · habilidades{% endblock %}
+
+{% block main %}
+<header class="hero">
+  <h1>Habilidades</h1>
+  <p class="lede">Tu mapa de dominio por skill.</p>
+</header>
+
+<section class="skills-heatmap">
+  {% if skills %}
+  <table class="skills-table">
+    <thead>
+      <tr>
+        <th>Skill</th>
+        <th>Niveles</th>
+        <th>Sin pista</th>
+        <th>Último paso</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in skills %}
+      <tr>
+        <td><code>{{ s.skill }}</code></td>
+        <td>{{ s.level_count }}</td>
+        <td>{{ s.unaided_count }}</td>
+        <td class="muted">
+          {% if s.last_passed_at %}{{ s.last_passed_at.strftime('%Y-%m-%d') }}{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Aún no has completado ningún nivel. ¡Empieza en la <a href="/game">arena</a>!</p>
+  {% endif %}
+</section>
+{% endblock %}

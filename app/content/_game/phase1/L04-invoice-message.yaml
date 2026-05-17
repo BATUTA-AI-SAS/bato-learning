@@ -1,0 +1,27 @@
+slug: invoice-message
+title: "Arma el mensaje de confirmación"
+kind: fill_blank
+trains_skill: string
+concepts_introduced: [f-string, format, slicing]
+concepts_reinforced: [variable, string]
+scenario_md: |
+  El CFO de ACME quiere un mensaje automático que confirme el pago de la
+  factura. Tienes el número de factura y el monto. Completa la f-string
+  para que el mensaje quede exactamente como él lo pidió.
+payload:
+  code_template: |
+    factura = "FAC-2024-0391"
+    monto = 1_487_500
+    codigo = ___
+    mensaje = f"Factura {codigo} aprobada por ${monto:,}"
+    print(mensaje)
+  blanks:
+    - label: "los últimos 4 caracteres del número de factura (slicing)"
+      correct: ["factura[-4:]", "factura[9:]", "factura[9:13]"]
+hint_md: "El slicing con índices negativos cuenta desde el final de la cadena."
+solution_md: |
+  codigo = factura[-4:]  → "0391"
+  La f-string interpola variables con {}. El formato :, agrega separadores
+  de miles al número. Resultado: "Factura 0391 aprobada por $1,487,500"
+xp: 15
+est_seconds: 90

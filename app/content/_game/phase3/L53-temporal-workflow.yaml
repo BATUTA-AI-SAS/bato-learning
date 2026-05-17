@@ -1,0 +1,66 @@
+slug: temporal-workflow
+title: "Este workflow debe sobrevivir un reinicio del servidor"
+kind: predict
+phase: PH03
+ord: 53
+trains_skill: temporal
+concepts_introduced: [temporal, durable-execution, activities, determinism, replay]
+concepts_reinforced: [agent-loop, async]
+xp: 15
+est_seconds: 150
+scenario_md: |
+  El proceso de aprobación de facturas de ACME puede tardar 3 días si el CFO
+  está de viaje. Si el servidor se reinicia, el proceso debe continuar desde
+  donde quedó. Lee este workflow Temporal y predice qué pasa al reiniciar.
+payload:
+  code: |
+    from temporalio import activity, workflow
+    from datetime import timedelta
+
+    @activity.defn
+    async def send_cfo_notification(invoice_id: str) -> str:
+        # Llama a la API de Slack — puede fallar y Temporal reintenta
+        return f"Notification sent for {invoice_id}"
+
+    @activity.defn
+    async def wait_for_cfo_approval(invoice_id: str) -> bool:
+        # Consulta la DB — puede tardar días
+        return True  # simulado
+
+    @workflow.defn
+    class InvoiceApprovalWorkflow:
+        @workflow.run
+        async def run(self, invoice_id: str) -> dict:
+            # Paso 1: notificar (con retry automático si falla)
+            await workflow.execute_activity(
+                send_cfo_notification,
+                invoice_id,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            # Paso 2: esperar aprobación (puede pasar días)
+            approved = await workflow.execute_activity(
+                wait_for_cfo_approval,
+                invoice_id,
+                start_to_close_timeout=timedelta(days=7),
+            )
+            return {"invoice_id": invoice_id, "approved": approved}
+  question_md: "Si el servidor se reinicia después de que `send_cfo_notification` completó pero antes de que `wait_for_cfo_approval` termine, ¿qué hace Temporal?"
+  options:
+    - text: "Temporal repite el workflow desde el paso donde quedó: no vuelve a llamar a send_cfo_notification porque ya completó."
+      correct: true
+      feedback: "Correcto. Temporal persiste el historial de eventos. Al reiniciar, replaya el workflow hasta el último evento registrado, saltando actividades ya completadas."
+    - text: "Temporal reinicia el workflow desde cero: vuelve a ejecutar send_cfo_notification y espera de nuevo."
+      correct: false
+      feedback: "Eso sería un sistema sin durabilidad. Temporal es exactamente lo contrario: persiste el historial y retoma desde el punto de falla."
+    - text: "Temporal lanza una excepción porque la actividad quedó en estado desconocido."
+      correct: false
+      feedback: "Temporal asume que las actividades son idempotentes y reiniciables. La excepción no viene del reinicio sino de errores en la actividad misma."
+hint_md: |
+  Temporal separa Workflows (determinísticos, replayables) de Activities (I/O,
+  efectos secundarios, reintentables). El historial de eventos es la fuente
+  de verdad — no el estado en memoria.
+solution_md: |
+  Temporal es "ejecución durable": el workflow sobrevive reinicios, timeouts
+  y fallos de red. La clave: las Activities son las únicas que hacen I/O real;
+  el Workflow solo orquesta y es determinístico para permitir el replay.
+  Úsalo cuando el proceso dura horas/días o tolera cero pérdidas de estado.

@@ -1,0 +1,10 @@
+slug: test
+title: "¿Qué es un test automatizado?"
+analogy_md: |
+  En vez de abrir Excel y verificar a mano que =SUMA() da el resultado correcto cada vez que
+  cambias algo, un test lo verifica automáticamente en segundos cada vez que guardas código.
+example_md: |
+  ```python
+  def test_calcular_iva():
+      assert calcular_iva(1000.0) == 190.0
+  ```

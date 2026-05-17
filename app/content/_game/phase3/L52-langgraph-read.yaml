@@ -1,0 +1,68 @@
+slug: langgraph-read
+title: "Lee este código de LangGraph y explica qué hace"
+kind: predict
+phase: PH03
+ord: 52
+trains_skill: langgraph
+concepts_introduced: [langgraph, state-graph, conditional-edges, checkpointer]
+concepts_reinforced: [agent-loop, pydantic]
+xp: 15
+est_seconds: 150
+scenario_md: |
+  Un compañero construyó el workflow de aprobación de facturas de ACME en
+  LangGraph. Lee el grafo y predice qué nodo ejecuta cuando `amount > 50000`.
+payload:
+  code: |
+    from langgraph.graph import StateGraph, END
+    from typing import TypedDict
+
+    class InvoiceState(TypedDict):
+        invoice_id: str
+        amount: float
+        approved: bool
+
+    def validate_invoice(state: InvoiceState) -> InvoiceState:
+        """Verifica que el invoice_id no esté vacío."""
+        assert state["invoice_id"], "invoice_id requerido"
+        return state
+
+    def auto_approve(state: InvoiceState) -> InvoiceState:
+        return {**state, "approved": True}
+
+    def request_cfo_review(state: InvoiceState) -> InvoiceState:
+        # Simula enviar alerta al CFO
+        print(f"CFO review needed for {state['invoice_id']}")
+        return {**state, "approved": False}
+
+    def route_by_amount(state: InvoiceState) -> str:
+        return "auto_approve" if state["amount"] <= 50000 else "request_cfo_review"
+
+    graph = StateGraph(InvoiceState)
+    graph.add_node("validate", validate_invoice)
+    graph.add_node("auto_approve", auto_approve)
+    graph.add_node("request_cfo_review", request_cfo_review)
+    graph.set_entry_point("validate")
+    graph.add_conditional_edges("validate", route_by_amount)
+    graph.add_edge("auto_approve", END)
+    graph.add_edge("request_cfo_review", END)
+    compiled = graph.compile()
+  question_md: "Para `{'invoice_id': 'INV-200', 'amount': 75000.0, 'approved': False}`, ¿qué nodo ejecuta después de `validate`?"
+  options:
+    - text: "`request_cfo_review` — porque 75000 > 50000, route_by_amount retorna ese string."
+      correct: true
+      feedback: "Correcto. route_by_amount evalúa amount y retorna el nombre del nodo destino. LangGraph resuelve el edge condicionalmente."
+    - text: "`auto_approve` — porque approved es False y LangGraph lo aprueba automáticamente."
+      correct: false
+      feedback: "El campo `approved` no determina el routing. La función route_by_amount evalúa `amount`, no `approved`."
+    - text: "El grafo lanza una excepción porque 75000 supera el límite configurado."
+      correct: false
+      feedback: "No hay límite de excepción. `request_cfo_review` es el nodo normal para montos altos, no un error."
+hint_md: |
+  `add_conditional_edges(from_node, routing_fn)` llama a `routing_fn` con
+  el state actual y usa el string retornado como nombre del nodo destino.
+  Traza el flujo: validate → route_by_amount(state) → string → siguiente nodo.
+solution_md: |
+  LangGraph representa workflows como grafos dirigidos con state compartido.
+  Los `conditional_edges` son el equivalente a los `if` de tu lógica de negocio,
+  pero declarativos y trazables. El checkpointer guarda el state en cada nodo:
+  si el workflow falla, retoma desde el último checkpoint.

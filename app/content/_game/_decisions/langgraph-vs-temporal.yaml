@@ -1,0 +1,22 @@
+slug: langgraph-vs-temporal
+chapter_ref: phase3
+prompt_md: |
+  El agente de ACME necesita procesar flujos de trabajo que pueden durar horas o días
+  y deben sobrevivir reinicios del servidor. ¿Usas LangGraph o Temporal?
+options:
+  - label: "LangGraph (grafo de agente en Python)"
+    tradeoff_md: |
+      + Diseñado específicamente para flujos de agentes con LLMs.
+      + Manejo de estado integrado con checkpointing opcional.
+      + Curva de aprendizaje menor si ya conoces Python.
+      − El checkpointing en memoria no sobrevive reinicios sin configurar persistencia externa.
+      − Para workflows de días, necesitas añadir infraestructura de durabilidad por tu cuenta.
+    consequence_skill: langgraph-ops
+  - label: "Temporal (motor de workflows duraderos)"
+    tradeoff_md: |
+      + Durabilidad garantizada: el workflow retoma exactamente donde quedó tras un reinicio.
+      + Manejo nativo de reintentos, timeouts y señales externas.
+      + Historial completo de ejecución visible en la UI de Temporal.
+      − Requiere un servidor Temporal corriendo (o pago de Temporal Cloud).
+      − La API es más verbosa: activities, workflows y workers como conceptos separados.
+    consequence_skill: temporal-ops

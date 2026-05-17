@@ -1,0 +1,10 @@
+slug: terminal
+title: "¿Qué es una terminal?"
+analogy_md: |
+  En Excel haces clic en menús para dar instrucciones. La terminal es lo mismo
+  pero escribiendo texto: escribes un comando y la computadora lo ejecuta de inmediato.
+example_md: |
+  ```
+  mkdir facturas-abril
+  ```
+  Crea una carpeta llamada "facturas-abril". Nada más.

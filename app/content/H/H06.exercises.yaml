@@ -1,0 +1,230 @@
+- slug: rpo-rto-calculator
+  title: "Calcula RPO y RTO para distintos escenarios"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `evaluate_backup_strategy(backup_interval_minutes: int, restore_time_minutes: int, rto_target_minutes: int, rpo_target_minutes: int) -> dict` que devuelve:
+    - `rpo_achieved`: el RPO real (= backup_interval_minutes, ya que en el peor caso perdes eso)
+    - `rto_achieved`: el RTO real (= restore_time_minutes del drill más reciente)
+    - `rpo_ok`: True si rpo_achieved <= rpo_target_minutes
+    - `rto_ok`: True si rto_achieved <= rto_target_minutes
+    - `recommendation`: string con la recomendación más relevante.
+
+    Reglas para recommendation:
+    - Si rpo_ok y rto_ok: "strategy_ok"
+    - Si not rpo_ok: "reduce_backup_interval" (el RPO es el problema más urgente)
+    - Si rpo_ok but not rto_ok: "optimize_restore_process"
+  hint: |
+    El RPO del backup es exactamente backup_interval_minutes (peor caso).
+    El RTO es lo que midió el último drill.
+  starter: |
+    def evaluate_backup_strategy(
+        backup_interval_minutes: int,
+        restore_time_minutes: int,
+        rto_target_minutes: int,
+        rpo_target_minutes: int,
+    ) -> dict:
+        ...
+  test: |
+    # backup cada 60 min, drill tardó 45 min, objetivos: RTO=240, RPO=60
+    r = evaluate_backup_strategy(60, 45, 240, 60)
+    assert r["rpo_ok"] and r["rto_ok"]
+    assert r["recommendation"] == "strategy_ok"
+
+    # backup cada 120 min (RPO > objetivo de 60 min)
+    r = evaluate_backup_strategy(120, 45, 240, 60)
+    assert not r["rpo_ok"]
+    assert r["recommendation"] == "reduce_backup_interval"
+
+    # backup ok pero drill tardó demasiado
+    r = evaluate_backup_strategy(30, 300, 240, 60)
+    assert r["rpo_ok"] and not r["rto_ok"]
+    assert r["recommendation"] == "optimize_restore_process"
+
+    print("ok")
+  solution: |
+    def evaluate_backup_strategy(
+        backup_interval_minutes: int,
+        restore_time_minutes: int,
+        rto_target_minutes: int,
+        rpo_target_minutes: int,
+    ) -> dict:
+        rpo_achieved = backup_interval_minutes
+        rto_achieved = restore_time_minutes
+        rpo_ok = rpo_achieved <= rpo_target_minutes
+        rto_ok = rto_achieved <= rto_target_minutes
+        if rpo_ok and rto_ok:
+            recommendation = "strategy_ok"
+        elif not rpo_ok:
+            recommendation = "reduce_backup_interval"
+        else:
+            recommendation = "optimize_restore_process"
+        return {
+            "rpo_achieved": rpo_achieved,
+            "rto_achieved": rto_achieved,
+            "rpo_ok": rpo_ok,
+            "rto_ok": rto_ok,
+            "recommendation": recommendation,
+        }
+
+- slug: integrity-check
+  title: "Implementa la verificación de integridad del backup"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `verify_backup_integrity(snapshot: dict, expected: dict) -> dict` que compara
+    un snapshot de la DB restaurada contra los valores esperados.
+
+    snapshot y expected tienen las mismas claves: `modules_count`, `tenants`, `last_visit_ts` (str ISO).
+
+    La función devuelve:
+    - `ok`: True si todos los checks pasan
+    - `checks`: dict con un bool por clave verificada
+    - `errors`: lista de strings describiendo las discrepancias
+
+    Reglas:
+    - `modules_count`: el snapshot debe tener >= expected (puede haber más en el snapshot por módulos nuevos)
+    - `tenants`: el snapshot debe contener TODOS los tenants del expected (puede tener más)
+    - `last_visit_ts`: el snapshot debe tener un timestamp >= expected (la DB no puede ser más antigua)
+  hint: |
+    Para tenants, verifica set(expected) ⊆ set(snapshot).
+    Para last_visit_ts, convierte a datetime o compara strings ISO (son comparables lexicográficamente).
+  starter: |
+    def verify_backup_integrity(snapshot: dict, expected: dict) -> dict:
+        checks = {}
+        errors = []
+        # modules_count
+        # tenants
+        # last_visit_ts
+        ok = all(checks.values())
+        return {"ok": ok, "checks": checks, "errors": errors}
+  test: |
+    snap = {
+        "modules_count": 26,
+        "tenants": ["acme", "globex", "initech"],
+        "last_visit_ts": "2026-05-15T22:00:00Z",
+    }
+    exp = {
+        "modules_count": 26,
+        "tenants": ["acme", "globex"],
+        "last_visit_ts": "2026-05-15T20:00:00Z",
+    }
+    r = verify_backup_integrity(snap, exp)
+    assert r["ok"], f"debería pasar: {r['errors']}"
+
+    # snapshot con menos módulos
+    snap_bad_modules = {**snap, "modules_count": 20}
+    r = verify_backup_integrity(snap_bad_modules, exp)
+    assert not r["ok"]
+    assert not r["checks"]["modules_count"]
+
+    # snapshot con tenant faltante
+    snap_missing_tenant = {**snap, "tenants": ["acme"]}  # falta globex
+    r = verify_backup_integrity(snap_missing_tenant, exp)
+    assert not r["ok"]
+    assert not r["checks"]["tenants"]
+
+    # snapshot más antiguo
+    snap_old = {**snap, "last_visit_ts": "2026-05-15T18:00:00Z"}
+    r = verify_backup_integrity(snap_old, exp)
+    assert not r["ok"]
+    assert not r["checks"]["last_visit_ts"]
+
+    print("ok")
+  solution: |
+    def verify_backup_integrity(snapshot: dict, expected: dict) -> dict:
+        checks = {}
+        errors = []
+        # módulos
+        snap_modules = snapshot.get("modules_count", 0)
+        exp_modules = expected.get("modules_count", 0)
+        checks["modules_count"] = snap_modules >= exp_modules
+        if not checks["modules_count"]:
+            errors.append(f"modules_count {snap_modules} < expected {exp_modules}")
+        # tenants
+        snap_tenants = set(snapshot.get("tenants", []))
+        exp_tenants = set(expected.get("tenants", []))
+        missing = exp_tenants - snap_tenants
+        checks["tenants"] = len(missing) == 0
+        if missing:
+            errors.append(f"tenants faltantes en snapshot: {sorted(missing)}")
+        # timestamp
+        snap_ts = snapshot.get("last_visit_ts", "")
+        exp_ts = expected.get("last_visit_ts", "")
+        checks["last_visit_ts"] = snap_ts >= exp_ts
+        if not checks["last_visit_ts"]:
+            errors.append(f"last_visit_ts {snap_ts!r} es anterior al esperado {exp_ts!r}")
+        ok = all(checks.values())
+        return {"ok": ok, "checks": checks, "errors": errors}
+
+- slug: drill-log-analysis
+  title: "Analiza el historial de restore drills"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `analyze_drill_log(drills: list[dict]) -> dict` que analiza el historial
+    de restore drills y devuelve métricas de tendencia.
+
+    Cada drill en la lista tiene: `date` (str YYYY-MM-DD), `rto_minutes` (int), `success` (bool).
+
+    Devuelve:
+    - `total_drills`: total de drills registrados
+    - `success_rate`: tasa de éxito (0.0-1.0), redondeado a 2 decimales
+    - `avg_rto_minutes`: promedio de RTO de los drills exitosos, redondeado a 1 decimal
+    - `trend`: "improving" si el último RTO < promedio de todos, "degrading" si es mayor, "stable" si son iguales
+    - `last_drill_date`: fecha del drill más reciente (str) o None si no hay drills
+  hint: |
+    Para la tendencia, compara solo el último drill exitoso contra el promedio de los anteriores.
+    Usa solo drills con success=True para los cálculos de RTO.
+  starter: |
+    def analyze_drill_log(drills: list[dict]) -> dict:
+        if not drills:
+            return {"total_drills": 0, "success_rate": 0.0, "avg_rto_minutes": 0.0,
+                    "trend": "stable", "last_drill_date": None}
+        ...
+  test: |
+    drills = [
+        {"date": "2026-01-15", "rto_minutes": 45, "success": True},
+        {"date": "2026-02-10", "rto_minutes": 38, "success": True},
+        {"date": "2026-03-12", "rto_minutes": 60, "success": False},
+        {"date": "2026-04-08", "rto_minutes": 32, "success": True},
+        {"date": "2026-05-01", "rto_minutes": 28, "success": True},
+    ]
+    r = analyze_drill_log(drills)
+    assert r["total_drills"] == 5
+    assert r["success_rate"] == 0.8
+    # avg de exitosos (45+38+32+28)/4 = 35.75
+    assert abs(r["avg_rto_minutes"] - 35.75) < 0.1
+    # último exitoso (28) < promedio (35.75) → improving
+    assert r["trend"] == "improving"
+    assert r["last_drill_date"] == "2026-05-01"
+
+    empty = analyze_drill_log([])
+    assert empty["total_drills"] == 0
+
+    print("ok")
+  solution: |
+    def analyze_drill_log(drills: list[dict]) -> dict:
+        if not drills:
+            return {"total_drills": 0, "success_rate": 0.0, "avg_rto_minutes": 0.0,
+                    "trend": "stable", "last_drill_date": None}
+        total = len(drills)
+        successes = [d for d in drills if d.get("success")]
+        success_rate = round(len(successes) / total, 2)
+        avg_rto = round(sum(d["rto_minutes"] for d in successes) / len(successes), 1) if successes else 0.0
+        last_date = max(d["date"] for d in drills)
+        trend = "stable"
+        if len(successes) >= 2:
+            last_rto = successes[-1]["rto_minutes"]
+            prior_avg = sum(d["rto_minutes"] for d in successes[:-1]) / len(successes[:-1])
+            if last_rto < prior_avg:
+                trend = "improving"
+            elif last_rto > prior_avg:
+                trend = "degrading"
+        return {
+            "total_drills": total,
+            "success_rate": success_rate,
+            "avg_rto_minutes": avg_rto,
+            "trend": trend,
+            "last_drill_date": last_date,
+        }

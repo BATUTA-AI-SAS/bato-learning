@@ -1,0 +1,96 @@
+- slug: uv-lock-purpose
+  question: |
+    ¿Para qué sirve el archivo `uv.lock` en un proyecto Python?
+  explanation: |
+    `pyproject.toml` declara dependencias con rangos de versión (`anthropic>=0.40`).
+    Sin un lockfile, dos ejecuciones de `uv sync` en momentos distintos pueden instalar
+    versiones distintas (por ejemplo, `anthropic 0.43` la primera vez y `0.52` la segunda).
+    `uv.lock` registra la versión exacta y el hash de cada librería, garantizando que
+    `uv sync` produzca siempre el mismo entorno.
+  options:
+    - text: "Guardar el historial de comandos `uv` que ejecutaste."
+      correct: false
+      feedback: |
+        No es un log de comandos. `uv.lock` es el snapshot exacto de todas las
+        dependencias resueltas: nombre, versión exacta, y hash de verificación.
+    - text: "Bloquear el proyecto para que nadie más lo pueda modificar."
+      correct: false
+      feedback: |
+        No tiene nada que ver con permisos. «Lock» aquí significa «fijar versiones»:
+        el lockfile fija qué versión exacta de cada librería se instala.
+    - text: "Fijar la versión exacta de cada dependencia para que el entorno sea reproducible."
+      correct: true
+      feedback: |
+        Correcto. `uv.lock` garantiza que `uv sync` instala exactamente las mismas
+        versiones en cualquier máquina y en cualquier momento. Se commitea al repositorio.
+    - text: "Reemplazar a `pyproject.toml`; solo necesitas uno de los dos."
+      correct: false
+      feedback: |
+        Los dos archivos tienen roles distintos. `pyproject.toml` declara los rangos
+        de versión requeridos (lo edita el humano). `uv.lock` es el resultado de
+        resolver esos rangos (lo genera `uv`). Necesitas los dos.
+
+- slug: venv-committed
+  question: |
+    Un colega commitea el directorio `.venv/` al repositorio Git. ¿Por qué es un problema?
+  explanation: |
+    `.venv/` contiene binarios compilados para el sistema operativo y la versión de
+    Python de esa máquina. No son portables entre macOS, Linux, y Windows. Además,
+    pesan cientos de MB. El repositorio debe contener solo `pyproject.toml` y `uv.lock`;
+    cualquier miembro del equipo puede regenerar `.venv/` con `uv sync` en segundos.
+  options:
+    - text: "Ningún problema: tener `.venv/` en el repo facilita que todos tengan el mismo entorno."
+      correct: false
+      feedback: |
+        Al contrario. Los binarios de `.venv/` dependen del SO y la arquitectura de
+        la máquina donde se compilaron. Un `.venv/` de macOS no funciona en Linux.
+        El mecanismo correcto para compartir el entorno es `uv.lock` + `uv sync`.
+    - text: "El repositorio crece cientos de MB con binarios que no son portables entre SO."
+      correct: true
+      feedback: |
+        Correcto. `.venv/` puede pesar 200–500 MB con dependencias típicas, y los
+        binarios no son portables. La solución es añadir `.venv/` a `.gitignore`
+        y regenerarlo con `uv sync` en cada máquina.
+    - text: "Git lanza un error porque no puede versionar archivos binarios."
+      correct: false
+      feedback: |
+        Git puede versionar archivos binarios, pero no debería. El problema es el
+        tamaño y la no portabilidad, no una limitación de Git.
+    - text: "Solo es problema si el `.venv/` usa Python 3.11 y el equipo necesita 3.12."
+      correct: false
+      feedback: |
+        El problema existe independientemente de la versión. Los binarios de un `.venv/`
+        son específicos del SO y la arquitectura (x86, ARM). Nunca deben commitearse.
+
+- slug: pip-vs-uv-add
+  question: |
+    ¿Cuál es la diferencia principal entre `pip install anthropic` y `uv add anthropic`?
+  explanation: |
+    `pip install` instala la librería en el entorno activo pero no modifica ningún archivo
+    de proyecto. La próxima vez que alguien ejecute `uv sync` o reconfigure el entorno,
+    la librería no estará. `uv add` hace tres cosas: instala la librería, añade la
+    dependencia a `pyproject.toml`, y actualiza `uv.lock`. El entorno queda documentado
+    y reproducible.
+  options:
+    - text: "`pip install` es más rápido; `uv add` es más lento pero más correcto."
+      correct: false
+      feedback: |
+        De hecho, `uv` es considerablemente más rápido que `pip` en la resolución e
+        instalación de paquetes. La diferencia importante no es la velocidad sino que
+        `uv add` actualiza `pyproject.toml` y `uv.lock`, mientras que `pip install` no.
+    - text: "`uv add` actualiza `pyproject.toml` y `uv.lock`; `pip install` solo instala en el entorno."
+      correct: true
+      feedback: |
+        Correcto. `pip install` instala sin dejar rastro en los archivos del proyecto.
+        `uv add` mantiene `pyproject.toml` y `uv.lock` sincronizados, garantizando
+        que el equipo pueda reproducir el entorno con `uv sync`.
+    - text: "Son equivalentes; puedes usar cualquiera según tu preferencia."
+      correct: false
+      feedback: |
+        No son equivalentes. `pip install` rompe la reproducibilidad porque no actualiza
+        `pyproject.toml` ni `uv.lock`. En este curso, `pip install` es incorrecto siempre.
+    - text: "`uv add` solo funciona si ya tienes un entorno virtual activo."
+      correct: false
+      feedback: |
+        `uv add` gestiona el entorno virtual automáticamente. No necesitas activarlo
+        manualmente. Si `.venv/` no existe, lo crea; si ya existe, lo actualiza.

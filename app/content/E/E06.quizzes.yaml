@@ -1,0 +1,70 @@
+# E06 — Quizzes: Capstone
+
+- slug: e06_q_checkpointer_location
+  question: |
+    En la arquitectura LangGraph + Temporal del Capstone, ¿dónde debe vivir
+    el `MemorySaver` (checkpointer del grafo LangGraph)?
+  explanation: |
+    El checkpointer hace IO (escribe estado del grafo en memoria o en DB).
+    IO en workflow code viola el determinismo de Temporal. Por eso el checkpointer
+    vive dentro de la activity `run_agent`, que es el único lugar donde IO es permitido.
+    El workflow solo orquesta; nunca toca el estado interno del grafo.
+  options:
+    - text: "Dentro de `@workflow.run`, inicializado al inicio de la función."
+      correct: false
+      feedback: "Incorrecto. `MemorySaver` hace IO. Cualquier IO en `@workflow.run` viola el determinismo y causa `NonDeterminismError` en el primer retry."
+    - text: "Dentro de la activity `run_agent`, donde se compila y ejecuta el `StateGraph`."
+      correct: true
+      feedback: "Correcto. La activity es el único lugar en Temporal donde IO es permitido. El workflow solo llama a `execute_activity` y recibe el resultado final."
+    - text: "En un módulo separado importado con `unsafe.imports_passed_through()`."
+      correct: false
+      feedback: "`imports_passed_through` resuelve el problema de imports con side-effects al importarse, no el problema de IO en workflow code. El checkpointer aún se inicializaría y ejecutaría en el contexto del workflow."
+    - text: "En la DB de la app (`learning.db`), para que persista entre runs."
+      correct: false
+      feedback: "Para el Capstone, `MemorySaver` (en memoria) es suficiente dentro de la activity. Persistencia cross-run del estado del grafo no es el objetivo: Temporal ya persiste el resultado final en la activity output."
+
+- slug: e06_q_golden_set_stability
+  question: |
+    El golden set tiene un fixture con `"expected": {"report_contains": "PROVEEDOR-007"}`.
+    El test comprueba `assert expected["report_contains"] in result["report_md"]`.
+    ¿Qué ventaja tiene esta verificación frente a un exact match del reporte completo?
+  explanation: |
+    El LLM produce texto variable. Un exact match del reporte completo falla cada vez
+    que el modelo cambia la redacción, aunque la información sea correcta.
+    Testear un campo estructural específico (¿aparece el proveedor en el reporte?)
+    es estable porque verifica el contenido, no la forma.
+  options:
+    - text: "Es más lento pero más preciso, porque verifica todo el contenido del reporte."
+      correct: false
+      feedback: "No es más preciso: verifica *menos* del reporte (solo una subcadena), pero lo que verifica es lo que importa. Un exact match completo fallará con cada variación de redacción del LLM."
+    - text: "Es estable frente a variaciones de redacción del LLM, porque verifica contenido concreto, no forma."
+      correct: true
+      feedback: "Correcto. El LLM puede decir «PROVEEDOR-007 aparece en 3 facturas duplicadas» o «Se detectaron 3 duplicados del proveedor PROVEEDOR-007» — la subcadena `PROVEEDOR-007` está en ambos. El exact match fallaría en uno de los dos."
+    - text: "Es incorrecto: un test que pasa con texto parcial no es un test real."
+      correct: false
+      feedback: "Un substring match contra un campo clave del dominio es una verificación real y válida. Lo que no es un test real es un match contra texto que el LLM genera con varianza natural."
+    - text: "No hace diferencia: el LLM siempre produce el mismo output con la misma temperatura."
+      correct: false
+      feedback: "Temperatura 0 reduce varianza pero no la elimina: el modelo puede reformular entre versiones, entre calls con el mismo input, o si el contexto de la ventana varía ligeramente. Los tests de LLM siempre deben ser resistentes a varianza de redacción."
+
+- slug: e06_q_ready_criteria
+  question: |
+    Tienes el Capstone con 5 de los 6 criterios en verde: falla el criterio 6
+    (TLS en Hetzner). ¿El Capstone está listo?
+  explanation: |
+    Los criterios de aceptación son duros: todos deben ser verdaderos simultáneamente.
+    Un Capstone con TLS fallido no tiene deploy válido y no puede vender el servicio.
+    «Listo al 83%» no es una categoría en el sistema de evaluación.
+  options:
+    - text: "Sí, con 5/6 criterios el Capstone es aceptable para propósitos pedagógicos."
+      correct: false
+      feedback: "No. Los criterios son duros por diseño. Un agente sin TLS válido no puede venderse como servicio SaaS. «5/6» no es una categoría de aceptación — es un Capstone incompleto."
+    - text: "No. Los seis criterios deben ser verdaderos simultáneamente. El criterio 6 (TLS) es parte del contrato."
+      correct: true
+      feedback: "Correcto. El TLS no es un extra: es el mínimo para que un cliente confíe en enviar datos financieros al servicio. Sin TLS, los criterios 1-5 son irrelevantes en producción."
+    - text: "Depende: si el lector prueba el deploy localmente con HTTP, el criterio 6 puede omitirse."
+      correct: false
+      feedback: "HTTP local no es equivalente a TLS en un servidor público. El criterio 6 existe precisamente porque la diferencia entre dev y prod en TLS es donde más falla la gente. El módulo D03 enseña exactamente este paso."
+    - text: "Sí, si los criterios 1 y 2 (multitenant y golden set) pasan, el Capstone cumple los objetivos mínimos."
+      correct: false
+      feedback: "Los criterios 1 y 2 verifican correctitud funcional. Los criterios 3-6 verifican operación en producción. Un agente funcional pero no operable no es un servicio vendible."

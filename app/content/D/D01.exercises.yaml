@@ -1,0 +1,402 @@
+# D01 — Docker: imágenes, contenedores, capas, multi-stage
+# runner: pyodide para lógica pura; los ejercicios de CLI se marcan kind: design
+
+- slug: dockerfile-layer-order
+  title: "Detectar orden de capas subóptimo"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `find_cache_busters` recibe una lista de instrucciones de un Dockerfile
+    (en orden) y devuelve los índices (base 0) de las instrucciones `RUN` que
+    quedan DESPUÉS de un `COPY` que copia código de aplicación (`.py` o la carpeta `app/`).
+
+    Un `COPY` es "de código de aplicación" si copia archivos `.py` o directorios
+    que no son archivos de configuración de dependencias (`pyproject.toml`, `uv.lock`,
+    `.python-version`, `requirements.txt`).
+
+    Ejemplo:
+    ```
+    instrucciones = [
+        "FROM python:3.12-slim",       # 0
+        "RUN pip install uv",           # 1
+        "COPY . .",                     # 2  <- copia código de app
+        "RUN uv sync --no-dev",         # 3  <- RUN después → cache busted
+        "EXPOSE 8080",                  # 4
+    ]
+    # resultado: [3]
+    ```
+
+    La función debe devolver una lista de índices de instrucciones `RUN` que
+    sufrirán invalidación de cache por estar después de un COPY de código.
+  hint: |
+    Primero identifica qué instrucciones `COPY` copian código de app:
+    busca `COPY . .` o rutas que incluyan `.py`, `app/`, `scripts/`.
+    Luego marca el índice del primer COPY de ese tipo y filtra los RUN que vienen después.
+  starter: |
+    def find_cache_busters(instructions: list[str]) -> list[int]:
+        """
+        Devuelve índices de instrucciones RUN que quedaron después de
+        un COPY que copia código de aplicación (malas para cache de build).
+        """
+        APP_COPY_SIGNALS = ("COPY . .", "app/", ".py", "scripts/")
+        DEP_ONLY = ("pyproject.toml", "uv.lock", ".python-version", "requirements.txt")
+
+        first_app_copy = -1
+        # encuentra el primer COPY que copia código de aplicación
+        for i, line in enumerate(instructions):
+            # implementa aquí
+            pass
+
+        # recoge los RUN que están después
+        result: list[int] = []
+        # implementa aquí
+        return result
+
+    # prueba rápida
+    bad = [
+        "FROM python:3.12-slim",
+        "RUN pip install uv",
+        "COPY . .",
+        "RUN uv sync --no-dev",
+        "EXPOSE 8080",
+    ]
+    print(find_cache_busters(bad))
+  test: |
+    # caso malo: COPY . . antes de RUN uv sync
+    bad = [
+        "FROM python:3.12-slim",
+        "RUN pip install uv",
+        "COPY . .",
+        "RUN uv sync --no-dev",
+        "EXPOSE 8080",
+    ]
+    result = find_cache_busters(bad)
+    assert result == [3], f"Esperaba [3], obtuve {result}"
+
+    # caso correcto: dependencias primero, código después
+    good = [
+        "FROM python:3.12-slim",
+        "RUN pip install uv",
+        "COPY pyproject.toml .python-version* ./",
+        "RUN uv sync --no-dev",
+        "COPY app ./app",
+        "EXPOSE 8080",
+    ]
+    result2 = find_cache_busters(good)
+    assert result2 == [], f"Caso correcto no debe tener cache busters, obtuve {result2}"
+
+    # caso mixto: dos RUN después del COPY de app
+    mixed = [
+        "FROM python:3.12-slim",
+        "COPY pyproject.toml ./",
+        "RUN uv sync --no-dev",
+        "COPY app/ ./app/",
+        "RUN python -m scripts.seed",
+        "RUN echo done",
+        "EXPOSE 8080",
+    ]
+    result3 = find_cache_busters(mixed)
+    assert 4 in result3 and 5 in result3, (
+        f"Deben detectarse los RUN en índices 4 y 5, obtuve {result3}"
+    )
+    print("ok")
+  solution: |
+    def find_cache_busters(instructions: list[str]) -> list[int]:
+        APP_COPY_SIGNALS = ("COPY . .", "app/", ".py", "scripts/")
+        DEP_ONLY = ("pyproject.toml", "uv.lock", ".python-version", "requirements.txt")
+
+        first_app_copy = -1
+        for i, line in enumerate(instructions):
+            if not line.startswith("COPY"):
+                continue
+            # si la línea solo contiene archivos de dependencias, la ignoramos
+            is_dep_only = all(token in line for token in DEP_ONLY[:1]) and not any(
+                sig in line for sig in ("app/", ".py", "scripts/", "COPY . .")
+            )
+            if is_dep_only:
+                continue
+            # es un COPY de código de app si contiene alguna señal
+            if any(sig in line for sig in APP_COPY_SIGNALS):
+                first_app_copy = i
+                break
+
+        result: list[int] = []
+        if first_app_copy == -1:
+            return result
+        for i, line in enumerate(instructions):
+            if i > first_app_copy and line.startswith("RUN"):
+                result.append(i)
+        return result
+
+    bad = [
+        "FROM python:3.12-slim",
+        "RUN pip install uv",
+        "COPY . .",
+        "RUN uv sync --no-dev",
+        "EXPOSE 8080",
+    ]
+    print(find_cache_busters(bad))
+
+- slug: image-size-estimator
+  title: "Comparar tamaños de imagen base"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `choose_base_image` recibe la lista de dependencias de Python de un
+    proyecto (como strings de `pyproject.toml`) y devuelve la imagen base recomendada
+    como string.
+
+    Reglas (en orden de prioridad):
+    1. Si alguna dependencia incluye `asyncpg`, `psycopg2`, `numpy`, `pandas`, o
+       `cryptography` → devuelve `"python:3.12-slim"` (Alpine rompe estos wheels).
+    2. Si el proyecto no tiene extensiones C (ninguna de las anteriores) y el
+       total de dependencias es ≤ 5 → devuelve `"python:3.12-alpine"`.
+    3. En cualquier otro caso → devuelve `"python:3.12-slim"`.
+  hint: |
+    Crea un set de señales de extensiones C. Recorre las dependencias y extrae
+    el nombre del paquete (parte antes de `>=`, `==`, `[`). Luego aplica las reglas en orden.
+  starter: |
+    C_EXTENSION_PKGS = {"asyncpg", "psycopg2", "numpy", "pandas", "cryptography"}
+
+    def choose_base_image(dependencies: list[str]) -> str:
+        """Devuelve la imagen base recomendada para un proyecto Python."""
+        # extrae nombres de paquetes (sin versiones ni extras)
+        pkg_names: set[str] = set()
+        for dep in dependencies:
+            # implementa la extracción del nombre
+            pass
+
+        # aplica las reglas
+        # implementa aquí
+        return "python:3.12-slim"
+
+    # caso bato-learning (tiene aiosqlite, no asyncpg)
+    bato_deps = [
+        "fastapi>=0.115",
+        "sqlalchemy[asyncio]>=2.0.36",
+        "aiosqlite>=0.20",
+        "anthropic>=0.40",
+        "jinja2>=3.1",
+        "structlog>=24.4",
+        "uvicorn[standard]>=0.32",
+    ]
+    print(choose_base_image(bato_deps))
+  test: |
+    # bato-learning: sin C extensions → slim por ser >5 deps
+    bato_deps = [
+        "fastapi>=0.115",
+        "sqlalchemy[asyncio]>=2.0.36",
+        "aiosqlite>=0.20",
+        "anthropic>=0.40",
+        "jinja2>=3.1",
+        "structlog>=24.4",
+        "uvicorn[standard]>=0.32",
+    ]
+    assert choose_base_image(bato_deps) == "python:3.12-slim", (
+        "bato-learning tiene >5 deps → slim"
+    )
+
+    # api con asyncpg → siempre slim
+    api_deps = ["fastapi>=0.115", "asyncpg>=0.29", "sqlalchemy>=2.0"]
+    assert choose_base_image(api_deps) == "python:3.12-slim", (
+        "asyncpg requiere slim"
+    )
+
+    # proyecto mínimo sin C extensions
+    minimal = ["httpx>=0.27", "pydantic>=2.9", "structlog>=24.4"]
+    assert choose_base_image(minimal) == "python:3.12-alpine", (
+        "≤5 deps sin C extensions → alpine"
+    )
+
+    # numpy activa slim
+    ml_deps = ["numpy>=1.26", "pydantic>=2.9"]
+    assert choose_base_image(ml_deps) == "python:3.12-slim", (
+        "numpy tiene extensiones C → slim"
+    )
+
+    print("ok")
+  solution: |
+    C_EXTENSION_PKGS = {"asyncpg", "psycopg2", "numpy", "pandas", "cryptography"}
+
+    def choose_base_image(dependencies: list[str]) -> str:
+        pkg_names: set[str] = set()
+        for dep in dependencies:
+            name = dep.split(">=")[0].split("==")[0].split("[")[0].strip().lower()
+            pkg_names.add(name)
+
+        has_c_ext = bool(pkg_names & C_EXTENSION_PKGS)
+        if has_c_ext:
+            return "python:3.12-slim"
+        if len(dependencies) <= 5:
+            return "python:3.12-alpine"
+        return "python:3.12-slim"
+
+    bato_deps = [
+        "fastapi>=0.115",
+        "sqlalchemy[asyncio]>=2.0.36",
+        "aiosqlite>=0.20",
+        "anthropic>=0.40",
+        "jinja2>=3.1",
+        "structlog>=24.4",
+        "uvicorn[standard]>=0.32",
+    ]
+    print(choose_base_image(bato_deps))
+
+- slug: refactor-dockerfile
+  title: "Refactorizar un Dockerfile para mejor cache"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente Dockerfile (representado como lista de instrucciones en orden)
+    tiene problemas de orden de capas. La función `reorder_dockerfile` debe devolver
+    una nueva lista con las instrucciones en el orden óptimo para maximizar el cache.
+
+    Reglas de orden:
+    1. `FROM` siempre primero.
+    2. `ENV` inmediatamente después de `FROM`.
+    3. `RUN pip install uv` (instalación de herramientas) antes de cualquier `COPY`.
+    4. `WORKDIR` antes del primer `COPY`.
+    5. `COPY` de archivos de dependencias (`pyproject.toml`, `.python-version`) antes
+       de `RUN uv sync`.
+    6. `RUN uv sync` justo después del COPY de dependencias.
+    7. `COPY` de código de app (`app/`, `alembic/`, `scripts/`) al final, antes de
+       `EXPOSE` y `CMD`.
+    8. `EXPOSE` antes de `CMD`. `CMD` siempre al final.
+
+    Devuelve la lista reordenada. No elimines ni modifiques instrucciones — solo
+    cambia el orden.
+  hint: |
+    Clasifica cada instrucción por tipo (FROM, ENV, RUN-tools, WORKDIR,
+    COPY-deps, RUN-sync, COPY-app, EXPOSE, CMD) y luego concaténalas en orden.
+    Usa `line.startswith(keyword)` para clasificar.
+  starter: |
+    def reorder_dockerfile(instructions: list[str]) -> list[str]:
+        """Reordena instrucciones de Dockerfile para maximizar cache de capas."""
+        groups: dict[str, list[str]] = {
+            "from": [],
+            "env": [],
+            "run_tools": [],   # RUN pip install / RUN apt-get
+            "workdir": [],
+            "copy_deps": [],   # COPY pyproject.toml, .python-version
+            "run_sync": [],    # RUN uv sync
+            "copy_app": [],    # COPY app/, COPY alembic/, COPY . .
+            "expose": [],
+            "cmd": [],
+        }
+
+        for line in instructions:
+            # clasifica cada instrucción en el grupo correcto
+            # implementa aquí
+            pass
+
+        # concatena los grupos en orden
+        result: list[str] = []
+        for key in ["from", "env", "run_tools", "workdir",
+                    "copy_deps", "run_sync", "copy_app", "expose", "cmd"]:
+            result.extend(groups[key])
+        return result
+
+    bad_order = [
+        "FROM python:3.12-slim",
+        "COPY . .",
+        "WORKDIR /srv",
+        "RUN pip install uv",
+        "CMD ['uv', 'run', 'uvicorn', 'app.main:app']",
+        "ENV PYTHONUNBUFFERED=1",
+        "RUN uv sync --no-dev",
+        "EXPOSE 8080",
+        "COPY pyproject.toml ./",
+    ]
+    for line in reorder_dockerfile(bad_order):
+        print(line)
+  test: |
+    bad_order = [
+        "FROM python:3.12-slim",
+        "COPY . .",
+        "WORKDIR /srv",
+        "RUN pip install uv",
+        "CMD ['uv', 'run', 'uvicorn', 'app.main:app']",
+        "ENV PYTHONUNBUFFERED=1",
+        "RUN uv sync --no-dev",
+        "EXPOSE 8080",
+        "COPY pyproject.toml ./",
+    ]
+    result = reorder_dockerfile(bad_order)
+
+    # FROM primero
+    assert result[0].startswith("FROM"), f"FROM debe ser primero, tengo: {result[0]}"
+
+    # CMD último
+    assert result[-1].startswith("CMD"), f"CMD debe ser último, tengo: {result[-1]}"
+
+    # EXPOSE antes de CMD
+    expose_idx = next(i for i, l in enumerate(result) if l.startswith("EXPOSE"))
+    cmd_idx = next(i for i, l in enumerate(result) if l.startswith("CMD"))
+    assert expose_idx < cmd_idx, "EXPOSE debe ir antes de CMD"
+
+    # COPY pyproject antes de RUN uv sync
+    copy_dep_idx = next(i for i, l in enumerate(result) if "pyproject" in l)
+    sync_idx = next(i for i, l in enumerate(result) if "uv sync" in l)
+    assert copy_dep_idx < sync_idx, "COPY pyproject.toml debe ir antes de RUN uv sync"
+
+    # COPY . . (app code) después de RUN uv sync
+    copy_app_idx = next(i for i, l in enumerate(result) if "COPY . ." in l)
+    assert copy_app_idx > sync_idx, "COPY de código debe ir después de RUN uv sync"
+
+    # todas las instrucciones presentes (no se eliminó ninguna)
+    assert len(result) == len(bad_order), (
+        f"Deben quedar {len(bad_order)} instrucciones, quedan {len(result)}"
+    )
+    print("ok")
+  solution: |
+    def reorder_dockerfile(instructions: list[str]) -> list[str]:
+        groups: dict[str, list[str]] = {
+            "from": [], "env": [], "run_tools": [], "workdir": [],
+            "copy_deps": [], "run_sync": [], "copy_app": [],
+            "expose": [], "cmd": [],
+        }
+
+        DEP_FILES = ("pyproject.toml", ".python-version", "uv.lock", "requirements.txt")
+
+        for line in instructions:
+            if line.startswith("FROM"):
+                groups["from"].append(line)
+            elif line.startswith("ENV"):
+                groups["env"].append(line)
+            elif line.startswith("WORKDIR"):
+                groups["workdir"].append(line)
+            elif line.startswith("EXPOSE"):
+                groups["expose"].append(line)
+            elif line.startswith("CMD"):
+                groups["cmd"].append(line)
+            elif line.startswith("RUN") and ("uv sync" in line or "uv install" in line):
+                groups["run_sync"].append(line)
+            elif line.startswith("RUN"):
+                groups["run_tools"].append(line)
+            elif line.startswith("COPY"):
+                if any(dep in line for dep in DEP_FILES):
+                    groups["copy_deps"].append(line)
+                else:
+                    groups["copy_app"].append(line)
+            else:
+                groups["copy_app"].append(line)  # fallback
+
+        result: list[str] = []
+        for key in ["from", "env", "run_tools", "workdir",
+                    "copy_deps", "run_sync", "copy_app", "expose", "cmd"]:
+            result.extend(groups[key])
+        return result
+
+    bad_order = [
+        "FROM python:3.12-slim",
+        "COPY . .",
+        "WORKDIR /srv",
+        "RUN pip install uv",
+        "CMD ['uv', 'run', 'uvicorn', 'app.main:app']",
+        "ENV PYTHONUNBUFFERED=1",
+        "RUN uv sync --no-dev",
+        "EXPOSE 8080",
+        "COPY pyproject.toml ./",
+    ]
+    for line in reorder_dockerfile(bad_order):
+        print(line)

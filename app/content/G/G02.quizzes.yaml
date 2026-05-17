@@ -1,0 +1,55 @@
+- slug: demo-data-source
+  question: |
+    Para la demo con Constructora Andina, ¿qué tipo de datos usas antes de
+    que el cliente te entregue sus archivos reales?
+  explanation: |
+    Los datos sintéticos que imitan el formato del cliente son la opción
+    correcta: prueban el agente en condiciones realistas sin usar datos reales
+    de nadie. Los datos de otro cliente nunca, aunque estén anonimizados.
+  options:
+    - text: "Datos reales de otro cliente tuyo, anonimizados."
+      correct: false
+      feedback: "Nunca. Aunque los anonimices, si el cliente reconoce patrones pierde la confianza en cómo manejarás sus datos. Además, la 'anonimización' raramente es perfecta."
+    - text: "Datos sintéticos con el mismo schema y distribución que los archivos de Andina."
+      correct: true
+      feedback: "Correcto. Datos sintéticos con el mismo schema prueban el agente de forma realista. El cliente ve una demo relevante a su caso sin necesitar compartir sus datos todavía."
+    - text: "Datos del dataset público de Kaggle sobre transacciones bancarias."
+      correct: false
+      feedback: "Los datasets de Kaggle tienen schemas que no coinciden con los PDFs del Bancolombia o Siigo CSV. La demo no sería relevante al caso del cliente."
+
+- slug: poc-without-criteria
+  question: |
+    El cliente dice: «empecemos el POC, ya vemos cómo va». No hay success
+    criteria ni fecha de cierre. ¿Qué haces?
+  explanation: |
+    Un POC sin success criteria ni fecha es trabajo gratis indefinido.
+    No empiezas hasta tener ambos acordados por escrito, aunque sea en un email.
+  options:
+    - text: "Empezar el POC — los criterios los definimos cuando tengamos los datos."
+      correct: false
+      feedback: "Los criterios definidos con los datos ya cargados son criterios inventados post-hoc. El cliente los puede mover si el agente no llega al número que esperaban."
+    - text: "Rechazar el POC — sin criterios no trabajas."
+      correct: false
+      feedback: "No rechazas — propones: 'Perfecto, arrancamos el lunes. Para organizar bien el trabajo necesito que acordemos los criterios de éxito antes. ¿El 85 % de match automático sería una meta razonable para ti?'"
+    - text: "Proponer los criterios de éxito y la fecha tú mismo; pedir confirmación por email antes de empezar."
+      correct: true
+      feedback: "Correcto. Tú propones el criterio (con base en los benchmarks del caso F-FIN-01), el cliente lo ajusta si quiere, y ambos confirman por email. Ese email es el acuerdo del POC."
+
+- slug: poc-duration-limit
+  question: |
+    Llevas 3 semanas en el POC de Andina. El cliente sigue pidiendo ajustes
+    y dice «cuando esté perfecto, firmamos». ¿Cuál es el problema principal?
+  explanation: |
+    La trampa del POC perfecto: si no hay fecha de cierre, el cliente puede
+    extender indefinidamente sin comprometerse. La solución es declarar el
+    cierre del POC aunque no esté «perfecto» y avanzar a contrato de producción.
+  options:
+    - text: "El agente no es lo suficientemente bueno — necesitas más trabajo técnico."
+      correct: false
+      feedback: "El problema no es técnico: es de proceso. Si llevas 3 semanas con el mismo agente y sigue habiendo ajustes, el success criteria original no estaba bien definido o el cliente mueve el arco de la portería."
+    - text: "No tienes un success criteria acordado que defina cuándo el POC 'está listo'."
+      correct: true
+      feedback: "Correcto. Sin un criterio acordado de 'listo', el POC puede ser eterno. La solución: declarar el cierre ('el agente cumplió el 92 %, que supera el 85 % acordado') y avanzar a contrato, mejorando en producción."
+    - text: "El cliente no tiene presupuesto — por eso retrasa."
+      correct: false
+      feedback: "Puede ser, pero no es el diagnóstico principal. El POC eterno es un síntoma de falta de success criteria, no necesariamente de falta de presupuesto."

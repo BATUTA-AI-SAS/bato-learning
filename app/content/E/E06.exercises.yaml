@@ -1,0 +1,183 @@
+# E06 — Ejercicio de diagnóstico backend
+# El Capstone completo ES el ejercicio principal. Este YAML contiene un
+# único ejercicio de diagnóstico: dado un repo portado, verifica con queries
+# que cumple los 6 criterios de aceptación duros.
+# runner: backend — requiere la app corriendo con datos de prueba.
+
+- slug: e06_capstone_diagnosis
+  title: "Diagnóstico: verificar los 6 criterios de aceptación del Capstone"
+  runner: backend
+  kind: integration
+  prompt: |
+    Tienes acceso a una instancia de la app con el Capstone parcialmente implementado.
+    Escribe la función `check_capstone_criteria(db_path: str, temporal_client) -> dict`
+    que retorna un dict con la forma:
+
+    ```python
+    {
+        "multitenant_isolated": bool,    # criterio 1
+        "golden_set_passes": bool,       # criterio 2
+        "phoenix_traces_exist": bool,    # criterio 3
+        "backup_restores_clean": bool,   # criterio 4
+        "workflow_cancellable": bool,    # criterio 5
+        "tls_valid": bool,               # criterio 6
+        "ready": bool,                   # True si y solo si los 6 son True
+    }
+    ```
+
+    Para el criterio 1 (`multitenant_isolated`):
+    - Consulta la tabla `audit_runs` de `db_path`.
+    - Verifica que existen filas con `tenant_id = "acme"` Y filas con `tenant_id = "globex"`.
+    - Verifica que ninguna fila tiene `tenant_id = NULL` o `tenant_id = ""`.
+
+    Para el criterio 2 (`golden_set_passes`):
+    - Lee los archivos JSON en `tests/fixtures/golden/`.
+    - Para cada fixture, verifica que existe un `audit_run` en DB con `tenant_id` y `period` del fixture
+      y que `finding_count >= expected["finding_count_min"]`.
+
+    Para los criterios 3–6, la función recibe `temporal_client` y puede hacer
+    `await temporal_client.describe_workflow(workflow_id)` para el criterio 5.
+    Los criterios 3, 4 y 6 se verifican con checks simples (ver hints).
+
+    La implementación real de criterios 3 y 6 puede ser un stub que devuelve `True`
+    si las condiciones del entorno no están disponibles en el test — lo que importa
+    es que la función tiene la firma correcta y que criterios 1 y 2 son verificaciones
+    reales contra datos de DB.
+  hint: |
+    - Criterio 1: usa `sqlite3.connect(db_path)` y `SELECT DISTINCT tenant_id FROM audit_runs`.
+    - Criterio 2: `json.loads(Path(fixture_path).read_text())` para cada fixture.
+    - Criterio 5: `handle = temporal_client.get_workflow_handle("audit-acme-2026-04")`;
+      `desc = await handle.describe()`; `desc.status == WorkflowExecutionStatus.CANCELLED`.
+    - Criterio 6: `httpx.get("https://tudominio.com/api/health").status_code == 200` — en test
+      puede ser un stub que devuelve True.
+    - `ready`: `all(v for k, v in result.items() if k != "ready")`.
+  starter: |
+    import json
+    import sqlite3
+    from pathlib import Path
+
+    async def check_capstone_criteria(db_path: str, temporal_client=None) -> dict:
+        result = {
+            "multitenant_isolated": False,
+            "golden_set_passes": False,
+            "phoenix_traces_exist": False,
+            "backup_restores_clean": False,
+            "workflow_cancellable": False,
+            "tls_valid": False,
+            "ready": False,
+        }
+
+        # criterio 1 — multitenant
+        # tu código aquí
+
+        # criterio 2 — golden set
+        # tu código aquí
+
+        # criterios 3-6 — stubs para el test
+        result["phoenix_traces_exist"] = True
+        result["backup_restores_clean"] = True
+        result["workflow_cancellable"] = True
+        result["tls_valid"] = True
+
+        result["ready"] = all(v for k, v in result.items() if k != "ready")
+        return result
+  test: |
+    import asyncio
+    import json
+    import sqlite3
+    import tempfile
+    from pathlib import Path
+
+    # prepara una DB de prueba con datos de dos tenants
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        test_db = f.name
+
+    conn = sqlite3.connect(test_db)
+    conn.execute("""
+        CREATE TABLE audit_runs (
+            id INTEGER PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            period TEXT NOT NULL,
+            finding_count INTEGER NOT NULL
+        )
+    """)
+    conn.execute("INSERT INTO audit_runs VALUES (1, 'acme', '2026-04', 3)")
+    conn.execute("INSERT INTO audit_runs VALUES (2, 'globex', '2026-04', 1)")
+    conn.commit()
+    conn.close()
+
+    # prepara un golden set mínimo
+    fixtures_dir = Path(tempfile.mkdtemp()) / "golden"
+    fixtures_dir.mkdir()
+    (fixtures_dir / "fixture_01.json").write_text(json.dumps({
+        "tenant_id": "acme",
+        "period": "2026-04",
+        "expected": {"finding_count_min": 2}
+    }))
+
+    # monkey-patch la ruta de fixtures para el test
+    import importlib, sys
+    # la función usa Path("tests/fixtures/golden/") — override con tmp
+    import builtins
+    _orig_open = builtins.open
+    # usamos la implementación real; solo pasamos db correcto
+    result = asyncio.run(check_capstone_criteria(test_db, temporal_client=None))
+
+    assert isinstance(result, dict), "debe devolver dict"
+    assert "ready" in result, "falta clave 'ready'"
+    assert "multitenant_isolated" in result
+    assert "golden_set_passes" in result
+    assert isinstance(result["ready"], bool)
+    print("ok")
+  solution: |
+    import json
+    import sqlite3
+    from pathlib import Path
+
+    async def check_capstone_criteria(db_path: str, temporal_client=None) -> dict:
+        result = {
+            "multitenant_isolated": False,
+            "golden_set_passes": False,
+            "phoenix_traces_exist": False,
+            "backup_restores_clean": False,
+            "workflow_cancellable": False,
+            "tls_valid": False,
+            "ready": False,
+        }
+
+        # criterio 1 — multitenant
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute(
+            "SELECT DISTINCT tenant_id FROM audit_runs WHERE tenant_id IS NOT NULL AND tenant_id != ''"
+        ).fetchall()
+        conn.close()
+        tenants = {r[0] for r in rows}
+        result["multitenant_isolated"] = "acme" in tenants and "globex" in tenants
+
+        # criterio 2 — golden set
+        golden_dir = Path("tests/fixtures/golden")
+        if golden_dir.exists():
+            conn2 = sqlite3.connect(db_path)
+            all_pass = True
+            for fixture_path in golden_dir.glob("*.json"):
+                fixture = json.loads(fixture_path.read_text())
+                row = conn2.execute(
+                    "SELECT finding_count FROM audit_runs WHERE tenant_id=? AND period=?",
+                    (fixture["tenant_id"], fixture["period"]),
+                ).fetchone()
+                if row is None or row[0] < fixture["expected"]["finding_count_min"]:
+                    all_pass = False
+                    break
+            conn2.close()
+            result["golden_set_passes"] = all_pass
+        else:
+            result["golden_set_passes"] = False
+
+        # criterios 3-6 — stubs
+        result["phoenix_traces_exist"] = True
+        result["backup_restores_clean"] = True
+        result["workflow_cancellable"] = True
+        result["tls_valid"] = True
+
+        result["ready"] = all(v for k, v in result.items() if k != "ready")
+        return result

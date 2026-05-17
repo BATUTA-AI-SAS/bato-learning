@@ -1,0 +1,62 @@
+- slug: webhook-immediate-response
+  question: |
+    Un webhook de Siigo llega al agente de ACME. El procesamiento del evento
+    (llamar a Anthropic, guardar en DB) tarda aproximadamente 15 segundos.
+    ¿Cuál es la respuesta correcta del handler?
+  explanation: |
+    Los webhooks tienen un timeout corto (típicamente 5-10 segundos). Si el handler
+    tarda más, el proveedor asume que falló y lo reintenta — duplicando el evento.
+  options:
+    - text: "Procesar el evento completo y devolver `200 OK` cuando termine"
+      correct: false
+      feedback: "Si el procesamiento tarda 15s, Siigo asumirá timeout (su timeout típico es 5s) y reintentará el webhook. Recibirás el mismo evento dos veces y lo procesarás dos veces."
+    - text: "Devolver `202 Accepted` con un `job_id` y procesar en background"
+      correct: true
+      feedback: "Correcto. Respondes inmediatamente con 202, encolas el trabajo (BackgroundTasks, Temporal), y el agente procesa sin presión de timeout. Si necesitas notificar el resultado, usas un webhook de vuelta o polling."
+    - text: "Devolver `503 Service Unavailable` para que Siigo intente más tarde"
+      correct: false
+      feedback: "503 indica que el servidor no está disponible, no que estés ocupado. El proveedor puede interpretar el 503 como error permanente y dejar de reintentar."
+    - text: "No responder nada hasta que el procesamiento termine"
+      correct: false
+      feedback: "No responder es lo mismo que dejar la conexión abierta. El proveedor la cierra por timeout después de 5-10s y registra el webhook como fallido."
+
+- slug: pull-sync-vs-async
+  question: |
+    El agente de auditoría de ACME tarda entre 8 y 12 minutos por tenant.
+    ¿Qué patrón de integración es más apropiado?
+  explanation: |
+    Para tiempos de ejecución > 10-15s, el patrón pull síncrono genera timeouts.
+    El patrón asíncrono devuelve un job_id inmediatamente y el cliente consulta el estado.
+  options:
+    - text: "Pull síncrono: `POST /audits` espera la respuesta completa"
+      correct: false
+      feedback: "El timeout de HTTP en Nginx/Traefik es típicamente 60-300s. Una auditoría de 8-12 minutos superará cualquier timeout razonable. El cliente recibirá un 504 Gateway Timeout."
+    - text: "Pull asíncrono: `POST /audits` devuelve `202` con `job_id`; el cliente consulta `GET /audits/{id}` periódicamente"
+      correct: true
+      feedback: "Correcto. El 202 Accepted indica que la solicitud fue aceptada pero el procesamiento no terminó. El cliente consulta el estado hasta que sea 'done'. Temporal o Celery ejecutan el agente en background."
+    - text: "Webhook: el agente notifica al cliente cuando termina"
+      correct: false
+      feedback: "Los webhooks son para cuando un sistema *externo* notifica a *tu* sistema. En este caso es al revés: el agente completa su trabajo y notifica al cliente. Pero el cliente inició la petición — se parece más al patrón pull asíncrono con una notificación de callback al terminar."
+    - text: "Streaming SSE: el agente envía tokens mientras analiza"
+      correct: false
+      feedback: "Streaming es para cuando el cliente quiere ver el resultado construirse en tiempo real (como el chat). Una auditoría de 8-12 minutos produciría una conexión SSE abierta demasiado tiempo — frágil ante cortes de red."
+
+- slug: deterministic-vs-agentic-api
+  question: |
+    Al integrar un agente de auditoría vía API, ¿cuál de estos tramos es **agéntico**?
+  explanation: |
+    El routing HTTP, la validación del body y el cálculo del status son determinísticos
+    (reglas cerradas). Decidir qué hallazgos son críticos requiere juicio contextual.
+  options:
+    - text: "Enrutar el request `POST /api/agent/audit` al handler correcto"
+      correct: false
+      feedback: "El routing es determinístico — el framework compara el path y el método con la tabla de rutas registradas. Es código puro sin LLM."
+    - text: "Validar el body con Pydantic (`tenant` requerido, `period` formato YYYY-MM)"
+      correct: false
+      feedback: "La validación de tipos y formatos es determinística — Pydantic tiene reglas fijas. Si el campo falta o tiene el formato incorrecto, falla con 422 siempre."
+    - text: "Decidir qué hallazgos del análisis financiero son críticos vs informativos"
+      correct: true
+      feedback: "Correcto. La clasificación de hallazgos como 'crítico' requiere contexto: ¿es el proveedor nuevo? ¿El monto es inusual para este tenant? ¿Hay historial de anomalías similares? No hay regla cerrada — el agente lo decide."
+    - text: "Devolver `200 OK` cuando el análisis termina sin error"
+      correct: false
+      feedback: "Devolver el status HTTP correcto es determinístico — el servidor sabe si el proceso terminó bien o no. El status code es una convención fija, no una decisión agéntica."

@@ -1,0 +1,58 @@
+- slug: with-open-purpose
+  question: |
+    ¿Por qué se recomienda `with open("archivo.txt") as f:` en lugar de
+    `f = open("archivo.txt")`?
+  explanation: |
+    El bloque `with` garantiza que el archivo se cierra automáticamente cuando
+    el bloque termina, incluso si ocurre un error dentro. Sin `with`, si el
+    código falla antes de llegar a `f.close()`, el archivo puede quedar abierto,
+    bloqueado, o con datos a medio escribir.
+  options:
+    - text: "El bloque `with` cierra el archivo automáticamente al salir, incluso si hay un error."
+      correct: true
+      feedback: "Correcto. Es el patrón idiomático de Python para cualquier recurso que necesita cerrarse."
+    - text: "El bloque `with` hace que el archivo se lea más rápido."
+      correct: false
+      feedback: "No. La velocidad de lectura no cambia. La ventaja es el cierre automático y seguro."
+    - text: "Sin `with` el archivo no se puede abrir en modo lectura."
+      correct: false
+      feedback: "No. Sin `with` el archivo se abre igual. El problema es que tienes que cerrarlo manualmente con `f.close()`, y si olvidas hacerlo o hay un error, el archivo queda abierto."
+
+- slug: file-modes
+  question: |
+    Tienes un archivo `log.txt` con datos existentes y quieres añadir una línea
+    al final sin borrar el contenido previo. ¿Qué modo usas en `open()`?
+  explanation: |
+    El modo `"a"` (append) abre el archivo y posiciona el cursor al final para
+    que las escrituras se añadan sin borrar nada. El modo `"w"` sobreescribe
+    desde cero. El modo `"r"` es solo lectura.
+  options:
+    - text: '`open("log.txt", "a")`'
+      correct: true
+      feedback: 'Correcto. `"a"` es el modo de append: añade al final sin borrar.'
+    - text: '`open("log.txt", "w")`'
+      correct: false
+      feedback: '`"w"` sobreescribe el archivo completo. Todo el contenido previo se pierde.'
+    - text: '`open("log.txt", "r")`'
+      correct: false
+      feedback: '`"r"` es solo lectura. Intentar escribir con este modo lanza `io.UnsupportedOperation`.'
+
+- slug: dictreader-columns
+  question: |
+    Tienes un CSV con encabezados `vendor,amount,status`. Lees cada fila con
+    `csv.DictReader`. ¿Cómo accedes al monto de una fila?
+  explanation: |
+    `csv.DictReader` convierte cada fila en un diccionario donde las claves son
+    los nombres de columna de la primera fila del CSV. Para acceder al valor de
+    la columna `amount`, usas `row["amount"]`. El valor siempre es un string;
+    si necesitas un número, lo conviertes con `float(row["amount"])`.
+  options:
+    - text: '`row["amount"]`'
+      correct: true
+      feedback: 'Correcto. La clave es el nombre de columna tal como aparece en el encabezado del CSV.'
+    - text: '`row[1]`'
+      correct: false
+      feedback: '`row[1]` funciona con `csv.reader` (que devuelve listas), no con `csv.DictReader` (que devuelve diccionarios con claves de texto).'
+    - text: '`row.amount`'
+      correct: false
+      feedback: 'Los diccionarios de Python no tienen acceso por atributo. Usa `row["amount"]` con corchetes y comillas.'

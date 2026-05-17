@@ -1,0 +1,24 @@
+slug: compose-vs-kubernetes
+chapter_ref: phase4
+prompt_md: |
+  El servicio de ACME pasa de 3 a 50 empresas cliente. El equipo evalúa si seguir
+  con Docker Compose o migrar a Kubernetes. ¿Qué eliges?
+options:
+  - label: "Docker Compose (orquestación simple)"
+    tradeoff_md: |
+      + Un solo archivo YAML. Cualquier desarrollador lo entiende en 10 minutos.
+      + Deploy en un solo servidor con docker compose up.
+      + Cero costo de plataforma adicional.
+      − Sin auto-scaling: si el tráfico se duplica, escalar es manual.
+      − Sin rolling updates nativos ni health checks automáticos avanzados.
+      − Si el servidor falla, el servicio cae hasta que alguien actúa.
+    consequence_skill: compose-ops
+  - label: "Kubernetes (orquestación de contenedores)"
+    tradeoff_md: |
+      + Auto-scaling, rolling deploys y auto-healing sin intervención manual.
+      + Distribuye carga entre múltiples nodos; tolera fallas de nodo individual.
+      + Ecosistema maduro: Helm, ArgoCD, Prometheus integrados.
+      − Curva de aprendizaje pronunciada: pods, services, ingress, RBAC.
+      − Un cluster gestionado (GKE, EKS, AKS) cuesta $150-400/mes mínimo.
+      − Overkill para menos de 10 servicios o equipos menores de 5 personas.
+    consequence_skill: kubernetes-ops

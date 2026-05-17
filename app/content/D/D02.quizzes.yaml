@@ -1,0 +1,92 @@
+# D02 — docker compose: servicios, volúmenes, healthchecks
+
+- slug: compose-v1-vs-v2
+  question: |
+    En un servidor Ubuntu 24.04 con Docker Engine 26, corres `docker-compose up`
+    y obtienes `command not found`. ¿Qué pasó y cómo lo corriges?
+  explanation: |
+    Compose v1 (`docker-compose` con guion) es un binario separado, deprecated
+    y no incluido en instalaciones modernas de Docker. Compose v2 es un plugin
+    nativo de Docker y el comando correcto es `docker compose` (con espacio,
+    como subcomando).
+  options:
+    - text: "Falta instalar Docker. Ejecuta `apt install docker.io`."
+      correct: false
+      feedback: "Si Docker Engine 26 está instalado, `docker` funciona. El problema es específico de `docker-compose` (v1), no de Docker en general."
+    - text: "Compose v1 no está instalado. El comando correcto es `docker compose` (sin guion)."
+      correct: true
+      feedback: "Exacto. Compose v2 viene como plugin de Docker y se invoca como subcomando: `docker compose up`. Compose v1 (`docker-compose`) está deprecated y puede no estar disponible."
+    - text: "Hay que añadir `version: '3'` al inicio del compose file para activar v2."
+      correct: false
+      feedback: "El campo `version:` en compose files está deprecated desde Compose v2. El problema es el comando usado, no el contenido del archivo."
+    - text: "Ejecuta `pip install docker-compose` para instalar el binario que falta."
+      correct: false
+      feedback: "Instalar via pip un binario de sistema no es la solución correcta. El comando correcto es `docker compose` (v2, ya incluido en Docker Engine moderno)."
+
+- slug: depends-on-vs-healthcheck
+  question: |
+    Tu servicio `api` usa `depends_on: [postgres]` y falla con
+    `Connection refused` en los primeros segundos. ¿Por qué falla y qué debes cambiar?
+  explanation: |
+    `depends_on` en su forma simple garantiza que el contenedor `postgres` ha
+    iniciado, pero Postgres tarda varios segundos en inicializar su cluster
+    interno antes de aceptar conexiones. La solución es combinar `depends_on`
+    con `condition: service_healthy` y un `healthcheck` en el servicio `postgres`.
+  options:
+    - text: "El `DATABASE_URL` apunta a `localhost` en vez de `postgres`. Cambia el hostname."
+      correct: false
+      feedback: "Eso podría ser otro problema, pero el síntoma descrito — fallo en los primeros segundos y recuperación después — es característico de un race condition de arranque, no de un hostname incorrecto."
+    - text: "`depends_on` solo espera que el contenedor arranque, no que el proceso esté listo. Añadir un `healthcheck` a postgres y `condition: service_healthy` en el depends_on."
+      correct: true
+      feedback: "Exacto. `depends_on` sin condición = el contenedor existe, no que el servicio escucha. `pg_isready` como healthcheck test y `condition: service_healthy` resuelven el race condition."
+    - text: "Añade `restart: always` a `api` para que se recupere automáticamente."
+      correct: false
+      feedback: "`restart: always` hace que el contenedor se reinicie si falla, pero no resuelve el race condition: `api` seguirá fallando en cada intento hasta que Postgres esté listo. Es un workaround, no una solución."
+    - text: "El problema es que los dos servicios están en redes distintas. Declara una red explícita."
+      correct: false
+      feedback: "Si están en el mismo compose file, ya están en la misma red por defecto. El problema no es de red — es de timing: Postgres no está listo cuando `api` intenta conectarse."
+
+- slug: bind-vs-named-volume
+  question: |
+    Estás configurando el servicio `postgres` en compose. ¿Qué tipo de volumen usas
+    para los datos de la base y por qué?
+  explanation: |
+    Los datos de Postgres deben persistir entre reinicios de contenedor pero no
+    necesitas acceder a ellos directamente desde el host (no son archivos que
+    edites). Un named volume es la elección correcta: Docker lo gestiona, persiste
+    entre `down/up`, y no depende de la ruta del host.
+  options:
+    - text: "Bind mount (`./postgres-data:/var/lib/postgresql/data`) para poder hacer backup con `cp`."
+      correct: false
+      feedback: "Un bind mount funciona, pero 'hacer backup con cp' de una base de datos activa es incorrecto: puedes capturar el archivo en mitad de una escritura y obtener un backup corrupto. Para backups de Postgres usa `pg_dump`, no `cp`."
+    - text: "Named volume (`pgdata:/var/lib/postgresql/data`) — Docker lo gestiona, persiste entre down/up, y el backup se hace con `pg_dump`."
+      correct: true
+      feedback: "Correcto. Named volume para datos gestionados que no necesitas tocar directamente. Para backup: `docker compose exec postgres pg_dump -U bato bato_learning > backup.sql`."
+    - text: "Sin volumen — los datos del contenedor persisten automáticamente entre reinicios."
+      correct: false
+      feedback: "Sin volumen, el sistema de archivos del contenedor es efímero: al hacer `docker compose down`, los datos desaparecen. Un `docker compose restart` los mantiene (solo para el proceso), pero `down` los borra."
+    - text: "Volumen anónimo (`/var/lib/postgresql/data`) — Docker lo gestiona automáticamente."
+      correct: false
+      feedback: "Los volúmenes anónimos persisten mientras el contenedor existe, pero no tienen nombre asignable y son difíciles de inspeccionar o reutilizar. Con `docker compose down`, se desvinculan del servicio aunque Docker no los borre automáticamente. Named volumes son la práctica estándar."
+
+- slug: service-discovery-compose
+  question: |
+    Tienes dos servicios en el mismo `compose.yaml`: `api` y `qdrant`. ¿Qué
+    `DATABASE_URL` (o URL equivalente) debe usar `api` para conectarse a `qdrant`?
+  explanation: |
+    Compose crea una red privada por proyecto. Cada servicio es accesible por su
+    nombre de servicio como hostname dentro de esa red. No se usa `localhost` ni
+    la IP del host — se usa el nombre del servicio directamente.
+  options:
+    - text: "`http://localhost:6333` — todos los contenedores comparten el localhost del host."
+      correct: false
+      feedback: "Cada contenedor tiene su propio `localhost`. `http://localhost:6333` dentro del contenedor `api` apunta al propio contenedor `api`, no a `qdrant`. Resultado: `Connection refused`."
+    - text: "`http://qdrant:6333` — el nombre del servicio resuelve como hostname en la red del compose."
+      correct: true
+      feedback: "Correcto. Compose crea un DNS interno donde cada servicio es accesible por su nombre. `api` puede alcanzar a `qdrant` en `http://qdrant:6333` sin configuración adicional."
+    - text: "`http://172.17.0.3:6333` — hay que usar la IP que Docker asigna al contenedor qdrant."
+      correct: false
+      feedback: "Las IPs de Docker son dinámicas — cambian en cada `docker compose up`. Nunca hardcodees IPs de contenedores. Usa el nombre del servicio."
+    - text: "`http://0.0.0.0:6333` — qdrant escucha en todas las interfaces."
+      correct: false
+      feedback: "`0.0.0.0` significa «todas las interfaces» desde el punto de vista del servidor (qdrant). No es una URL de conexión válida desde otro contenedor."

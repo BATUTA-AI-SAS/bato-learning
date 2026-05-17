@@ -1,0 +1,109 @@
+slug: boss-full-system
+title: "JEFE: Sistema completo de auditoría para ACME"
+kind: boss
+trains_skill: integracion-fase1
+concepts_introduced: []
+concepts_reinforced:
+  - terminal
+  - variable
+  - aritmetica
+  - string
+  - lista
+  - condicion
+  - dict
+  - funcion
+  - archivo
+  - debugging
+  - modulos
+  - paquetes
+  - Pydantic
+  - docker
+  - git
+  - FastAPI
+  - http
+  - jinja2
+  - htmx
+scenario_md: |
+  El CFO de ACME te entrega el encargo final: un sistema de auditoría que
+  valida facturas, calcula impuestos, filtra las de alto valor y expone los
+  resultados vía API. Tres retos en secuencia. Completa los tres para
+  desbloquear la Fase 2.
+payload:
+  steps:
+    - kind: code
+      title: "Paso 1: Pipeline de validación y cálculo"
+      scenario_md: |
+        Escribe la función pipeline_auditoria que recibe una lista de dicts con
+        claves 'numero' y 'monto', valida con Pydantic, calcula el IVA de cada
+        factura válida y devuelve solo las que superan 500 000 pesos en monto bruto.
+      starter: |
+        from pydantic import BaseModel, Field, ValidationError
+
+        class Factura(BaseModel):
+            numero: str
+            monto: float = Field(..., gt=0)
+
+        def pipeline_auditoria(datos: list) -> list:
+            resultado = []
+            for item in datos:
+                try:
+                    f = Factura(**item)
+                    if f.monto > 500_000:
+                        resultado.append({"numero": f.numero, "iva": round(f.monto * 0.19, 2)})
+                except ValidationError:
+                    pass
+            return resultado
+      tests: |
+        r = pipeline_auditoria([
+            {"numero": "FAC-001", "monto": 800_000},
+            {"numero": "FAC-002", "monto": 100_000},
+            {"numero": "FAC-003", "monto": -50},
+        ])
+        assert len(r) == 1
+        assert r[0]["numero"] == "FAC-001"
+        assert r[0]["iva"] == 152_000.0
+
+    - kind: multi_choice
+      title: "Paso 2: Decisión de arquitectura"
+      scenario_md: |
+        El Director de TI pregunta: el endpoint /api/auditoria recibe 500 peticiones
+        por minuto con listas de 200 facturas cada una. ¿Qué ajuste tiene más impacto
+        en el throughput sin cambiar la lógica de negocio?
+      options:
+        - text: "Agregar más campos al modelo Pydantic para validar más datos"
+          correct: false
+          feedback: "Más validación aumenta el trabajo por petición, no el throughput."
+        - text: "Convertir el endpoint a async y usar un worker asíncrono"
+          correct: true
+          feedback: "Correcto. FastAPI async libera el event loop mientras espera I/O, multiplicando la capacidad."
+        - text: "Cambiar los f-strings por concatenación de strings"
+          correct: false
+          feedback: "La diferencia de rendimiento entre f-strings y concatenación es despreciable frente a I/O."
+        - text: "Mover la lógica de filtrado al cliente en JavaScript"
+          correct: false
+          feedback: "El cliente no tiene acceso a la BD. La validación de negocio siempre ocurre en servidor."
+
+    - kind: order_steps
+      title: "Paso 3: Despliegue del sistema"
+      scenario_md: |
+        El sistema está listo. María necesita que esté disponible en el servidor de
+        ACME antes del cierre de mes. ¿En qué orden ejecutas los cinco pasos finales?
+      steps:
+        - "git add -A && git commit -m 'feat: audit system v1'"
+        - "git push origin main y abrir Pull Request"
+        - "Fusionar el PR tras revisión del equipo"
+        - "docker build -t acme-audit:v1 . en el servidor"
+        - "docker run -d -p 8080:8080 acme-audit:v1"
+      correct_order: [0, 1, 2, 3, 4]
+
+hint_md: |
+  Paso 1: el try/except captura ValidationError. La condición filtra por monto.
+  Paso 2: piensa qué consume más tiempo en un endpoint real: CPU o I/O.
+  Paso 3: código → revisión → merge → imagen → contenedor.
+solution_md: |
+  Paso 1: iterar, validar con Pydantic, filtrar por monto > 500 000 y calcular IVA.
+  Paso 2: async permite manejar muchas conexiones simultáneas sin bloquear.
+  Paso 3: el orden de despliegue es siempre: commit → push → PR → merge → build → run.
+  Completar los tres pasos significa que dominas el ciclo completo de la Fase 1.
+xp: 50
+est_seconds: 480

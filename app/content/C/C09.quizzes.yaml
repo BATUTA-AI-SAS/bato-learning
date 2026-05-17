@@ -1,0 +1,73 @@
+- slug: chunk_size_tradeoff
+  question: |
+    Estás indexando el Manual Contable de ACME (200 páginas) para RAG.
+    Con chunks de 2000 tokens obtienes buena cobertura de contexto pero
+    la calidad de recuperación es mediocre. ¿Cuál es la causa más probable?
+  explanation: |
+    Chunks grandes mezclan múltiples conceptos en un solo vector. El embedding
+    promedia el contenido semántico de todo el chunk — si contiene secciones sobre
+    activos fijos, dividendos y provisiones en el mismo bloque, el vector apunta
+    «en ninguna dirección en concreto». El estándar de la industria es 256–512 tokens
+    con 10–20% de overlap.
+  options:
+    - text: "Chunks de 2000 tokens mezclan múltiples conceptos; el embedding pierde precisión semántica."
+      correct: true
+      feedback: "Correcto. El embedding promedia el contenido. Chunks más pequeños (256–512 tokens) producen vectores más precisos y búsquedas más relevantes."
+    - text: "Los chunks son demasiado pequeños — necesitas más contexto para el LLM."
+      correct: false
+      feedback: "2000 tokens no es pequeño — es demasiado grande. El problema es el opuesto: chunks muy grandes degradan la calidad del embedding."
+    - text: "El modelo de embedding no soporta textos largos."
+      correct: false
+      feedback: "voyage-3 soporta hasta 32K tokens por chunk. El problema no es el límite del modelo sino la calidad del embedding con chunks grandes."
+    - text: "Necesitas más solapamiento (overlap) entre chunks."
+      correct: false
+      feedback: "El overlap ayuda con las fronteras entre chunks, pero no resuelve el problema de chunks demasiado grandes. La solución principal es reducir el chunk_size."
+
+- slug: retrieve_then_rerank
+  question: |
+    ¿Por qué en el pipeline RAG se recuperan top-20 chunks con embedding y luego
+    se aplica un reranker para quedarse con top-5, en lugar de recuperar directamente
+    top-5 con el embedding?
+  explanation: |
+    El embedding mide **similitud semántica general** — eficiente pero aproximado.
+    El reranker es un modelo **cross-encoder** que lee la query y cada chunk juntos
+    y mide relevancia específica — más preciso pero más lento. La estrategia en dos
+    pasos reduce el trabajo del reranker (procesa 20 candidatos, no el corpus completo)
+    y maximiza la precisión en los resultados finales.
+  options:
+    - text: "El embedding es aproximado; el reranker es más preciso pero más lento. Aplicarlo solo sobre 20 candidatos equilibra calidad y velocidad."
+      correct: true
+      feedback: "Correcto. El embedding es el filtro rápido; el reranker es el filtro de precisión. Aplicar el reranker al corpus completo sería demasiado lento."
+    - text: "Para ahorrar dinero — el reranker es más barato que el embedding."
+      correct: false
+      feedback: "El reranker no es más barato que el embedding per se. La eficiencia viene de reducir el número de documentos que el reranker debe procesar."
+    - text: "Porque el embedding no puede ordenar resultados — solo recuperarlos."
+      correct: false
+      feedback: "El embedding sí puede ordenar por similitud coseno. El problema es que esa similitud no siempre correlaciona con relevancia para una pregunta específica."
+    - text: "El reranker necesita los 20 candidatos para poder elegir los 5 — no puede operar con menos."
+      correct: false
+      feedback: "El reranker puede operar con cualquier número de candidatos. La razón de usar top-20 es aumentar el recall antes del reranking, no un requisito del reranker."
+
+- slug: deterministic_vs_agentic_in_rag
+  question: |
+    En el pipeline RAG de BATUTA, el auditor pregunta sobre una factura anómala.
+    El pipeline recupera 5 chunks del manual. ¿Qué parte de este proceso es agéntica?
+  explanation: |
+    El chunking, el embedding, el retrieval y el reranking son **determinísticos**: dado el
+    mismo input y el mismo modelo, producen el mismo output. La **generación** del LLM
+    es agéntica: decide qué parte del contexto usar, cómo sintetizarlo, qué citar y cómo
+    redactarlo para el auditor. La temperatura > 0 introduce variabilidad; el razonamiento
+    sobre qué es «relevante» no tiene regla cerrada.
+  options:
+    - text: "La generación de la respuesta por el LLM, que decide cómo sintetizar y qué citar."
+      correct: true
+      feedback: "Correcto. Los pasos anteriores (chunk, embed, retrieve, rerank) son determinísticos. Solo la generación del LLM introduce razonamiento contextual sin regla cerrada."
+    - text: "El embedding de la pregunta, porque el modelo puede variar su respuesta."
+      correct: false
+      feedback: "Los modelos de embedding son determinísticos: mismo texto → mismo vector, siempre. No hay variabilidad."
+    - text: "El chunking, porque la estrategia de división depende del contenido."
+      correct: false
+      feedback: "El chunking es determinístico: dado el mismo documento y la misma config (chunk_size, overlap), produce los mismos chunks siempre."
+    - text: "El reranking, porque el modelo evalúa relevancia subjetivamente."
+      correct: false
+      feedback: "El reranker es un modelo determinístico: dado el mismo par (query, chunk), produce el mismo score. No hay aleatoriedad en la inferencia de un reranker."

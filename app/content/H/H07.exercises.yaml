@@ -1,0 +1,246 @@
+- slug: message-format-adapter
+  title: "Adapta mensajes entre formatos Anthropic y OpenAI"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `adapt_to_openai(system_text: str, messages: list[dict]) -> list[dict]`
+    que convierte el formato Anthropic (system separado + messages con roles user/assistant)
+    al formato OpenAI (messages donde el primero puede ser role: system).
+
+    Reglas:
+    - Si `system_text` no está vacío, añadir al inicio de la lista: `{"role": "system", "content": system_text}`
+    - Los demás mensajes se copian tal cual (ya tienen role user/assistant y content).
+    - Devuelve la lista resultante.
+
+    Implementa también `adapt_to_anthropic(messages: list[dict]) -> tuple[str, list[dict]]`
+    que hace el inverso: extrae el primer mensaje con role "system" como texto separado
+    y devuelve (system_text, rest_of_messages).
+    Si no hay mensaje system, devuelve ("", messages).
+  hint: |
+    Para adapt_to_anthropic: usa una list comprehension para filtrar los no-system,
+    y busca el primero con role "system" para extraer el texto.
+  starter: |
+    def adapt_to_openai(system_text: str, messages: list[dict]) -> list[dict]:
+        result = []
+        if system_text:
+            result.append({"role": "system", "content": system_text})
+        result.extend(messages)
+        return result
+
+    def adapt_to_anthropic(messages: list[dict]) -> tuple[str, list[dict]]:
+        system_text = ""
+        rest = []
+        # extraer el system y devolver el resto
+        return system_text, rest
+  test: |
+    # Anthropic → OpenAI
+    system = "Eres un auditor financiero."
+    msgs = [
+        {"role": "user", "content": "Analiza esta factura"},
+        {"role": "assistant", "content": "La factura es válida."},
+    ]
+    result = adapt_to_openai(system, msgs)
+    assert result[0] == {"role": "system", "content": system}
+    assert result[1:] == msgs
+    assert len(result) == 3
+
+    # Sin system text
+    result_no_sys = adapt_to_openai("", msgs)
+    assert result_no_sys == msgs
+
+    # OpenAI → Anthropic
+    openai_msgs = [
+        {"role": "system", "content": "Eres un auditor."},
+        {"role": "user", "content": "Analiza"},
+        {"role": "assistant", "content": "OK"},
+    ]
+    sys_text, rest = adapt_to_anthropic(openai_msgs)
+    assert sys_text == "Eres un auditor."
+    assert len(rest) == 2
+    assert rest[0]["role"] == "user"
+
+    # Sin mensaje system en OpenAI
+    msgs_no_sys = [{"role": "user", "content": "hola"}]
+    sys_text2, rest2 = adapt_to_anthropic(msgs_no_sys)
+    assert sys_text2 == ""
+    assert rest2 == msgs_no_sys
+
+    print("ok")
+  solution: |
+    def adapt_to_openai(system_text: str, messages: list[dict]) -> list[dict]:
+        result = []
+        if system_text:
+            result.append({"role": "system", "content": system_text})
+        result.extend(messages)
+        return result
+
+    def adapt_to_anthropic(messages: list[dict]) -> tuple[str, list[dict]]:
+        system_text = ""
+        rest = []
+        for msg in messages:
+            if msg.get("role") == "system" and not system_text:
+                system_text = msg.get("content", "")
+            else:
+                rest.append(msg)
+        return system_text, rest
+
+- slug: fallback-policy
+  title: "Implementa la política de fallback con reintentos"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `should_fallback(error_code: int, attempt: int, max_attempts: int) -> dict`
+    que decide si una llamada fallida al proveedor primario debe activar el fallback.
+
+    Devuelve:
+    - `fallback`: True si se debe usar el proveedor secundario
+    - `retry_primary`: True si se debe reintentar el primario (sin fallback aún)
+    - `give_up`: True si se superaron los intentos y no hay más opciones
+    - `reason`: string explicando la decisión
+
+    Reglas:
+    - Errores transitorios (529, 503, 502, 504): reintentar primario hasta 2 veces, luego fallback.
+    - Errores de auth (401, 403): nunca reintentar; dar error inmediato (give_up=True).
+    - Errores de cliente (400, 422): dar error inmediato (give_up=True); no es falla del proveedor.
+    - Timeout (código 0, convención): fallback inmediato si attempt >= 1.
+    - Si attempt > max_attempts: give_up.
+  hint: |
+    Agrupa los error_code en categorías. Evalúa primero los casos de give_up inmediato,
+    luego los transitorios según attempt.
+  starter: |
+    def should_fallback(error_code: int, attempt: int, max_attempts: int) -> dict:
+        TRANSIENT = {529, 503, 502, 504}
+        AUTH_ERRORS = {401, 403}
+        CLIENT_ERRORS = {400, 422}
+
+        if attempt > max_attempts:
+            return {"fallback": False, "retry_primary": False, "give_up": True,
+                    "reason": "max_attempts superado"}
+        # ...
+  test: |
+    # auth error → give_up inmediato
+    r = should_fallback(401, 1, 3)
+    assert r["give_up"] and not r["fallback"]
+
+    # client error → give_up inmediato
+    r = should_fallback(400, 1, 3)
+    assert r["give_up"] and not r["fallback"]
+
+    # transitorio en primer intento → retry primario
+    r = should_fallback(529, 1, 3)
+    assert r["retry_primary"] and not r["fallback"] and not r["give_up"]
+
+    # transitorio en tercer intento → fallback
+    r = should_fallback(503, 3, 3)
+    assert r["fallback"] and not r["retry_primary"]
+
+    # timeout → fallback inmediato
+    r = should_fallback(0, 1, 3)
+    assert r["fallback"]
+
+    # intentos agotados → give_up
+    r = should_fallback(529, 4, 3)
+    assert r["give_up"]
+
+    print("ok")
+  solution: |
+    def should_fallback(error_code: int, attempt: int, max_attempts: int) -> dict:
+        TRANSIENT = {529, 503, 502, 504}
+        AUTH_ERRORS = {401, 403}
+        CLIENT_ERRORS = {400, 422}
+
+        if attempt > max_attempts:
+            return {"fallback": False, "retry_primary": False, "give_up": True,
+                    "reason": "max_attempts superado"}
+        if error_code in AUTH_ERRORS:
+            return {"fallback": False, "retry_primary": False, "give_up": True,
+                    "reason": f"error de auth {error_code}; no reintentable"}
+        if error_code in CLIENT_ERRORS:
+            return {"fallback": False, "retry_primary": False, "give_up": True,
+                    "reason": f"error de cliente {error_code}; no es falla del proveedor"}
+        if error_code == 0:  # timeout
+            return {"fallback": True, "retry_primary": False, "give_up": False,
+                    "reason": "timeout → fallback inmediato"}
+        if error_code in TRANSIENT:
+            if attempt < 3:
+                return {"fallback": False, "retry_primary": True, "give_up": False,
+                        "reason": f"error transitorio {error_code}, intento {attempt}/3 → retry primario"}
+            return {"fallback": True, "retry_primary": False, "give_up": False,
+                    "reason": f"error transitorio {error_code} tras {attempt} intentos → fallback"}
+        return {"fallback": False, "retry_primary": False, "give_up": True,
+                "reason": f"error desconocido {error_code}"}
+
+- slug: provider-selection
+  title: "Elige el proveedor correcto por tipo de tarea"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Implementa `select_model(task_type: str, budget_level: str, data_residency: str | None) -> dict`
+    que elige el modelo y proveedor según el contexto.
+
+    task_type: "classification" | "analysis" | "generation"
+    budget_level: "tight" | "normal" | "premium"
+    data_residency: None | "aws_sa_east_1" | "aws_us_east_1"
+
+    Reglas:
+    - Si data_residency no es None: usar "bedrock" como provider (Bedrock permite región específica).
+    - Si budget_level == "tight":
+      - classification: "claude-haiku-4" vía "anthropic"
+      - analysis: "claude-sonnet-4-6" vía "anthropic"
+      - generation: "claude-sonnet-4-6" vía "anthropic"
+    - Si budget_level == "normal": usar "claude-sonnet-4-6" vía "anthropic" para todo.
+    - Si budget_level == "premium": usar "claude-opus-4-7" vía "anthropic" para todo.
+    - Si data_residency aplica: mantener el mismo modelo pero cambiar provider a "bedrock".
+
+    Devuelve: {"model": str, "provider": str, "estimated_usd_per_m_output": float}
+    Precios output: haiku-4=4.0, sonnet-4-6=15.0, opus-4-7=75.0
+  hint: |
+    Determina modelo y provider por defecto según task y budget.
+    Luego, si data_residency no es None, sobrescribe el provider.
+  starter: |
+    def select_model(
+        task_type: str,
+        budget_level: str,
+        data_residency: str | None,
+    ) -> dict:
+        PRICES = {"claude-haiku-4": 4.0, "claude-sonnet-4-6": 15.0, "claude-opus-4-7": 75.0}
+        model = "claude-sonnet-4-6"
+        provider = "anthropic"
+        # seleccionar modelo según budget y task
+        # aplicar data_residency si aplica
+        return {"model": model, "provider": provider,
+                "estimated_usd_per_m_output": PRICES[model]}
+  test: |
+    r = select_model("classification", "tight", None)
+    assert r["model"] == "claude-haiku-4" and r["provider"] == "anthropic"
+
+    r = select_model("analysis", "normal", None)
+    assert r["model"] == "claude-sonnet-4-6"
+
+    r = select_model("generation", "premium", None)
+    assert r["model"] == "claude-opus-4-7"
+
+    r = select_model("analysis", "normal", "aws_sa_east_1")
+    assert r["provider"] == "bedrock"
+    assert r["model"] == "claude-sonnet-4-6"
+
+    r = select_model("classification", "tight", "aws_us_east_1")
+    assert r["provider"] == "bedrock" and r["model"] == "claude-haiku-4"
+
+    print("ok")
+  solution: |
+    def select_model(
+        task_type: str,
+        budget_level: str,
+        data_residency: str | None,
+    ) -> dict:
+        PRICES = {"claude-haiku-4": 4.0, "claude-sonnet-4-6": 15.0, "claude-opus-4-7": 75.0}
+        if budget_level == "tight":
+            model = "claude-haiku-4" if task_type == "classification" else "claude-sonnet-4-6"
+        elif budget_level == "premium":
+            model = "claude-opus-4-7"
+        else:
+            model = "claude-sonnet-4-6"
+        provider = "bedrock" if data_residency else "anthropic"
+        return {"model": model, "provider": provider,
+                "estimated_usd_per_m_output": PRICES[model]}

@@ -1,0 +1,10 @@
+slug: variable
+title: "¿Qué es una variable?"
+analogy_md: |
+  En Excel, una celda como B3 guarda un valor que puedes reutilizar en fórmulas.
+  En Python, una variable hace lo mismo: le das un nombre y guarda datos para usarlos después.
+example_md: |
+  ```python
+  empresa = "ACME Manufacturing"
+  total_facturas = 42
+  ```

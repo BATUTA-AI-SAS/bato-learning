@@ -1,0 +1,100 @@
+- slug: print-required
+  question: |
+    En un script `audit.py` tienes la línea `total = 4820.0 * 1.21`. Ejecutas
+    `uv run python audit.py`. ¿Qué aparece en la terminal?
+  explanation: |
+    En un script `.py`, Python evalúa todas las expresiones pero solo muestra en
+    pantalla lo que se le pide explícitamente con `print()`. Sin `print(total)`,
+    el valor de `total` se calcula internamente y se descarta. La impresión automática
+    es exclusiva de la REPL.
+  options:
+    - text: "`5832.2` (el resultado del cálculo)."
+      correct: false
+      feedback: |
+        En un script, Python no imprime resultados automáticamente. Solo la REPL
+        muestra el valor de la última expresión de cada línea. En un script necesitas
+        `print(total)` para ver `5832.2`.
+    - text: "Nada. La expresión se evalúa pero el resultado no se muestra."
+      correct: true
+      feedback: |
+        Correcto. Sin `print()`, el script termina sin output visible aunque el
+        cálculo se haya hecho. Para ver `total` en pantalla: `print(total)` o
+        `print(f"Total: {total:.2f} EUR")`.
+    - text: "`SyntaxError` porque una asignación no es una instrucción válida."
+      correct: false
+      feedback: |
+        Una asignación (`variable = expresión`) es perfectamente válida en Python.
+        El error sería si tuvieras una `=` en el lado incorrecto o una sintaxis rota.
+    - text: "`total = 5832.2` (imprime la asignación completa)."
+      correct: false
+      feedback: |
+        Python no imprime las asignaciones. Solo imprime lo que tú le pides con
+        `print()`. Para ver la asignación en pantalla: `print(f"total = {total}")`.
+
+- slug: script-vs-repl
+  question: |
+    ¿Cuál es la razón principal para guardar código en un archivo `.py` en lugar
+    de escribirlo directamente en la REPL?
+  explanation: |
+    La REPL es para exploración interactiva: pruebas una expresión, ves el resultado,
+    y el código desaparece al cerrar la sesión. Un archivo `.py` persiste, puede
+    ejecutarse múltiples veces, programarse en un servidor, versionarse con Git,
+    y compartirse con el equipo. La REPL no sirve para ninguna de esas cosas.
+  options:
+    - text: "Un archivo `.py` ejecuta más rápido que la REPL porque omite el paso de parseo."
+      correct: false
+      feedback: |
+        La REPL y un archivo `.py` pasan exactamente por el mismo proceso
+        interno de Python. La velocidad es prácticamente idéntica para
+        el mismo código.
+    - text: "El código en un archivo es permanente, reutilizable, automatizable y versionable."
+      correct: true
+      feedback: |
+        Correcto. Un archivo `.py` persiste entre sesiones, puede ejecutarse cuantas
+        veces sea necesario, puede programarse en un servidor (cron, Temporal), y
+        puede versionarse con Git. La REPL no ofrece ninguna de estas capacidades.
+    - text: "La REPL no acepta variables; solo evalúa expresiones simples."
+      correct: false
+      feedback: |
+        La REPL acepta todo lo que acepta un archivo `.py`: variables, funciones,
+        clases, imports. La diferencia no es lo que acepta sino la persistencia
+        y la automatización.
+    - text: "Los archivos `.py` pueden importarse desde otros archivos; la REPL no."
+      correct: false
+      feedback: |
+        Aunque es cierto que un archivo `.py` puede importarse (con `import`), esa
+        no es la razón principal. La razón más fundamental es la persistencia y
+        la automatización: un archivo existe más allá de la sesión.
+
+- slug: traceback-read-direction
+  question: |
+    Tu script lanza un error y ves 8 líneas de traceback en la terminal. ¿Por dónde
+    empiezas a leer para entender qué falló?
+  explanation: |
+    El traceback de Python se lee de abajo hacia arriba. La última línea siempre
+    contiene el tipo de error (`TypeError`, `ValueError`, etc.) y el mensaje
+    específico. Las líneas anteriores muestran la cadena de llamadas que llevaron
+    al error. Empezar por abajo es la forma más rápida de identificar el problema.
+  options:
+    - text: "Por la primera línea: ahí está el error más importante."
+      correct: false
+      feedback: |
+        La primera línea del traceback siempre es `Traceback (most recent call last):`,
+        que es solo un encabezado. El error específico está en la última línea.
+    - text: "Por la última línea: contiene el tipo de error y el mensaje."
+      correct: true
+      feedback: |
+        Correcto. La última línea tiene la forma `TipoDeError: mensaje`. Por ejemplo:
+        `TypeError: can only concatenate str (not "float") to str`. Las líneas
+        anteriores te dicen en qué archivo y función ocurrió.
+    - text: "Por la línea del medio: es donde Python identifica la causa raíz."
+      correct: false
+      feedback: |
+        No hay una posición fija para la causa raíz. El traceback tiene una estructura
+        definida: el tipo y mensaje están siempre al final. Empieza por ahí.
+    - text: "El orden no importa; cada línea del traceback es independiente."
+      correct: false
+      feedback: |
+        El orden importa. Las líneas del traceback forman una cadena de llamadas
+        ordenada cronológicamente. La última línea es el punto final donde ocurrió
+        el error. Leer de abajo hacia arriba es la estrategia estándar.

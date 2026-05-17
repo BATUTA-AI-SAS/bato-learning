@@ -1,0 +1,13 @@
+slug: temporal
+title: "¿Qué es Temporal?"
+analogy_md: |
+  Temporal ejecuta workflows de larga duración que sobreviven reinicios del servidor. Es
+  como un proceso de auditoría de ACME que puede pausarse, retomarse días después y garantizar
+  que cada paso se ejecutó exactamente una vez.
+example_md: |
+  ```python
+  @workflow.defn
+  class FacturacionWorkflow:
+      @workflow.run
+      async def run(self, datos: FacturaDatos) -> str: ...
+  ```

@@ -1,0 +1,10 @@
+slug: htmx
+title: "¿Qué es HTMX?"
+analogy_md: |
+  Normalmente actualizar una página requiere JavaScript complejo. HTMX deja que el HTML
+  haga solicitudes al servidor y actualice solo una parte de la página, sin recargarla completa.
+example_md: |
+  ```html
+  <div hx-get="/api/resumen" hx-trigger="every 5s" hx-target="#resumen">
+  </div>
+  ```

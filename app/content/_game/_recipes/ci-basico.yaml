@@ -1,0 +1,19 @@
+slug: ci-basico
+title: "Receta: CI básico con GitHub Actions"
+chapter_ref: phase2
+ingredients: [ci, test, git, docker]
+body_md: |
+  Un workflow mínimo: instala dependencias, ejecuta linter y tests en cada push. Si algo falla,
+  el PR se bloquea antes de hacer merge. Agrega más pasos según el proyecto crezca.
+yields_md: |
+  ```yaml
+  on: [push, pull_request]
+  jobs:
+    test:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - run: pip install -e ".[test]"
+        - run: ruff check .
+        - run: pytest
+  ```

@@ -1,0 +1,36 @@
+slug: call-claude
+title: "Llama a Claude y que responda al CFO"
+kind: code
+phase: PH03
+ord: 41
+trains_skill: llm-api
+concepts_introduced: [llm, streaming, system-prompt]
+concepts_reinforced: [async, pydantic, api]
+xp: 20
+est_seconds: 150
+scenario_md: |
+  El CFO de ACME quiere un asistente que responda preguntas sobre facturas.
+  Tu primera tarea: hacer que Claude responda "¿cuánto gastamos en abril?"
+  con contexto del sistema correcto.
+payload:
+  starter: |
+    from anthropic import AsyncAnthropic
+
+    client = AsyncAnthropic()
+
+    async def ask_claude(question: str) -> str:
+        """Llama a Claude con un system prompt de ACME y retorna el texto."""
+        # completa aquí
+        ...
+  tests: |
+    import asyncio
+    result = asyncio.run(ask_claude("¿cuánto gastamos en abril?"))
+    assert isinstance(result, str)
+    assert len(result) > 10
+hint_md: |
+  Usa `client.messages.create` con `model`, `max_tokens` y `messages`.
+  El system prompt va en el parámetro `system`, separado de `messages`.
+solution_md: |
+  `messages.create` retorna un `Message`; el texto está en `.content[0].text`.
+  El system prompt define el rol y contexto del asistente — sin él, Claude
+  responde en genérico. Con él, sabe que es el asistente financiero de ACME.

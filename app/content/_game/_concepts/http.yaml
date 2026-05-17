@@ -1,0 +1,11 @@
+slug: http
+title: "¿Qué es HTTP?"
+analogy_md: |
+  HTTP es el idioma que usan el navegador y el servidor para hablar: el navegador hace una
+  solicitud (GET, POST) y el servidor responde con un código (200 OK, 404 No encontrado) y datos.
+example_md: |
+  ```
+  POST /api/facturas   → 201 Created
+  GET  /api/facturas   → 200 OK  [lista]
+  DELETE /api/facturas/F-001 → 204 No Content
+  ```

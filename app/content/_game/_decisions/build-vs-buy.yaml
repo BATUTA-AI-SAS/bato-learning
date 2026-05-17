@@ -1,0 +1,24 @@
+slug: build-vs-buy
+chapter_ref: phase4
+prompt_md: |
+  ACME necesita un módulo de autenticación con SSO, MFA y gestión de sesiones.
+  ¿Lo construyes desde cero o usas un servicio externo?
+options:
+  - label: "Build (construir propio)"
+    tradeoff_md: |
+      + Control total sobre el flujo, datos y experiencia de usuario.
+      + Sin dependencia de un proveedor externo ni su pricing.
+      + Puedes integrarlo perfectamente con el modelo de tenants de ACME.
+      − Autenticación segura es compleja: rotación de tokens, manejo de sesiones,
+        ataques de fuerza bruta, PKCE, MFA. Subestimar esto genera brechas.
+      − Meses de desarrollo que no son el producto principal.
+    consequence_skill: auth-build
+  - label: "Buy (Auth0, Clerk, Supabase Auth)"
+    tradeoff_md: |
+      + SSO, MFA, auditoría y cumplimiento listos en días, no meses.
+      + El proveedor maneja actualizaciones de seguridad y vulnerabilidades.
+      + Reduce drásticamente la superficie de ataque que el equipo debe defender.
+      − Costo mensual por usuario activo que escala con el crecimiento.
+      − Los datos de sesión y login viven fuera de tu infraestructura.
+      − Migraciones futuras son costosas si el proveedor cambia su modelo de precios.
+    consequence_skill: auth-buy

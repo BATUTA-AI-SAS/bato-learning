@@ -1,0 +1,10 @@
+slug: archivo
+title: "¿Qué es un archivo en Python?"
+analogy_md: |
+  Como abrir un libro de Excel para leerlo o guardar cambios, en Python abres un archivo,
+  procesas su contenido y lo cierras. El bloque with garantiza que siempre se cierre aunque ocurra un error.
+example_md: |
+  ```python
+  with open("facturas.csv") as f:
+      contenido = f.read()
+  ```

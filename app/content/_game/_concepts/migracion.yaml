@@ -1,0 +1,10 @@
+slug: migracion
+title: "¿Qué es una migración de base de datos?"
+analogy_md: |
+  Cuando agregas una columna nueva a una hoja de Excel con datos existentes, tienes que
+  actualizar todas las filas viejas. Alembic hace eso por ti en la base de datos, con historial.
+example_md: |
+  ```
+  alembic revision --autogenerate -m "agrega columna estado"
+  alembic upgrade head
+  ```

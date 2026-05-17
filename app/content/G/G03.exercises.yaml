@@ -1,0 +1,251 @@
+- slug: margin-calculator
+  title: "Calcula el margen real del servicio para Andina"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Calcula el margen bruto del servicio de conciliación bancaria para
+    Constructora Andina con los siguientes costos:
+    - Tokens Anthropic Sonnet 4.6: 3 corridas/mes × $12 USD/corrida = 36 USD/mes
+    - Infra Hetzner (fracción del servidor compartido): 8 USD/mes
+    - Soporte estimado: 2 horas/mes × 30 USD/hora = 60 USD/mes
+    - Amortización setup (500 USD ÷ 12 meses): 41.67 USD/mes
+
+    Precio acordado: 650 USD/mes.
+
+    Escribe la función `compute_margin(price, costs_dict)` que devuelve
+    un dict con `total_cost`, `gross_profit`, y `margin_pct` (redondeado
+    a 1 decimal).
+  hint: |
+    margin_pct = (gross_profit / price) × 100
+    Un margen < 60 % es señal de que el precio es demasiado bajo.
+  starter: |
+    def compute_margin(price: float, costs: dict) -> dict:
+        """
+        price: precio mensual en USD
+        costs: dict con claves de costo y valores en USD/mes
+        retorna: {total_cost, gross_profit, margin_pct}
+        """
+        # tu implementación aquí
+        pass
+
+    andina_costs = {
+        "tokens_anthropic": 36.0,
+        "infra_hetzner": 8.0,
+        "support_hours": 60.0,
+        "setup_amortization": 41.67
+    }
+    result = compute_margin(650.0, andina_costs)
+    print(result)
+  test: |
+    assert callable(compute_margin), "compute_margin debe ser una función"
+    r = compute_margin(650.0, {
+        "tokens_anthropic": 36.0,
+        "infra_hetzner": 8.0,
+        "support_hours": 60.0,
+        "setup_amortization": 41.67
+    })
+    assert isinstance(r, dict), "debe devolver un dict"
+    assert "total_cost" in r, "falta clave total_cost"
+    assert "gross_profit" in r, "falta clave gross_profit"
+    assert "margin_pct" in r, "falta clave margin_pct"
+
+    assert abs(r["total_cost"] - 145.67) < 0.1, \
+        f"total_cost esperado ~145.67, obtenido {r['total_cost']}"
+    assert abs(r["gross_profit"] - 504.33) < 0.1, \
+        f"gross_profit esperado ~504.33, obtenido {r['gross_profit']}"
+    assert abs(r["margin_pct"] - 77.6) < 0.5, \
+        f"margin_pct esperado ~77.6%, obtenido {r['margin_pct']}"
+    assert r["margin_pct"] > 60, \
+        "Margen < 60 % — el precio es demasiado bajo para ser sostenible"
+    print("ok")
+  solution: |
+    def compute_margin(price: float, costs: dict) -> dict:
+        total_cost = sum(costs.values())
+        gross_profit = price - total_cost
+        margin_pct = round((gross_profit / price) * 100, 1)
+        return {
+            "total_cost": round(total_cost, 2),
+            "gross_profit": round(gross_profit, 2),
+            "margin_pct": margin_pct
+        }
+  hints:
+    - "total_cost = suma de todos los valores del dict costs"
+    - "margin_pct = (gross_profit / price) * 100, redondeado a 1 decimal"
+
+- slug: pricing-tiers-design
+  title: "Diseña los 3 tiers para el servicio de conciliación bancaria"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Diseña la tabla de 3 tiers para el agente de conciliación bancaria.
+    Restricciones:
+    - El Tier 1 (Básico) debe cubrir al menos costos + 50 % de margen.
+    - El Tier 2 (Profesional) es el objetivo para Andina (3 cuentas).
+    - El Tier 3 (Empresa) es el ancla de anchoring.
+    - Costo base del servicio (1 cuenta): 100 USD/mes.
+    - Cada cuenta adicional agrega ~25 USD/mes de costo variable.
+  hint: |
+    Anchoring funciona cuando el Tier 3 hace que el Tier 2 parezca
+    razonable por contraste. El Tier 2 no debe ser más del 55 % del
+    Tier 3 en precio.
+  starter: |
+    tiers = [
+        {
+            "name": "Básico",
+            "tier_number": 1,
+            "price_usd_month": 0,
+            "accounts_included": 0,
+            "support_sla": "",
+            "features": []
+        },
+        {
+            "name": "Profesional",
+            "tier_number": 2,
+            "price_usd_month": 0,
+            "accounts_included": 0,
+            "support_sla": "",
+            "features": []
+        },
+        {
+            "name": "Empresa",
+            "tier_number": 3,
+            "price_usd_month": 0,
+            "accounts_included": 0,
+            "support_sla": "",
+            "features": []
+        }
+    ]
+  test: |
+    assert isinstance(tiers, list) and len(tiers) == 3
+
+    t1 = next(t for t in tiers if t["tier_number"] == 1)
+    t2 = next(t for t in tiers if t["tier_number"] == 2)
+    t3 = next(t for t in tiers if t["tier_number"] == 3)
+
+    # Tier 1: precio mínimo viable (costo base 100 × 1.5 margen mínimo)
+    assert t1["price_usd_month"] >= 150, \
+        f"Tier 1 debe ser ≥ 150 USD/mes para tener al menos 50% de margen sobre el costo base de 100 USD. Obtenido: {t1['price_usd_month']}"
+    assert t1["accounts_included"] >= 1, "Tier 1 debe incluir al menos 1 cuenta"
+
+    # Tier 2: adecuado para Andina (3 cuentas, 650 USD referencia)
+    assert t2["price_usd_month"] >= 400, \
+        f"Tier 2 debe ser ≥ 400 USD/mes. Obtenido: {t2['price_usd_month']}"
+    assert t2["accounts_included"] >= 3, \
+        "Tier 2 debe incluir al menos 3 cuentas (caso Andina)"
+
+    # Tier 3: ancla de anchoring (debe ser notablemente más caro que Tier 2)
+    assert t3["price_usd_month"] >= t2["price_usd_month"] * 1.5, \
+        f"Tier 3 ({t3['price_usd_month']} USD) debe ser al menos 1.5× el Tier 2 ({t2['price_usd_month']} USD) para que el anchoring funcione"
+
+    # Orden correcto
+    assert t1["price_usd_month"] < t2["price_usd_month"] < t3["price_usd_month"], \
+        "Los precios deben ir en orden ascendente: Básico < Profesional < Empresa"
+
+    for t in tiers:
+        assert t["support_sla"] != "", f"Tier {t['tier_number']}: support_sla no puede estar vacío"
+        assert len(t["features"]) >= 2, f"Tier {t['tier_number']}: debe tener al menos 2 features"
+    print("ok")
+  solution: |
+    tiers = [
+        {
+            "name": "Básico",
+            "tier_number": 1,
+            "price_usd_month": 250,
+            "accounts_included": 1,
+            "support_sla": "Respuesta < 24h hábiles por email",
+            "features": [
+                "Conciliación mensual de 1 cuenta bancaria",
+                "Reporte PDF + CSV de matches y excepciones",
+                "Hasta 3 000 transacciones/mes incluidas",
+                "Alerta por email al detectar duplicados"
+            ]
+        },
+        {
+            "name": "Profesional",
+            "tier_number": 2,
+            "price_usd_month": 650,
+            "accounts_included": 3,
+            "support_sla": "Respuesta < 8h hábiles por email + WhatsApp",
+            "features": [
+                "Conciliación mensual de hasta 3 cuentas bancarias",
+                "Reporte PDF + CSV con saldo acumulado",
+                "Hasta 8 000 transacciones/mes incluidas",
+                "Alerta por duplicados + alerta por montos fuera de rango",
+                "Corrida adicional bajo demanda (hasta 2/mes)"
+            ]
+        },
+        {
+            "name": "Empresa",
+            "tier_number": 3,
+            "price_usd_month": 1400,
+            "accounts_included": 10,
+            "support_sla": "Respuesta < 2h hábiles + línea directa CSM",
+            "features": [
+                "Conciliación mensual de hasta 10 cuentas bancarias",
+                "Transacciones ilimitadas",
+                "SLA 99.5 % garantizado",
+                "Corridas ilimitadas bajo demanda",
+                "Dashboard en tiempo real",
+                "Soporte de incorporación de nuevas cuentas en 48h"
+            ]
+        }
+    ]
+  hints:
+    - "Tier 1 precio mínimo = costo_base × (1 / (1 - margen_mínimo)) = 100 / 0.5 = 200 USD"
+    - "Tier 3 debe ser tan caro que el cliente mire el Tier 2 y piense 'eso es razonable'."
+
+- slug: value-anchoring
+  title: "Redacta el párrafo de anchoring de valor para Andina"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Redacta el párrafo de justificación del precio (anchoring de valor) para
+    incluir en la propuesta de Andina. El párrafo explica por qué 650 USD/mes
+    es razonable comparado con el costo del proceso actual.
+
+    Datos del discovery:
+    - Tiempo actual: 16 horas/mes × $25 000 COP/hora ≈ 400 000 COP/mes
+    - Tipo de cambio: 1 USD ≈ 4 300 COP (2026)
+    - Cargo duplicado no detectado en feb: $1.8M COP
+    - Cargo duplicado detectado tarde ocurre aprox 1 vez cada 3 meses
+
+    El párrafo no debe ser más de 4 oraciones.
+  hint: |
+    El anchoring funciona cuando el precio del servicio se ve pequeño
+    frente al costo del problema. 400 000 COP/mes ÷ 4 300 = ~93 USD/mes
+    en tiempo; el cargo duplicado anualizado es mucho mayor.
+  starter: |
+    anchoring_paragraph = ""  # escribe el párrafo aquí
+  test: |
+    assert isinstance(anchoring_paragraph, str)
+    assert len(anchoring_paragraph) > 100, \
+        "El párrafo es demasiado corto — debe tener al menos 100 caracteres"
+    assert len(anchoring_paragraph.split(".")) <= 5, \
+        "El párrafo tiene más de 4 oraciones. Sé más conciso."
+
+    # Debe mencionar el costo del proceso actual
+    lower_p = anchoring_paragraph.lower()
+    has_cost_reference = any(word in lower_p for word in
+        ["horas", "tiempo", "400", "93", "costo del proceso", "manual"])
+    assert has_cost_reference, \
+        "El párrafo debe referenciar el costo del proceso actual (horas × tarifa)"
+
+    # Debe mencionar el precio del servicio o una comparación
+    has_price_reference = any(word in lower_p for word in
+        ["650", "servicio", "precio", "inversión", "costo"])
+    assert has_price_reference, \
+        "El párrafo debe referenciar el precio del servicio o hacer la comparación explícita"
+    print("ok")
+  solution: |
+    anchoring_paragraph = (
+        "El proceso actual de conciliación bancaria consume 16 horas del contador "
+        "por mes — aproximadamente 93 USD en tiempo del equipo a la tarifa interna — "
+        "más el riesgo de cargos duplicados no detectados a tiempo, que en el último "
+        "año representaron al menos un incidente de $1.8M COP (≈ 420 USD). "
+        "El servicio de automatización tiene un costo de 650 USD/mes, equivalente a "
+        "7 horas del contador: el resto del tiempo liberado y la detección automática "
+        "de duplicados representan un retorno positivo desde el primer mes."
+    )
+  hints:
+    - "Convierte COP a USD para que el cliente colombiano vea la comparación en la misma moneda que el precio del servicio."
+    - "No uses jerga financiera como 'ROI' — di 'retorno positivo desde el primer mes'."

@@ -1,0 +1,53 @@
+slug: google-adk-agent
+title: "Y con Gemini y Google ADK"
+kind: predict
+phase: PH03
+ord: 51
+trains_skill: multi-provider
+concepts_introduced: [google-adk, llm-agent, sequential-agent]
+concepts_reinforced: [agent-loop, multi-provider]
+xp: 15
+est_seconds: 120
+scenario_md: |
+  Un colega migró el agente de ACME a Google ADK. Lee el código y predice
+  qué imprime cuando el usuario pregunta por facturas de mayo.
+payload:
+  code: |
+    from google.adk.agents import LlmAgent, SequentialAgent
+    from google.adk.tools import FunctionTool
+
+    def get_may_invoices() -> list[dict]:
+        return [{"id": "INV-100", "amount": 9200.0, "month": "mayo"}]
+
+    invoice_tool = FunctionTool(func=get_may_invoices)
+
+    agent = LlmAgent(
+        name="acme-finance",
+        model="gemini-2.0-flash",
+        tools=[invoice_tool],
+        instruction="Eres el asistente financiero de ACME. Responde en español.",
+    )
+
+    # El runner ejecuta el agente y retorna la respuesta final
+    # (pseudocódigo — el runner real es asíncrono)
+    response = agent.run("¿Cuáles son las facturas de mayo?")
+    print(response.text)
+  question_md: "¿Qué contiene `response.text` aproximadamente?"
+  options:
+    - text: "Una lista con INV-100 por 9200.0 euros para el mes de mayo."
+      correct: true
+      feedback: "Correcto. El agente llama a get_may_invoices via FunctionTool y usa el resultado para formular la respuesta."
+    - text: "Un error porque LlmAgent no puede usar FunctionTool sin SequentialAgent."
+      correct: false
+      feedback: "LlmAgent soporta FunctionTool directamente. SequentialAgent se usa para encadenar múltiples agentes en secuencia."
+    - text: "Nada — el agente no tiene herramientas asíncronas."
+      correct: false
+      feedback: "FunctionTool envuelve funciones síncronas. El ADK maneja la asincronía internamente."
+hint_md: |
+  ADK sigue el mismo patrón: el LLM ve las herramientas disponibles, decide
+  cuándo llamarlas, y el framework ejecuta la función. `LlmAgent` es el
+  equivalente de tu agent_loop manual del nivel anterior.
+solution_md: |
+  ADK abstrae el loop observe→think→act igual que LangGraph o el OpenAI Agents SDK.
+  La diferencia: ADK está optimizado para Gemini y el stack GCP. Para multi-proveedor
+  o control granular del loop, el SDK de Anthropic o LangGraph dan más flexibilidad.

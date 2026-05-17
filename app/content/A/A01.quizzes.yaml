@@ -1,0 +1,111 @@
+- slug: excel-vs-python-match
+  kind: match
+  question: |
+    Empareja cada herramienta Excel con su equivalente en el ecosistema Python/uv.
+  explanation: |
+    `uv add` reemplaza a `pip install`. `uv.lock` es el equivalente del snapshot
+    exacto de versiones. `.venv/` es la caja aislada equivalente a un perfil de
+    add-ins. `pyproject.toml` declara las dependencias igual que un manifiesto de add-ins.
+  pairs:
+    - left: "pip install"
+      right: "uv add"
+    - left: "requirements.txt"
+      right: "uv.lock"
+    - left: "Add-in global de Excel"
+      right: ".venv/ aislado"
+
+- slug: bytecode-compilation-step
+  question: |
+    En el pipeline de CPython, ¿en qué etapa se detecta un `SyntaxError`?
+  explanation: |
+    CPython parsea el texto a un AST **antes** de compilar a bytecode y antes
+    de ejecutar nada. Un `SyntaxError` aparece en la fase de parseo: ni una sola
+    instrucción del módulo llega a ejecutarse.
+  options:
+    - text: "Durante la ejecución, cuando Python llega a la línea con el error."
+      correct: false
+      feedback: |
+        No. Un `SyntaxError` ocurre en la fase de parseo, antes de que se ejecute
+        cualquier línea. Si tienes `print("ok")` antes de la línea con error,
+        tampoco se ejecuta.
+    - text: "Durante la compilación a bytecode, antes de cualquier ejecución."
+      correct: false
+      feedback: |
+        Casi, pero el parseo a AST es una etapa *anterior* a la compilación a
+        bytecode. El `SyntaxError` ocurre todavía antes.
+    - text: "Durante el parseo a AST, que precede a la compilación a bytecode."
+      correct: true
+      feedback: |
+        Correcto. El pipeline es: tokenizar → AST → bytecode → ejecutar.
+        El `SyntaxError` sale en la segunda etapa (AST), antes del bytecode.
+    - text: "Al cargar el `.pyc` de `__pycache__`, si el archivo está corrupto."
+      correct: false
+      feedback: |
+        Eso sería un error de lectura del `.pyc`, no un `SyntaxError`. Los
+        `SyntaxError` vienen del texto fuente `.py`, no del bytecode precompilado.
+
+- slug: dash-m-vs-path
+  question: |
+    Tienes `app/main.py` con imports relativos (`from .routers import chat`).
+    ¿Qué pasa si ejecutas `python app/main.py`?
+  explanation: |
+    `-m` ejecuta el archivo como parte de un paquete, inicializando `__package__`.
+    Sin eso, Python trata `app/main.py` como un script top-level y los imports
+    relativos fallan con `ImportError: attempted relative import with no known
+    parent package`.
+  options:
+    - text: "Funciona igual que `python -m app.main`; la diferencia es solo estética."
+      correct: false
+      feedback: |
+        No. Con `python app/main.py`, el módulo se carga sin `__package__` definido.
+        Los imports relativos (`from .routers import chat`) no tienen referencia de
+        paquete y lanzan `ImportError`.
+    - text: "Falla con `ImportError: attempted relative import with no known parent package`."
+      correct: true
+      feedback: |
+        Correcto. Python necesita saber que `main` vive dentro del paquete `app`
+        para resolver `.routers`. Solo `python -m app.main` establece ese contexto.
+    - text: "Falla con `ModuleNotFoundError: No module named 'app'`."
+      correct: false
+      feedback: |
+        Ese error aparece si usas `python -m app.main` sin que `app/` sea un
+        paquete válido (sin `__init__.py`) o sin estar en el directorio correcto.
+        Pero con `python app/main.py`, el error que aparece es sobre imports
+        relativos, no sobre el módulo `app`.
+    - text: "Funciona si `app/` tiene `__init__.py`."
+      correct: false
+      feedback: |
+        El `__init__.py` no basta. El problema es que `python app/main.py` no
+        inicializa el `__package__` de `main`. Para que los imports relativos
+        funcionen, tienes que ejecutar `python -m app.main`.
+
+- slug: uv-lock-purpose
+  question: |
+    Un colega añadió `anthropic>=0.40` a `pyproject.toml` pero no commiteó el
+    `uv.lock` actualizado. ¿Cuál es el riesgo concreto?
+  explanation: |
+    `pyproject.toml` declara un rango (`>=0.40`), no una versión exacta. Sin
+    `uv.lock`, cada `uv sync` puede instalar versiones distintas según lo que
+    esté disponible en PyPI en ese momento. El entorno local y el de producción
+    pueden divergir silenciosamente.
+  options:
+    - text: "Ninguno: `>=0.40` garantiza que siempre se instale la misma versión."
+      correct: false
+      feedback: |
+        `>=0.40` solo garantiza que la versión sea 0.40 o mayor. Si mañana sale
+        0.50 con un breaking change, `uv sync` instalará esa versión en el
+        siguiente `pip install` de producción. El lockfile fija la versión exacta.
+    - text: |
+        El CI puede instalar `anthropic 0.52` mientras local tiene `0.43`,
+        causando comportamientos distintos sin error explícito.
+      correct: true
+      feedback: |
+        Exacto. Esa divergencia silenciosa es el riesgo. El lockfile registra el
+        hash exacto de cada wheel; `uv sync --frozen` falla si el lock no coincide
+        con `pyproject.toml`, en lugar de instalar algo diferente.
+    - text: "El proyecto no compilará: `uv` requiere versiones exactas en `pyproject.toml`."
+      correct: false
+      feedback: |
+        `uv` acepta rangos en `pyproject.toml`; eso es correcto e intencional.
+        El lockfile es el que registra la versión exacta resuelta. Rangos en
+        `pyproject.toml` + versiones exactas en `uv.lock` es el patrón esperado.

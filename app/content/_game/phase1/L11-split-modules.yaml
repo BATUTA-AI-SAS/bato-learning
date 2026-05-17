@@ -1,0 +1,25 @@
+slug: split-modules
+title: "Divide el script en dos archivos"
+kind: order_steps
+trains_skill: modulos
+concepts_introduced: [import, modulos, __name__]
+concepts_reinforced: [funcion, archivo]
+scenario_md: |
+  El script de ACME creció. El Director de TI pide separarlo: las funciones
+  van a utils.py y el script principal a main.py. ¿En qué orden haces los
+  cinco pasos para que main.py siga funcionando igual que antes?
+payload:
+  steps:
+    - "Crear el archivo utils.py en la misma carpeta"
+    - "Mover las funciones calcular_iva y sumar_facturas a utils.py"
+    - "Agregar 'from utils import calcular_iva, sumar_facturas' en main.py"
+    - "Eliminar las definiciones de funciones de main.py"
+    - "Ejecutar main.py y verificar que no hay ImportError"
+  correct_order: [0, 1, 2, 3, 4]
+hint_md: "No puedes importar algo que aún no existe en utils.py."
+solution_md: |
+  Primero creas el archivo destino, luego mueves el código, luego ajustas
+  el import, luego limpias el origen, finalmente verificas. Si limpias antes
+  de importar, obtendrás NameError al ejecutar.
+xp: 10
+est_seconds: 90

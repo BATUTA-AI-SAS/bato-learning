@@ -1,0 +1,113 @@
+- slug: comprehension-creates-new
+  question: |
+    ```python
+    invoices = [
+        {"id": "INV-001", "amount": 4820.0},
+        {"id": "INV-002", "amount": 0.0},
+    ]
+    valid = [inv for inv in invoices if inv["amount"] > 0]
+    print(len(invoices), len(valid))
+    ```
+    ¿Qué imprime?
+  explanation: |
+    La comprensión de lista crea un objeto `list` nuevo. `invoices` no se modifica.
+    `valid` contiene solo la factura con amount > 0. Resultado: `2 1`.
+  options:
+    - text: "`1 1` — la comprensión filtra `invoices` en sitio."
+      correct: false
+      feedback: |
+        Las comprensiones nunca mutan el iterable original. Crean un objeto nuevo.
+        `invoices` sigue teniendo 2 elementos después de la comprensión.
+    - text: "`2 1` — `invoices` intacta, `valid` con 1 elemento."
+      correct: true
+      feedback: |
+        Correcto. La comprensión devuelve una lista nueva con los elementos que
+        pasan el filtro. El iterable original no se toca.
+    - text: "`2 2` — la comprensión copia todos los elementos."
+      correct: false
+      feedback: |
+        La comprensión aplica el filtro `if inv["amount"] > 0`. Solo INV-001 pasa.
+        `valid` tiene 1 elemento, no 2.
+    - text: "Error: no se puede filtrar dicts en una comprensión."
+      correct: false
+      feedback: |
+        Las comprensiones funcionan con cualquier iterable y cualquier tipo de
+        elemento. Iterar sobre una lista de dicts es perfectamente válido.
+
+- slug: for-else-semantics
+  question: |
+    ```python
+    vendors = ["acme_global", "andina_co", "expreslog_mx"]
+    target = "globex"
+
+    for v in vendors:
+        if v == target:
+            print("encontrado")
+            break
+    else:
+        print("no encontrado")
+    ```
+    ¿Qué imprime?
+  explanation: |
+    El bloque `else` de un `for` se ejecuta cuando el bucle termina **sin** `break`.
+    Como `"globex"` no está en la lista, el `break` nunca se ejecuta,
+    y el `else` sí se ejecuta.
+  options:
+    - text: "Nada — el `else` de un `for` nunca se ejecuta."
+      correct: false
+      feedback: |
+        El `else` de un `for` sí se ejecuta, pero solo si el bucle termina
+        sin `break`. Es un patrón idiomático para «buscar sin encontrar».
+    - text: "`no encontrado`"
+      correct: true
+      feedback: |
+        Correcto. `"globex"` no está en la lista, el `break` nunca se ejecuta,
+        y el `else` corre al finalizar el bucle normalmente.
+    - text: "`encontrado`"
+      correct: false
+      feedback: |
+        `"globex"` no está en la lista. La condición `v == target` nunca es True,
+        el `break` nunca se ejecuta.
+    - text: "Error de sintaxis: `for` no tiene `else`."
+      correct: false
+      feedback: |
+        En Python, `for` y `while` sí tienen `else`. Es una característica legítima
+        del lenguaje, aunque poco conocida. El `else` corre si el bucle no terminó
+        con `break`.
+
+- slug: generator-vs-list-comp
+  question: |
+    ```python
+    invoices = [
+        {"amount": 4820.0},
+        {"amount": 1500.0},
+        {"amount": 750.0},
+    ]
+    total_a = sum([inv["amount"] for inv in invoices])
+    total_b = sum(inv["amount"] for inv in invoices)
+    print(total_a == total_b)
+    ```
+    ¿Qué imprime, y cuál forma es más eficiente en memoria para datasets grandes?
+  explanation: |
+    Ambas formas producen el mismo resultado numérico. La diferencia es que
+    `[...]` crea una lista intermedia completa en memoria antes de pasar a `sum`.
+    `(...)` (expresión generadora) calcula cada valor bajo demanda, sin lista intermedia.
+    Para datasets grandes, la generadora usa menos memoria.
+  options:
+    - text: "`True` — equivalentes en resultado; `[...]` es más eficiente porque `sum` optimiza listas."
+      correct: false
+      feedback: |
+        El resultado es `True`, pero `sum` no optimiza listas especialmente.
+        La generadora es más eficiente en memoria porque no materializa la lista
+        completa antes de sumar.
+    - text: "`True` — equivalentes en resultado; la generadora es más eficiente en memoria."
+      correct: true
+      feedback: |
+        Correcto. Ambas suman lo mismo. La expresión generadora `(...)` no crea
+        una lista intermedia — calcula y entrega cada elemento a `sum` uno a uno.
+        Para 10M de facturas, la diferencia de memoria es significativa.
+    - text: "`False` — las generadoras no son exactamente iguales a las comprensiones numéricamente."
+      correct: false
+      feedback: |
+        La diferencia entre generadora y comprensión es de tipo de objeto y
+        tiempo de materialización, no de resultado numérico. La suma es la misma.

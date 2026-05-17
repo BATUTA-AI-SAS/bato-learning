@@ -1,0 +1,66 @@
+- slug: acid_property
+  question: |
+    Una auditoría de ACME actualiza dos tablas al mismo tiempo: `invoice` (marca la factura como revisada)
+    y `audit_run` (registra el hallazgo). El proceso muere justo entre las dos escrituras.
+    ¿Qué propiedad de ACID garantiza que ambas escrituras se descarten automáticamente?
+  explanation: |
+    **Atomicidad** es la propiedad que garantiza que un conjunto de operaciones se ejecuta como una unidad:
+    todo o nada. Si el proceso muere a la mitad, la transacción se revierte completa.
+  options:
+    - text: "Atomicidad"
+      correct: true
+      feedback: "Correcto. «Todo o nada» — o las dos escrituras se hacen, o ninguna."
+    - text: "Consistencia"
+      correct: false
+      feedback: "Consistencia garantiza que la BD pasa de un estado válido a otro válido. No define qué pasa si el proceso muere a la mitad."
+    - text: "Aislamiento"
+      correct: false
+      feedback: "Aislamiento garantiza que dos transacciones concurrentes no se interfieren. No maneja el crash a mitad de una transacción."
+    - text: "Durabilidad"
+      correct: false
+      feedback: "Durabilidad garantiza que una vez que se hace commit, el dato persiste aunque caiga el servidor. No aplica si el crash ocurre antes del commit."
+
+- slug: when_not_relational
+  question: |
+    ACME quiere guardar 500 millones de lecturas de sensores de temperatura de sus máquinas
+    (una lectura cada 10 segundos por máquina, durante 5 años). Las queries siempre son
+    por rango de tiempo (`WHERE ts BETWEEN ...`). ¿Qué tipo de base de datos es más adecuado?
+  explanation: |
+    **Time-series** está optimizada para datos con timestamp obligatorio y queries por rango temporal.
+    TimescaleDB particiona automáticamente por tiempo, comprime datos históricos, y ejecuta
+    queries de rango 10–100× más rápido que una tabla relacional sin particionamiento.
+  options:
+    - text: "Time-series (TimescaleDB o InfluxDB)"
+      correct: true
+      feedback: "Correcto. Datos append-only con timestamp, queries por rango temporal — el caso exacto para time-series."
+    - text: "Relacional (Postgres sin extensiones)"
+      correct: false
+      feedback: "500 millones de filas sin particionamiento por tiempo son inmanejables. Un índice B-tree en `ts` a esa escala satura el I/O."
+    - text: "Key-value (Redis)"
+      correct: false
+      feedback: "Redis es in-memory; 500 M lecturas no caben en RAM. Además, Redis no tiene queries por rango temporal eficientes."
+    - text: "Documento (MongoDB)"
+      correct: false
+      feedback: "MongoDB puede almacenarlo, pero no está optimizado para queries de rango temporal sobre cientos de millones de docs. TimescaleDB lo hace mucho mejor."
+
+- slug: vector_db_purpose
+  question: |
+    ¿Cuál es la operación fundamental que distingue una base de datos vectorial
+    de una base de datos relacional?
+  explanation: |
+    Las bases de datos vectoriales están diseñadas para **búsqueda por similitud**: dado un vector de consulta,
+    devuelve los K vectores más cercanos. Las bases relacionales responden a igualdad exacta o rangos.
+    El índice HNSW (vector) vs B-tree (relacional) refleja esta diferencia fundamental.
+  options:
+    - text: "Búsqueda por similitud (top-K vectores más cercanos a una consulta)"
+      correct: true
+      feedback: "Correcto. La query canónica es «dame los 10 vectores más parecidos a este embedding»."
+    - text: "Búsqueda por igualdad exacta (`WHERE id = 5`)"
+      correct: false
+      feedback: "Eso es lo que hace una base relacional con índice B-tree. Las vectoriales no usan igualdad exacta — usan distancia."
+    - text: "Agregaciones sobre columnas (`SUM`, `AVG`, `GROUP BY`)"
+      correct: false
+      feedback: "Eso es el caso de uso de las bases columnares (ClickHouse, DuckDB, BigQuery)."
+    - text: "Almacenar documentos JSON sin schema fijo"
+      correct: false
+      feedback: "Eso es MongoDB. Las vectoriales almacenan embeddings (arrays de float) y los indexan por distancia, no por estructura de documento."

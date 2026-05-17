@@ -1,0 +1,129 @@
+- slug: repl-arithmetic
+  title: "Aritmética básica en la REPL"
+  runner: pyodide
+  kind: code
+  prompt: |
+    ACME Manufacturing facturó 4820.0 EUR en enero y 3150.0 EUR en febrero.
+
+    1. Calcula el total de los dos meses y guárdalo en `total`.
+    2. Calcula el IVA del 21 % sobre el total y guárdalo en `vat`.
+    3. Imprime `total` y `vat` en líneas separadas.
+
+    No uses variables intermedias para el IVA — calcula directamente a partir de `total`.
+  hint: |
+    `total` es la suma de los dos montos.
+    `vat` es `total * 0.21`.
+    Usa `print(total)` y `print(vat)` en líneas separadas.
+  starter: |
+    # montos de ACME
+    jan = 4820.0
+    feb = 3150.0
+
+    # calcula total y vat
+    total = ...
+    vat = ...
+
+    print(total)
+    print(vat)
+  test: |
+    assert total == 7970.0, f"total debe ser 7970.0, obtuve {total}"
+    assert abs(vat - 7970.0 * 0.21) < 1e-9, f"vat debe ser {7970.0 * 0.21}, obtuve {vat}"
+    out = __cap.getvalue().strip().splitlines()
+    assert len(out) == 2, f"Deben imprimirse exactamente 2 líneas, imprimiste {len(out)}"
+    print("ok")
+  solution: |
+    jan = 4820.0
+    feb = 3150.0
+    total = jan + feb
+    vat = total * 0.21
+    print(total)
+    print(vat)
+
+- slug: repl-types
+  title: "Identificar tipos con type()"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes cuatro valores del sistema de auditoría de ACME.
+
+    Completa `type_names` como una lista de 4 strings con el nombre del tipo
+    de cada valor, en orden: `"int"`, `"float"`, `"str"` o `"bool"`.
+
+    Usa `type(valor).__name__` para obtener el nombre del tipo como string.
+    Por ejemplo: `type(42).__name__` devuelve `"int"`.
+  hint: |
+    `type(valor).__name__` devuelve el nombre del tipo sin ángulos ni `<class ...>`.
+    Llama a esa expresión para cada uno de los cuatro valores y guarda los
+    resultados en la lista.
+  starter: |
+    invoice_id = "INV-001"
+    amount = 4820.0
+    line_count = 7
+    is_paid = False
+
+    # completa la lista con el nombre del tipo de cada variable, en orden
+    type_names = [
+        type(invoice_id).__name__,
+        # añade los otros tres
+    ]
+
+    print(type_names)
+  test: |
+    assert isinstance(type_names, list), "type_names debe ser una lista"
+    assert len(type_names) == 4, f"Deben ser 4 elementos, obtuve {len(type_names)}"
+    assert type_names[0] == "str", f"invoice_id es str, obtuve {type_names[0]!r}"
+    assert type_names[1] == "float", f"amount es float, obtuve {type_names[1]!r}"
+    assert type_names[2] == "int", f"line_count es int, obtuve {type_names[2]!r}"
+    assert type_names[3] == "bool", f"is_paid es bool, obtuve {type_names[3]!r}"
+    print("ok")
+  solution: |
+    invoice_id = "INV-001"
+    amount = 4820.0
+    line_count = 7
+    is_paid = False
+
+    type_names = [
+        type(invoice_id).__name__,
+        type(amount).__name__,
+        type(line_count).__name__,
+        type(is_paid).__name__,
+    ]
+
+    print(type_names)
+
+- slug: repl-len-and-bool
+  title: "len() y expresiones booleanas"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El campo `vendor` de una factura de ACME tiene la regla: el nombre del
+    proveedor no puede tener más de 50 caracteres.
+
+    Dado el string `vendor_name`:
+    1. Guarda en `name_length` el número de caracteres de `vendor_name`.
+    2. Guarda en `is_valid` un booleano: `True` si la longitud es ≤ 50, `False` si no.
+    3. Imprime `name_length` y `is_valid`.
+  hint: |
+    `len(cadena)` devuelve el número de caracteres.
+    `nombre_length <= 50` devuelve `True` o `False` directamente.
+  starter: |
+    vendor_name = "Constructora Andina del Valle SAS de CV"
+
+    name_length = ...
+    is_valid = ...
+
+    print(name_length)
+    print(is_valid)
+  test: |
+    expected_len = len("Constructora Andina del Valle SAS de CV")
+    assert name_length == expected_len, f"name_length debe ser {expected_len}, obtuve {name_length}"
+    assert is_valid is True, "El nombre tiene <= 50 caracteres, is_valid debe ser True"
+    out = __cap.getvalue().strip().splitlines()
+    assert len(out) == 2, f"Deben imprimirse exactamente 2 líneas"
+    print("ok")
+  solution: |
+    vendor_name = "Constructora Andina del Valle SAS de CV"
+    name_length = len(vendor_name)
+    is_valid = name_length <= 50
+    print(name_length)
+    print(is_valid)

@@ -1,0 +1,292 @@
+- slug: stage-classifier
+  title: "Clasifica la etapa de escalado"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `classify_stage(metrics: dict) -> str` que dado un dict de métricas devuelve
+    la etapa actual ("stage_1", "stage_2", "stage_3", "stage_4") y si debe escalar
+    ("scale_up": True/False).
+
+    Las métricas del dict son:
+    - `active_tenants`: int
+    - `cpu_pct`: float (0-100)
+    - `latency_p95_ms`: float
+    - `revenue_usd`: float
+    - `infra_cost_usd`: float
+
+    Clasificación de etapa (usa la más alta que cumpla todas sus condiciones):
+    - stage_4: active_tenants >= 80 AND revenue_usd >= 15_000
+    - stage_3: active_tenants >= 20 AND revenue_usd >= 5_000
+    - stage_2: active_tenants >= 5 AND revenue_usd >= 1_500
+    - stage_1: cualquier otro caso
+
+    Scale up si se cumple alguna de:
+    - cpu_pct > 70
+    - latency_p95_ms > 3000 (stage_1), > 1500 (stage_2), > 800 (stage_3/4)
+    - infra_cost_usd / revenue_usd > 0.20 (infra consume > 20% del revenue)
+
+    Devuelve dict: {"stage": "stage_X", "scale_up": bool, "reason": str}
+    reason puede ser "" si scale_up es False.
+  hint: |
+    Determina la etapa primero (top-down: stage_4, stage_3, stage_2, stage_1).
+    Luego evalúa cada condición de scale_up adaptada a la etapa.
+  starter: |
+    def classify_stage(metrics: dict) -> dict:
+        tenants = metrics.get("active_tenants", 0)
+        cpu = metrics.get("cpu_pct", 0.0)
+        latency = metrics.get("latency_p95_ms", 0.0)
+        revenue = metrics.get("revenue_usd", 0.0)
+        infra = metrics.get("infra_cost_usd", 0.0)
+
+        # determinar etapa
+        stage = "stage_1"
+        # ...
+
+        # evaluar scale_up
+        scale_up = False
+        reason = ""
+        # ...
+
+        return {"stage": stage, "scale_up": scale_up, "reason": reason}
+  test: |
+    r = classify_stage({
+        "active_tenants": 3, "cpu_pct": 40, "latency_p95_ms": 800,
+        "revenue_usd": 600, "infra_cost_usd": 20,
+    })
+    assert r["stage"] == "stage_1" and not r["scale_up"]
+
+    r = classify_stage({
+        "active_tenants": 6, "cpu_pct": 80, "latency_p95_ms": 900,
+        "revenue_usd": 1_800, "infra_cost_usd": 400,
+    })
+    assert r["stage"] == "stage_2" and r["scale_up"]  # cpu > 70
+
+    r = classify_stage({
+        "active_tenants": 30, "cpu_pct": 50, "latency_p95_ms": 600,
+        "revenue_usd": 6_000, "infra_cost_usd": 500,
+    })
+    assert r["stage"] == "stage_3" and not r["scale_up"]
+
+    r = classify_stage({
+        "active_tenants": 90, "cpu_pct": 40, "latency_p95_ms": 400,
+        "revenue_usd": 18_000, "infra_cost_usd": 900,
+    })
+    assert r["stage"] == "stage_4"
+
+    print("ok")
+  solution: |
+    def classify_stage(metrics: dict) -> dict:
+        tenants = metrics.get("active_tenants", 0)
+        cpu = metrics.get("cpu_pct", 0.0)
+        latency = metrics.get("latency_p95_ms", 0.0)
+        revenue = metrics.get("revenue_usd", 0.0)
+        infra = metrics.get("infra_cost_usd", 0.0)
+
+        if tenants >= 80 and revenue >= 15_000:
+            stage = "stage_4"
+        elif tenants >= 20 and revenue >= 5_000:
+            stage = "stage_3"
+        elif tenants >= 5 and revenue >= 1_500:
+            stage = "stage_2"
+        else:
+            stage = "stage_1"
+
+        latency_threshold = (
+            3000 if stage == "stage_1"
+            else 1500 if stage == "stage_2"
+            else 800
+        )
+        infra_ratio = infra / revenue if revenue > 0 else 0.0
+
+        reasons = []
+        if cpu > 70:
+            reasons.append(f"cpu {cpu:.0f}% > 70%")
+        if latency > latency_threshold:
+            reasons.append(f"latency_p95 {latency:.0f}ms > {latency_threshold}ms")
+        if infra_ratio > 0.20:
+            reasons.append(f"infra/revenue {infra_ratio:.0%} > 20%")
+
+        scale_up = bool(reasons)
+        return {"stage": stage, "scale_up": scale_up, "reason": "; ".join(reasons)}
+
+- slug: infra-cost-calculator
+  title: "Calcula el costo de infraestructura por etapa"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `compute_infra_cost_eur(stage: int, neon_paid: bool = False, redis: bool = False) -> float`
+    que devuelve el costo mensual en EUR de la infraestructura base para cada etapa:
+
+    Precios Hetzner 2026 (EUR/mes):
+    - CX22: 4.49
+    - CX32: 6.80
+    - LB11 (load balancer): 5.39
+    - IP adicional: 0.50
+
+    Precios externos (EUR/mes, convierte USD a EUR con factor 0.92):
+    - Neon free: 0
+    - Neon paid: 19 USD × 0.92 = 17.48 EUR
+    - Redis (Hetzner managed, básico): 8 USD × 0.92 = 7.36 EUR
+
+    Por etapa:
+    - stage=1: 1 × CX22. Si neon_paid: +17.48. Si redis: +7.36.
+    - stage=2: 1 × CX32 + (17.48 si neon_paid else 4.49 para Postgres en CX22). Si redis: +7.36.
+    - stage=3: 2 × CX32 + LB11 + 4.49 (Postgres CX22) + 4.49 (worker). Si neon_paid: reemplaza los 4.49 de Postgres por 17.48. Si redis: +7.36.
+    - stage=4: 3 × CX32 + LB11 + 4.49 × 2 (Postgres cluster) + 4.49 (worker). Si redis: +7.36.
+
+    Redondea a 2 decimales.
+  hint: |
+    Define constantes al principio. Maneja cada stage por separado.
+    Para stage=2, el costo de Postgres depende de neon_paid.
+  starter: |
+    def compute_infra_cost_eur(stage: int, neon_paid: bool = False, redis: bool = False) -> float:
+        CX22 = 4.49
+        CX32 = 6.80
+        LB11 = 5.39
+        NEON_PAID = 17.48
+        REDIS = 7.36
+        cost = 0.0
+        # stage 1, 2, 3, 4
+        if redis:
+            cost += REDIS
+        return round(cost, 2)
+  test: |
+    assert compute_infra_cost_eur(1) == 4.49
+    assert compute_infra_cost_eur(1, neon_paid=True) == round(4.49 + 17.48, 2)
+    assert compute_infra_cost_eur(1, redis=True) == round(4.49 + 7.36, 2)
+    # stage 2 con postgres en CX22 propio
+    assert compute_infra_cost_eur(2) == round(6.80 + 4.49, 2)
+    # stage 2 con neon paid
+    assert compute_infra_cost_eur(2, neon_paid=True) == round(6.80 + 17.48, 2)
+    # stage 3 sin neon, sin redis
+    expected_s3 = round(2 * 6.80 + 5.39 + 4.49 + 4.49, 2)
+    assert compute_infra_cost_eur(3) == expected_s3, f"stage3: {compute_infra_cost_eur(3)} != {expected_s3}"
+    print("ok")
+  solution: |
+    def compute_infra_cost_eur(stage: int, neon_paid: bool = False, redis: bool = False) -> float:
+        CX22 = 4.49
+        CX32 = 6.80
+        LB11 = 5.39
+        NEON_PAID = 17.48
+        REDIS = 7.36
+        POSTGRES_SELF = CX22  # Postgres en VM propia
+
+        if stage == 1:
+            cost = CX22
+            if neon_paid:
+                cost += NEON_PAID
+        elif stage == 2:
+            cost = CX32
+            cost += NEON_PAID if neon_paid else POSTGRES_SELF
+        elif stage == 3:
+            cost = 2 * CX32 + LB11 + CX22  # worker
+            if neon_paid:
+                cost += NEON_PAID
+            else:
+                cost += POSTGRES_SELF  # Postgres VM
+        else:  # stage 4
+            cost = 3 * CX32 + LB11 + 2 * CX22 + CX22  # cluster + worker
+        if redis:
+            cost += REDIS
+        return round(cost, 2)
+
+- slug: scaling-plan
+  title: "Diseña el plan de escalado para 5 → 50 tenants en 12 meses"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Implementa `build_scaling_plan(monthly_tenant_growth: list[int]) -> list[dict]`
+    que recibe una lista de 12 ints (tenants al final de cada mes) y devuelve
+    una lista de 12 dicts con la planificación:
+
+    Cada dict contiene:
+    - `month`: 1-12
+    - `tenants`: número de tenants ese mes
+    - `stage`: "stage_1", "stage_2", "stage_3", "stage_4"
+    - `infra_cost_eur`: calculado con `compute_infra_cost_eur(stage_num, neon_paid=..., redis=...)`
+    - `llm_cost_usd`: tenants * 3.0 (USD/tenant/mes estimado)
+    - `total_cost_usd`: infra_cost_eur / 0.92 * 1 + llm_cost_usd (convertir EUR a USD con factor 1/0.92)
+
+    Reglas de etapa: usa los umbrales del módulo (solo por tenants, simplificado):
+    - stage_1: < 5 tenants
+    - stage_2: 5-19 tenants (activar neon_paid=True)
+    - stage_3: 20-79 tenants (activar redis=True)
+    - stage_4: ≥ 80 tenants
+
+    Redondea infra_cost_eur a 2 decimales, llm_cost_usd y total_cost_usd a 2 decimales.
+  hint: |
+    Determina la etapa por tenants, luego llama a compute_infra_cost_eur con los flags correctos.
+    Para la conversión EUR→USD: divide entre 0.92 para obtener USD.
+  starter: |
+    def compute_infra_cost_eur(stage: int, neon_paid: bool = False, redis: bool = False) -> float:
+        CX22, CX32, LB11 = 4.49, 6.80, 5.39
+        NEON_PAID, REDIS = 17.48, 7.36
+        if stage == 1:
+            cost = CX22 + (NEON_PAID if neon_paid else 0)
+        elif stage == 2:
+            cost = CX32 + (NEON_PAID if neon_paid else CX22)
+        elif stage == 3:
+            cost = 2 * CX32 + LB11 + CX22 + (NEON_PAID if neon_paid else CX22)
+        else:
+            cost = 3 * CX32 + LB11 + 3 * CX22
+        return round(cost + (REDIS if redis else 0), 2)
+
+    def build_scaling_plan(monthly_tenant_growth: list[int]) -> list[dict]:
+        plan = []
+        for month_idx, tenants in enumerate(monthly_tenant_growth, 1):
+            # determinar etapa
+            # calcular costos
+            # añadir a plan
+            pass
+        return plan
+  test: |
+    growth = [3, 5, 8, 12, 15, 20, 25, 30, 35, 40, 45, 50]
+    plan = build_scaling_plan(growth)
+    assert len(plan) == 12
+    assert plan[0]["stage"] == "stage_1"  # mes 1: 3 tenants
+    assert plan[1]["stage"] == "stage_2"  # mes 2: 5 tenants
+    assert plan[5]["stage"] == "stage_3"  # mes 6: 20 tenants
+    for row in plan:
+        assert row["total_cost_usd"] > 0
+        assert row["llm_cost_usd"] == row["tenants"] * 3.0
+    # el costo no debe disminuir al subir de etapa
+    costs = [r["total_cost_usd"] for r in plan]
+    assert costs[-1] > costs[0], "el costo total debe crecer con los tenants"
+    print("ok")
+  solution: |
+    def compute_infra_cost_eur(stage: int, neon_paid: bool = False, redis: bool = False) -> float:
+        CX22, CX32, LB11 = 4.49, 6.80, 5.39
+        NEON_PAID, REDIS = 17.48, 7.36
+        if stage == 1:
+            cost = CX22 + (NEON_PAID if neon_paid else 0)
+        elif stage == 2:
+            cost = CX32 + (NEON_PAID if neon_paid else CX22)
+        elif stage == 3:
+            cost = 2 * CX32 + LB11 + CX22 + (NEON_PAID if neon_paid else CX22)
+        else:
+            cost = 3 * CX32 + LB11 + 3 * CX22
+        return round(cost + (REDIS if redis else 0), 2)
+
+    def build_scaling_plan(monthly_tenant_growth: list[int]) -> list[dict]:
+        plan = []
+        for month_idx, tenants in enumerate(monthly_tenant_growth, 1):
+            if tenants < 5:
+                stage_num, neon_paid, redis = 1, False, False
+            elif tenants < 20:
+                stage_num, neon_paid, redis = 2, True, False
+            elif tenants < 80:
+                stage_num, neon_paid, redis = 3, True, True
+            else:
+                stage_num, neon_paid, redis = 4, True, True
+            infra_eur = compute_infra_cost_eur(stage_num, neon_paid, redis)
+            llm_usd = round(tenants * 3.0, 2)
+            infra_usd = round(infra_eur / 0.92, 2)
+            plan.append({
+                "month": month_idx,
+                "tenants": tenants,
+                "stage": f"stage_{stage_num}",
+                "infra_cost_eur": infra_eur,
+                "llm_cost_usd": llm_usd,
+                "total_cost_usd": round(infra_usd + llm_usd, 2),
+            })
+        return plan

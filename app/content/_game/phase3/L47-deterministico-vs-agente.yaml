@@ -1,0 +1,50 @@
+slug: deterministico-vs-agente
+title: "¿Siempre agente o regla dura para esto?"
+kind: decision
+phase: PH03
+ord: 47
+trains_skill: agent-design
+xp: 10
+est_seconds: 90
+scenario_md: |
+  El equipo de ACME quiere automatizar tres tareas distintas. Para cada una,
+  debes decidir si la solución es un agente LLM o una regla determinística.
+  La decisión afecta costo, predecibilidad y mantenimiento.
+payload:
+  prompt_md: |
+    Tres tareas del sistema de ACME:
+    (A) Clasificar una factura como "urgente" si `amount > 50000 AND due_date < today + 3`.
+    (B) Redactar un email personalizado explicando por qué se rechazó una factura
+        con contexto del historial del proveedor.
+    (C) Validar que el campo `tax_id` tiene exactamente 11 dígitos y termina en par.
+    ¿Cuáles deberían ser reglas determinísticas y cuáles agente LLM?
+  options:
+    - label: "A y C determinístico; B agente LLM"
+      tradeoff_md: |
+        + A es una condición booleana exacta: un `if` es más rápido, barato y
+          predecible que un LLM.
+        + C es validación de formato: regex o `len()`. Nunca LLM para esto.
+        + B requiere contexto, redacción y personalización: ahí el LLM agrega valor.
+        − Costo de B por cada rechazo de factura (diseña bien el prompt).
+      consequence_skill: deterministic-design
+    - label: "Los tres con agente LLM para consistencia"
+      tradeoff_md: |
+        − Latencia: 1-3 segundos por clasificación vs microsegundos con un `if`.
+        − Costo: cada clasificación gasta tokens aunque sea trivial.
+        − Impredecibilidad: el LLM podría clasificar diferente en distintas llamadas.
+        + Un solo sistema a mantener (pero con sus propias complejidades).
+      consequence_skill: agent-overuse
+    - label: "A agente LLM; B y C determinístico"
+      tradeoff_md: |
+        − A es exactamente el caso donde el LLM es peor: condición booleana precisa.
+        − B requiere lenguaje natural y contexto histórico: el LLM es superior aquí.
+        − C es validación de formato: regla dura siempre.
+      consequence_skill: misclassification
+hint_md: |
+  Regla de oro: si puedes escribirlo como una expresión booleana en ≤2 líneas,
+  es determinístico. Si requiere comprensión de lenguaje, razonamiento sobre
+  contexto o generación de texto libre, es candidato a LLM.
+solution_md: |
+  A y C son determinísticos. B es agéntico. La heurística: LLM donde el valor
+  está en el razonamiento o la generación; regla dura donde el valor está en
+  la exactitud y la velocidad. Mezclar mal esto destruye el presupuesto de tokens.

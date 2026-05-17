@@ -1,0 +1,36 @@
+slug: mcp-protocol
+title: "El agente se conecta a Slack, Drive y tu DB con un protocolo"
+kind: multi_choice
+phase: PH03
+ord: 49
+trains_skill: mcp
+concepts_introduced: [mcp, mcp-server, mcp-resources, mcp-tools]
+concepts_reinforced: [tool-calling, agent-loop]
+xp: 10
+est_seconds: 90
+scenario_md: |
+  ACME quiere que el agente lea documentos de Drive, envíe alertas a Slack
+  y consulte la DB — sin escribir tres integraciones ad-hoc. Un compañero
+  propone MCP. ¿Qué es correcto sobre el Model Context Protocol?
+payload:
+  options:
+    - text: "MCP es un protocolo estándar que conecta un LLM a servidores externos. El LLM descubre herramientas y recursos via JSON-RPC."
+      correct: true
+      feedback: "Correcto. MCP estandariza la comunicación: el cliente (LLM host) descubre y llama herramientas en servidores MCP sin código ad-hoc por integración."
+    - text: "MCP es una librería de Python de Anthropic. Debes instalarla en cada servicio que quieras conectar al LLM."
+      correct: false
+      feedback: "MCP es un protocolo abierto, no una librería propietaria. Los servidores MCP pueden escribirse en cualquier lenguaje."
+    - text: "MCP reemplaza completamente a los tools de la API de Anthropic. No puedes usar tool_use y MCP a la vez."
+      correct: false
+      feedback: "MCP se construye sobre tool_use. Los servidores MCP exponen herramientas que el cliente traduce a tool_use calls."
+    - text: "MCP solo sirve para conectar a bases de datos SQL. Para Slack necesitarías otra solución."
+      correct: false
+      feedback: "MCP es agnóstico al dominio: hay servidores MCP para Slack, Drive, GitHub, bases de datos, filesystems y más."
+hint_md: |
+  MCP define tres primitivas: Resources (datos que el LLM puede leer),
+  Tools (acciones que puede ejecutar) y Sampling (el servidor puede pedir
+  al LLM que complete texto). El host (tu app) conecta los servidores.
+solution_md: |
+  MCP estandariza lo que antes era código ad-hoc por integración. Un servidor
+  MCP para Slack, uno para Drive, uno para la DB — el agente los descubre y
+  los usa sin que cambies el loop del agente. Es "enchufar y listo" para LLMs.

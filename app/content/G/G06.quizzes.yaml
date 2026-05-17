@@ -1,0 +1,58 @@
+- slug: ndr-interpretation
+  question: |
+    Tu NDR del trimestre fue 92 %. ¿Qué significa esto para tu negocio?
+  explanation: |
+    NDR de 92 % significa que el ingreso de la base existente se contrajo un 8 %
+    en el trimestre. El ingreso de nuevos clientes puede enmascarar esto
+    temporalmente, pero a largo plazo un NDR < 100 % es un negocio con un
+    cubo lleno de agujeros: todo lo que entra por arriba se escapa por abajo.
+  options:
+    - text: "Está bien — perdiste solo el 8 %, que es normal para PYME."
+      correct: false
+      feedback: "8 % trimestral = ~30 % anual de contracción de la base. Necesitas adquirir un 30 % más en nuevos clientes solo para mantener el mismo MRR. Eso es insostenible."
+    - text: "La base existente se contrajo — cada nuevo cliente que adquieras también debe compensar la pérdida de la base."
+      correct: true
+      feedback: "Correcto. Con NDR de 92 %, si tu MRR es 2 000 USD, pierdes ~160 USD/mes de la base. Necesitas adquirir clientes nuevos solo para mantenerte en el mismo número, antes de crecer."
+    - text: "No hay problema — el NDR solo importa cuando supera el 100 %."
+      correct: false
+      feedback: "El NDR importa siempre. Por encima de 100 % el negocio crece solo; por debajo, se encoge. El objetivo mínimo para un negocio sostenible es 95 %."
+
+- slug: churn-rescue-timing
+  question: |
+    Detects que Expreslog no descargó el reporte en 2 meses y su último
+    pago llegó 8 días tarde. ¿Cuándo activas el protocolo de rescate?
+  explanation: |
+    Dos señales simultáneas (uso caído + pago tardío) activan el protocolo
+    de rescate inmediatamente, no en la próxima reunión programada. El
+    protocolo de rescate es una llamada en los siguientes 5 días.
+  options:
+    - text: "En el próximo QBR trimestral — es el momento apropiado para esa conversación."
+      correct: false
+      feedback: "El QBR trimestral es para revisar el valor entregado, no para rescatar un cliente que ya está desenganchado. Esperar al QBR cuando hay 2 señales activas puede significar que el cliente ya canceló para entonces."
+    - text: "Inmediatamente — 2 señales simultáneas activan el protocolo ahora."
+      correct: true
+      feedback: "Correcto. Agenda una llamada de 'revisión de valor' con el sponsor ejecutivo de Expreslog en los próximos 5 días. El guion: '¿Hay algo que no esté funcionando como esperabas?'"
+    - text: "Cuando llegue el tercer mes sin uso — para confirmar el patrón."
+      correct: false
+      feedback: "Para el tercer mes es probable que el cliente ya tomó la decisión de cancelar. Las señales de churn se intervienen temprano, no cuando ya son certeza."
+
+- slug: price-increase-protocol
+  question: |
+    Andina lleva 14 meses como cliente. El contrato vence en 6 semanas.
+    Quieres subir el precio de 650 a 800 USD/mes. ¿Cuál es el error en
+    este escenario?
+  explanation: |
+    El aviso de subida de precio debe darse 90 días antes del vencimiento,
+    no 6 semanas (42 días). El cliente necesita tiempo para presupuestar y,
+    si acepta el bloqueo del precio actual, tiene que poder actuar antes del
+    vencimiento. Con 6 semanas no hay margen para ninguna de las dos cosas.
+  options:
+    - text: "El precio sube demasiado (23 %) — máximo recomendado es 10 % anual."
+      correct: false
+      feedback: "No hay un máximo estándar de subida porcentual si está justificado con valor. 23 % puede ser perfectamente razonable si el valor entregado lo respalda. El error es el timing, no el porcentaje."
+    - text: "El aviso tiene que darse 90 días antes del vencimiento, no 6 semanas."
+      correct: true
+      feedback: "Correcto. Con 90 días, el cliente puede presupuestar en su ciclo normal, firmar el bloqueo de precio antes del vencimiento, o prepararse para el cambio. Con 6 semanas, ninguna de esas opciones es viable cómodamente."
+    - text: "No se puede subir el precio sin que el cliente pida la subida."
+      correct: false
+      feedback: "El proveedor puede (y debe) proponer subidas de precio cuando hay valor que lo justifica. No subir precio nunca es una decisión comercial válida pero no obligatoria."

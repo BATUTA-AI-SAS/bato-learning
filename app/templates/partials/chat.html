@@ -1,0 +1,20 @@
+<section id="chat-dock" data-module-id="{{ current.id }}" data-module-slug="{{ current.slug }}">
+  <header>
+    <strong>Tutor</strong>
+    <span class="muted">Sonnet · contexto del módulo {{ current.ext_id }}</span>
+    <button id="chat-toggle" title="ocultar / mostrar">×</button>
+  </header>
+  <div id="chat-log"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" rows="3" placeholder="Pregunta sobre este módulo…"></textarea>
+    <div class="chat-meta">
+      <span id="chat-cost">$0.000000</span>
+      <button type="submit">Enviar</button>
+    </div>
+  </form>
+  <div class="chat-suggested">
+    <button type="button" data-prompt="Explícame la idea central de este módulo con un ejemplo distinto al del texto.">otro ejemplo</button>
+    <button type="button" data-prompt="¿Cómo aplicarías esto a una conciliación bancaria real para una PYME LATAM?">caso BATUTA</button>
+    <button type="button" data-prompt="Audita mi código del último intento y dime qué le falta sin resolverlo.">audita mi código</button>
+  </div>
+</section>

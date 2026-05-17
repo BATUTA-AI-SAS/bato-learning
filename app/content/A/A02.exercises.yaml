@@ -1,0 +1,203 @@
+- slug: aliasing-bug-diagnosis
+  title: "Diagnosticar aliasing en un pipeline de facturas"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente código tiene un bug de aliasing. La función `normalize_vendors`
+    muta la lista original en lugar de devolver una copia.
+
+    Tu tarea:
+    1. Corrige `normalize_vendors` para que devuelva una lista nueva sin modificar `invoices`.
+    2. La función debe reemplazar `"acme global"` (con espacio) por `"acme_global"` (con guión bajo)
+       en el campo `"vendor"` de cada factura.
+    3. Después de llamar `normalize_vendors(invoices)`, la lista `invoices` original
+       debe permanecer intacta (con `"acme global"` aún en el campo `vendor`).
+  hint: |
+    No puedes mutar cada dict interno tampoco — crea copias de los dicts con `{**item, "vendor": ...}`.
+    Construye la lista completa con una comprensión.
+  starter: |
+    invoices: list[dict] = [
+        {"id": "INV-001", "vendor": "acme global", "amount": 4820.0},
+        {"id": "INV-002", "vendor": "andina_co",   "amount": 1500.0},
+        {"id": "INV-003", "vendor": "acme global", "amount": 3200.0},
+    ]
+
+    def normalize_vendors(data: list[dict]) -> list[dict]:
+        """Devuelve lista nueva con vendors normalizados."""
+        # BUGGY: muta el input
+        for item in data:
+            item["vendor"] = item["vendor"].replace(" ", "_")
+        return data
+
+    normalized = normalize_vendors(invoices)
+    print("invoices[0] vendor:", invoices[0]["vendor"])    # ¿intacto o mutado?
+    print("normalized[0] vendor:", normalized[0]["vendor"])
+  test: |
+    assert invoices[0]["vendor"] == "acme global", (
+        f"invoices original fue mutado. Vendor en [0]: {invoices[0]['vendor']!r} "
+        f"(debería ser 'acme global')"
+    )
+    assert invoices[2]["vendor"] == "acme global", (
+        f"invoices original fue mutado en [2]: {invoices[2]['vendor']!r}"
+    )
+    assert normalized[0]["vendor"] == "acme_global", (
+        f"normalized[0] vendor debería ser 'acme_global', obtuve {normalized[0]['vendor']!r}"
+    )
+    assert normalized[1]["vendor"] == "andina_co", (
+        f"normalized[1] vendor debería ser 'andina_co', obtuve {normalized[1]['vendor']!r}"
+    )
+    assert normalized[2]["vendor"] == "acme_global", (
+        f"normalized[2] vendor debería ser 'acme_global', obtuve {normalized[2]['vendor']!r}"
+    )
+    assert len(normalized) == 3, f"La lista result debe tener 3 elementos, tiene {len(normalized)}"
+    print("ok")
+  solution: |
+    invoices: list[dict] = [
+        {"id": "INV-001", "vendor": "acme global", "amount": 4820.0},
+        {"id": "INV-002", "vendor": "andina_co",   "amount": 1500.0},
+        {"id": "INV-003", "vendor": "acme global", "amount": 3200.0},
+    ]
+
+    def normalize_vendors(data: list[dict]) -> list[dict]:
+        """Devuelve lista nueva con vendors normalizados."""
+        return [
+            {**item, "vendor": item["vendor"].replace(" ", "_")}
+            for item in data
+        ]
+
+    normalized = normalize_vendors(invoices)
+    print("invoices[0] vendor:", invoices[0]["vendor"])
+    print("normalized[0] vendor:", normalized[0]["vendor"])
+
+- slug: mutable-default-arg-fix
+  title: "Corregir argumento mutable por defecto"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `collect_findings` tiene el bug clásico del argumento mutable por defecto.
+    Cada vez que se llama sin pasar `findings`, debería empezar con una lista vacía —
+    pero en realidad reutiliza la misma lista entre llamadas.
+
+    1. Corrige la firma para que cada llamada sin `findings` empiece con una lista nueva.
+    2. La función recibe un hallazgo (`str`) y una lista opcional.
+       Añade el hallazgo a la lista y devuelve la lista.
+    3. Dos llamadas consecutivas sin pasar `findings` deben devolver listas independientes.
+  hint: |
+    El patrón estándar es `findings: list[str] | None = None`. Dentro de la función,
+    asigna `if findings is None: findings = []`.
+  starter: |
+    def collect_findings(finding: str, findings: list[str] = []) -> list[str]:
+        """Acumula hallazgos de auditoría."""
+        findings.append(finding)
+        return findings
+
+    # primera auditoría: proveedor duplicado
+    run1 = collect_findings("vendor_duplicate: INV-001 y INV-003")
+    # segunda auditoría: monto fuera de rango
+    run2 = collect_findings("amount_out_of_range: INV-002")
+
+    print("run1:", run1)
+    print("run2:", run2)
+    print("son el mismo objeto:", run1 is run2)
+  test: |
+    # resetea el estado para test limpio
+    run1 = collect_findings("vendor_duplicate")
+    run2 = collect_findings("amount_out_of_range")
+    assert run1 is not run2, (
+        "run1 y run2 son el mismo objeto — el default mutable no fue corregido"
+    )
+    assert run1 == ["vendor_duplicate"], f"run1 debería ser ['vendor_duplicate'], es {run1}"
+    assert run2 == ["amount_out_of_range"], f"run2 debería ser ['amount_out_of_range'], es {run2}"
+    # también funciona cuando se pasa una lista explícita
+    shared: list[str] = []
+    collect_findings("finding_a", shared)
+    collect_findings("finding_b", shared)
+    assert shared == ["finding_a", "finding_b"], f"shared debería tener 2 elementos: {shared}"
+    print("ok")
+  solution: |
+    def collect_findings(finding: str, findings: list[str] | None = None) -> list[str]:
+        """Acumula hallazgos de auditoría."""
+        if findings is None:
+            findings = []
+        findings.append(finding)
+        return findings
+
+    run1 = collect_findings("vendor_duplicate: INV-001 y INV-003")
+    run2 = collect_findings("amount_out_of_range: INV-002")
+
+    print("run1:", run1)
+    print("run2:", run2)
+    print("son el mismo objeto:", run1 is run2)
+
+- slug: identity-vs-equality-predict
+  title: "Predecir `is` y `==` para tipos mixtos"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `check_identity` recibe dos valores y devuelve un dict con
+    `{"is": bool, "eq": bool}` indicando si son el mismo objeto y si son iguales.
+
+    Impleméntala. Luego, sin ejecutar el código, predice el resultado para cada
+    caso y completa la lista `predictions` con `True` o `False` en el orden correcto:
+
+    ```
+    caso 1: a = None,  b = None
+    caso 2: a = 256,   b = 256   (asignaciones separadas)
+    caso 3: a = 257,   b = 257   (asignaciones separadas)
+    caso 4: a = [1,2], b = [1,2] (literales distintos)
+    caso 5: a = "ok",  b = "ok"  (interning de strings cortos)
+    ```
+
+    `predictions` es una lista de dicts `{"is": bool, "eq": bool}`, en ese orden.
+
+    Nota: el test acepta que `caso 3` y `caso 5` difieran entre implementaciones
+    (interning no garantizado). Solo `caso 1`, `caso 2` y `caso 4` son deterministas.
+  hint: |
+    Implementa `check_identity` con `{"is": a is b, "eq": a == b}`.
+    Para las predicciones: None es singleton. 256 está cacheado en CPython.
+    257 puede o no estar cacheado. Listas con mismo contenido son siempre objetos distintos.
+  starter: |
+    def check_identity(a: object, b: object) -> dict:
+        """Devuelve si a y b son el mismo objeto y si son iguales."""
+        ...
+
+    # completa tus predicciones (solo caso 1, 2 y 4 se validan en el test)
+    predictions: list[dict] = [
+        {"is": ..., "eq": ...},  # caso 1: None, None
+        {"is": ..., "eq": ...},  # caso 2: 256, 256
+        {"is": ..., "eq": ...},  # caso 3: 257, 257 (no validado)
+        {"is": ..., "eq": ...},  # caso 4: [1,2], [1,2]
+        {"is": ..., "eq": ...},  # caso 5: "ok", "ok" (no validado)
+    ]
+  test: |
+    # valida la implementación
+    assert check_identity(1, 1) == {"is": True, "eq": True}
+    assert check_identity([1], [1]) == {"is": False, "eq": True}
+    assert check_identity(None, None) == {"is": True, "eq": True}
+
+    # valida predicciones deterministas
+    # caso 1: None is None siempre True
+    assert predictions[0] == {"is": True, "eq": True}, (
+        f"caso 1 (None, None): esperaba {{is: True, eq: True}}, obtuve {predictions[0]}"
+    )
+    # caso 2: CPython cachea 256
+    assert predictions[1] == {"is": True, "eq": True}, (
+        f"caso 2 (256, 256): esperaba {{is: True, eq: True}} — CPython cachea -5..256"
+    )
+    # caso 4: listas siempre son objetos distintos
+    assert predictions[3] == {"is": False, "eq": True}, (
+        f"caso 4 ([1,2], [1,2]): esperaba {{is: False, eq: True}}"
+    )
+    print("ok")
+  solution: |
+    def check_identity(a: object, b: object) -> dict:
+        """Devuelve si a y b son el mismo objeto y si son iguales."""
+        return {"is": a is b, "eq": a == b}
+
+    predictions: list[dict] = [
+        {"is": True,  "eq": True},   # caso 1: None singleton
+        {"is": True,  "eq": True},   # caso 2: 256 cacheado
+        {"is": False, "eq": True},   # caso 3: 257 no cacheado (puede variar)
+        {"is": False, "eq": True},   # caso 4: listas distintas
+        {"is": True,  "eq": True},   # caso 5: string interning (puede variar)
+    ]

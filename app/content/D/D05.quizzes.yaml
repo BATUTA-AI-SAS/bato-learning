@@ -1,0 +1,68 @@
+- slug: workflow-trigger-events
+  question: |
+    Un workflow tiene este trigger:
+    ```yaml
+    on:
+      push:
+        branches: [main]
+      pull_request:
+        branches: [main]
+    ```
+    Un desarrollador hace `git push origin feat/nuevo-endpoint`. ¿El workflow se ejecuta?
+  explanation: |
+    El trigger `push: branches: [main]` solo activa el workflow cuando el push es
+    directamente a `main`. Un push a `feat/nuevo-endpoint` no coincide con ninguno de
+    los dos triggers declarados, así que el workflow no corre.
+  options:
+    - text: "Sí, porque hay un push."
+      correct: false
+      feedback: "El trigger `push` tiene un filtro de rama: solo `main`. Un push a `feat/` no lo activa."
+    - text: "No, porque el push no es a `main` ni es un PR contra `main`."
+      correct: true
+      feedback: "Correcto. El workflow solo corre cuando el push es directamente a `main`, o cuando hay un pull_request hacia `main`. Una rama `feat/` no cumple ninguna condición."
+    - text: "Sí, pero solo el job de CI, no el de deploy."
+      correct: false
+      feedback: "Ambos workflows comparten el mismo trigger. Si el trigger no se activa, ningún job corre."
+    - text: "Depende de si hay un archivo `.github/workflows/*.yml` en la rama `feat/`."
+      correct: false
+      feedback: "GitHub evalúa el workflow del branch de destino o del branch que pusheas, dependiendo del tipo de evento. Pero aquí el punto es que el evento no coincide con el filtro de rama declarado en `on.push.branches`."
+
+- slug: github-sha-tag
+  question: |
+    ¿Por qué se usa `${{ github.sha }}` como tag de la imagen Docker en el pipeline
+    de deploy, en lugar de `latest`?
+  explanation: |
+    El SHA del commit vincula la imagen exactamente al código que la produjo.
+    En cualquier momento futuro puedes saber qué versión está en producción,
+    hacer rollback a un SHA anterior, y auditar qué se desplegó cuándo.
+    `latest` no provee ninguna de estas garantías.
+  options:
+    - text: "Porque `latest` solo funciona en Docker Hub, no en GHCR."
+      correct: false
+      feedback: "`latest` funciona en cualquier registry. El problema no es compatibilidad sino trazabilidad: `latest` no te dice qué commit representa la imagen que está en producción."
+    - text: "Porque el SHA vincula la imagen al commit exacto, lo que permite auditoría y rollback preciso."
+      correct: true
+      feedback: "Exacto. Con SHA puedes hacer `docker pull ghcr.io/org/app:abc1234` y saber exactamente qué código corre. Con `latest`, no sabes qué versión está desplegada sin consultar el servidor."
+    - text: "Porque GitHub Actions no puede generar tags con la palabra `latest`."
+      correct: false
+      feedback: "Puedes usar `latest` sin problemas técnicos. El problema es operacional: `latest` no es trazable ni reproducible en producción."
+
+- slug: needs-dependency
+  question: |
+    En un `deploy.yml`, tienes dos jobs: `build` y `deploy`. Sin el campo `needs`,
+    ¿en qué orden corren?
+  explanation: |
+    Sin `needs`, GitHub Actions corre todos los jobs del workflow **en paralelo**
+    por defecto. El job `deploy` comenzaría al mismo tiempo que `build`, antes de
+    que la imagen esté construida. Usa `needs: build` para que `deploy` espere
+    a que `build` termine con éxito.
+  options:
+    - text: "En el orden en que aparecen en el YAML: primero `build`, luego `deploy`."
+      correct: false
+      feedback: "El orden en el YAML no determina el orden de ejecución. GitHub Actions corre todos los jobs en paralelo salvo que declares dependencias con `needs`."
+    - text: "En paralelo: ambos empiezan al mismo tiempo."
+      correct: true
+      feedback: "Correcto. Sin `needs`, los jobs corren en paralelo. Para secuenciarlos debes declarar `needs: build` en el job `deploy`."
+    - text: "El que tarde menos en el runner termina primero."
+      correct: false
+      feedback: "Sin `needs`, sí corren en paralelo, pero la pregunta es sobre el *inicio*, no la finalización. Ambos empiezan al mismo tiempo independientemente de su duración."

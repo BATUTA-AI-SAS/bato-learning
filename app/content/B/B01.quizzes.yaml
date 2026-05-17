@@ -1,0 +1,87 @@
+- slug: http-stateless-tf
+  kind: tf
+  question: |
+    **Verdadero o falso:** HTTP recuerda automáticamente al usuario entre requests.
+    No necesitas cookies ni tokens para mantener sesión.
+  explanation: |
+    Falso. HTTP es sin estado (stateless) por diseño. Cada request es independiente.
+    Para recordar quién es el usuario entre requests, el servidor debe emitir un token
+    (cookie, JWT, etc.) y el cliente debe enviarlo en cada request.
+  meta:
+    bonus_window_ms: 5000
+  options:
+    - text: "Verdadero"
+      correct: false
+      feedback: HTTP es stateless por diseño. Sin cookies o tokens, cada request es anónima.
+    - text: "Falso"
+      correct: true
+      feedback: |
+        Correcto. HTTP no recuerda nada entre requests. La sesión la implementas tú
+        con cookies, tokens o encabezados de autorización.
+
+- slug: status-code-ranges
+  question: |
+    El endpoint `/api/exercises/5/backend` devuelve `503 Service Unavailable`.
+    ¿Qué debe hacer el cliente que recibió este código?
+  explanation: |
+    503 es un error 5xx: el servidor está temporalmente no disponible. El cliente
+    **debe reintentar** después de un tiempo, idealmente con exponential backoff.
+    Los errores 4xx (cliente) no deben reintentarse sin modificar la request.
+  options:
+    - text: "Reintentar la misma request después de esperar un momento."
+      correct: true
+      feedback: "Correcto. 503 es error del servidor: el cliente no hizo nada mal y puede reintentar."
+    - text: "Corregir la request antes de reintentar."
+      correct: false
+      feedback: "Eso aplica a errores 4xx. Un 503 no indica que la request tenga ningún problema."
+    - text: "No reintentar nunca; el recurso fue eliminado."
+      correct: false
+      feedback: "Eso sería 404 o 410. 503 indica indisponibilidad temporal, no eliminación."
+    - text: "Pedir nuevas credenciales al usuario."
+      correct: false
+      feedback: "Las credenciales no tienen relación con 503. Eso aplica a 401."
+
+- slug: http-methods-idempotency
+  question: |
+    ACME integra un sistema de facturación que puede recibir la misma request
+    duplicada por un timeout de red. ¿Cuál de estos métodos es **idempotente**
+    y, por tanto, seguro de reenviar sin riesgo de crear duplicados?
+  explanation: |
+    PUT es idempotente: ejecutarlo N veces produce el mismo resultado que ejecutarlo
+    una vez (reemplaza el recurso con los mismos datos). POST no es idempotente:
+    cada llamada puede crear un registro nuevo. Para operaciones de creación que
+    deban ser idempotentes, se usa POST con un `idempotency_key` explícito en el header.
+  options:
+    - text: "`PUT /api/invoices/INV-001` con el body completo de la factura."
+      correct: true
+      feedback: "PUT es idempotente: reemplazar un recurso con los mismos datos N veces da el mismo estado."
+    - text: "`POST /api/invoices` con los datos de la factura."
+      correct: false
+      feedback: "POST no es idempotente. Si se reenvía por timeout, puede crear dos facturas con el mismo contenido."
+    - text: "`PATCH /api/invoices/INV-001` incrementando el monto en 100."
+      correct: false
+      feedback: "PATCH no es necesariamente idempotente. Incrementar N veces suma N×100, no 100."
+
+- slug: content-type-header
+  question: |
+    Un script de Python envía un POST a `/api/exercises/3/pyodide` y recibe
+    `422 Unprocessable Entity` con `{"detail":[{"loc":["body"],"msg":"value is not a valid dict"}]}`.
+    El código usa `requests.post(url, data=payload)`. ¿Cuál es la causa raíz?
+  explanation: |
+    `requests.post(url, data=payload)` envía `Content-Type: application/x-www-form-urlencoded`,
+    no JSON. FastAPI espera JSON para los body Pydantic. La corrección es usar
+    `requests.post(url, json=payload)` que envía `Content-Type: application/json`
+    automáticamente, o bien `data=json.dumps(payload)` con el header explícito.
+  options:
+    - text: "El body se envía como form data, no como JSON. FastAPI no puede parsearlo."
+      correct: true
+      feedback: "Exacto. `data=` envía form-urlencoded; `json=` envía application/json con el header correcto."
+    - text: "El payload tiene un campo extra que FastAPI no reconoce."
+      correct: false
+      feedback: "Un campo extra en Pydantic v2 no causa 422 por defecto (se ignora). El problema es el Content-Type."
+    - text: "FastAPI requiere que el body venga en query params para endpoints POST."
+      correct: false
+      feedback: "Falso. FastAPI lee el body JSON del request body, no de query params."
+    - text: "El endpoint requiere autenticación y el token falta."
+      correct: false
+      feedback: "Eso daría 401, no 422. El 422 indica problema de validación del body."

@@ -1,0 +1,269 @@
+- slug: ssh-config-parser
+  title: "Parsear un bloque ~/.ssh/config"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El archivo `~/.ssh/config` tiene bloques de la forma:
+
+    ```
+    Host acme-prod
+        HostName 65.21.100.42
+        User ubuntu
+        IdentityFile ~/.ssh/id_ed25519
+    ```
+
+    Escribe la función `parse_ssh_config(text: str) -> dict[str, dict]`
+    que devuelve un diccionario donde la clave es el alias del Host y el
+    valor es un dict con las opciones de ese bloque.
+
+    Ignora líneas vacías y comentarios (que empiezan con `#`).
+  hint: |
+    Procesa línea por línea. Cuando encuentras una línea que empieza con "Host ",
+    empiezas un nuevo bloque. Las líneas indentadas pertenecen al bloque actual.
+  starter: |
+    def parse_ssh_config(text: str) -> dict[str, dict]:
+        pass
+
+    config = """
+    Host acme-prod
+        HostName 65.21.100.42
+        User ubuntu
+        IdentityFile ~/.ssh/id_ed25519
+
+    # servidor de staging
+    Host acme-staging
+        HostName 65.21.100.99
+        User ubuntu
+        IdentityFile ~/.ssh/id_ed25519
+        Port 2222
+    """
+
+    result = parse_ssh_config(config)
+    print(result)
+  test: |
+    config = """
+    Host acme-prod
+        HostName 65.21.100.42
+        User ubuntu
+        IdentityFile ~/.ssh/id_ed25519
+
+    # servidor de staging
+    Host acme-staging
+        HostName 65.21.100.99
+        User ubuntu
+        IdentityFile ~/.ssh/id_ed25519
+        Port 2222
+    """
+    result = parse_ssh_config(config)
+
+    assert "acme-prod" in result, "falta el host acme-prod"
+    assert "acme-staging" in result, "falta el host acme-staging"
+    assert result["acme-prod"]["HostName"] == "65.21.100.42"
+    assert result["acme-prod"]["User"] == "ubuntu"
+    assert result["acme-staging"]["Port"] == "2222"
+    assert len(result) == 2, f"esperaba 2 hosts, obtuve {len(result)}"
+    print("ok")
+  solution: |
+    def parse_ssh_config(text: str) -> dict[str, dict]:
+        result = {}
+        current_host = None
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if stripped.startswith("Host "):
+                current_host = stripped[5:].strip()
+                result[current_host] = {}
+            elif current_host and " " in stripped:
+                key, _, value = stripped.partition(" ")
+                result[current_host][key] = value.strip()
+        return result
+
+    config = """
+    Host acme-prod
+        HostName 65.21.100.42
+        User ubuntu
+        IdentityFile ~/.ssh/id_ed25519
+
+    # servidor de staging
+    Host acme-staging
+        HostName 65.21.100.99
+        User ubuntu
+        IdentityFile ~/.ssh/id_ed25519
+        Port 2222
+    """
+    result = parse_ssh_config(config)
+    print(result)
+
+- slug: diagnose-server-outage
+  title: "Ordenar los comandos de diagnóstico de un outage"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado un escenario de outage, debes ordenar los comandos de diagnóstico
+    de menor a mayor impacto (primero observar, luego actuar).
+
+    Escribe la función `rank_commands(commands: list[str]) -> list[str]`
+    que ordena la lista según esta prioridad:
+    1. Comandos de solo lectura/observación (journalctl, systemctl status, ps, df)
+    2. Comandos que recargan configuración sin reiniciar (systemctl reload, daemon-reload)
+    3. Comandos que reinician servicios (systemctl restart)
+    4. Comandos que terminan procesos (kill, systemctl stop)
+
+    Si dos comandos tienen la misma prioridad, mantén su orden original.
+
+    Pista: determina la prioridad buscando palabras clave en el comando.
+  hint: |
+    Asigna un número de prioridad a cada comando según palabras clave.
+    Palabras de prioridad 1: "status", "journalctl", "ps", "df", "top", "cat"
+    Prioridad 2: "reload", "daemon-reload"
+    Prioridad 3: "restart", "start"
+    Prioridad 4: "kill", "stop"
+    Si no encaja en ninguna, prioridad 99.
+  starter: |
+    def rank_commands(commands: list[str]) -> list[str]:
+        def priority(cmd: str) -> int:
+            # implementa aquí
+            pass
+        return sorted(commands, key=lambda c: (priority(c), commands.index(c)))
+
+    cmds = [
+        "sudo systemctl restart audit-agent",
+        "journalctl -u audit-agent -n 50",
+        "systemctl status audit-agent",
+        "sudo systemctl daemon-reload",
+        "kill -9 1842",
+        "df -h",
+        "ps aux | grep uvicorn",
+    ]
+
+    print(rank_commands(cmds))
+  test: |
+    cmds = [
+        "sudo systemctl restart audit-agent",
+        "journalctl -u audit-agent -n 50",
+        "systemctl status audit-agent",
+        "sudo systemctl daemon-reload",
+        "kill -9 1842",
+        "df -h",
+        "ps aux | grep uvicorn",
+    ]
+    result = rank_commands(cmds)
+
+    # Los comandos de observación van primero
+    observe_idx = [result.index(c) for c in result
+                   if any(kw in c for kw in ["journalctl", "status", "ps", "df"])]
+    restart_idx = [result.index(c) for c in result if "restart" in c]
+    kill_idx = [result.index(c) for c in result if "kill" in c]
+
+    assert max(observe_idx) < min(restart_idx), \
+        "los comandos de observación deben ir antes de restart"
+    assert min(restart_idx) < min(kill_idx), \
+        "restart debe ir antes de kill"
+    assert len(result) == len(cmds), "no deben perderse comandos"
+    print("ok")
+  solution: |
+    def rank_commands(commands: list[str]) -> list[str]:
+        def priority(cmd: str) -> int:
+            if any(kw in cmd for kw in ["status", "journalctl", "ps ", "df", "top", "cat "]):
+                return 1
+            if any(kw in cmd for kw in ["daemon-reload", "reload"]):
+                return 2
+            if any(kw in cmd for kw in ["restart", " start "]):
+                return 3
+            if any(kw in cmd for kw in ["kill", " stop "]):
+                return 4
+            return 99
+        return sorted(commands, key=lambda c: (priority(c), commands.index(c)))
+
+    cmds = [
+        "sudo systemctl restart audit-agent",
+        "journalctl -u audit-agent -n 50",
+        "systemctl status audit-agent",
+        "sudo systemctl daemon-reload",
+        "kill -9 1842",
+        "df -h",
+        "ps aux | grep uvicorn",
+    ]
+    print(rank_commands(cmds))
+
+- slug: crontab-parser
+  title: "Parsear y describir entradas de crontab"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Escribe la función `describe_cron(entry: str) -> str` que toma
+    una línea de crontab válida y devuelve una descripción en español.
+
+    Casos que debe manejar:
+    - `* * * * *` → «cada minuto»
+    - `0 23 * * *` → «cada día a las 23:00»
+    - `0 0 1 * *` → «el día 1 de cada mes a medianoche»
+    - `*/15 * * * *` → «cada 15 minutos»
+    - `0 9 * * 1` → «cada lunes a las 09:00»
+
+    El formato de entrada es: `<min> <hora> <dia> <mes> <dow> <comando>`
+    Ignora el campo de comando en la descripción.
+
+    Solo necesitas manejar los 5 casos de arriba. Si no reconoces el patrón,
+    devuelve «horario personalizado».
+  hint: |
+    Divide por espacios (máximo 5 partes para los campos de tiempo, el resto
+    es el comando). Examina los primeros 5 campos.
+  starter: |
+    def describe_cron(entry: str) -> str:
+        parts = entry.split(None, 5)  # máximo 6 partes
+        if len(parts) < 5:
+            return "entrada inválida"
+        min_f, hour_f, day_f, month_f, dow_f = parts[:5]
+        # implementa aquí
+        pass
+
+    print(describe_cron("* * * * * /scripts/healthcheck.sh"))
+    print(describe_cron("0 23 * * * /scripts/backup.sh"))
+    print(describe_cron("0 0 1 * * /scripts/monthly-report.sh"))
+    print(describe_cron("*/15 * * * * /scripts/ping.sh"))
+    print(describe_cron("0 9 * * 1 /scripts/weekly-report.sh"))
+  test: |
+    assert "cada minuto" in describe_cron("* * * * * /scripts/healthcheck.sh")
+    assert "23:00" in describe_cron("0 23 * * * /scripts/backup.sh")
+    assert "medianoche" in describe_cron("0 0 1 * * /scripts/monthly-report.sh") or \
+           "00:00" in describe_cron("0 0 1 * * /scripts/monthly-report.sh")
+    assert "15" in describe_cron("*/15 * * * * /scripts/ping.sh")
+    assert "lunes" in describe_cron("0 9 * * 1 /scripts/weekly-report.sh").lower() or \
+           "09:00" in describe_cron("0 9 * * 1 /scripts/weekly-report.sh")
+    print("ok")
+  solution: |
+    def describe_cron(entry: str) -> str:
+        parts = entry.split(None, 5)
+        if len(parts) < 5:
+            return "entrada inválida"
+        min_f, hour_f, day_f, month_f, dow_f = parts[:5]
+        days_of_week = {
+            "0": "domingo", "1": "lunes", "2": "martes", "3": "miércoles",
+            "4": "jueves", "5": "viernes", "6": "sábado", "7": "domingo"
+        }
+        if min_f == "*" and hour_f == "*" and day_f == "*" and month_f == "*" and dow_f == "*":
+            return "cada minuto"
+        if min_f.startswith("*/"):
+            interval = min_f[2:]
+            return f"cada {interval} minutos"
+        if min_f.isdigit() and hour_f.isdigit():
+            time_str = f"{int(hour_f):02d}:{int(min_f):02d}"
+            if day_f.isdigit() and month_f == "*" and dow_f == "*":
+                if hour_f == "0" and min_f == "0":
+                    return f"el día {day_f} de cada mes a medianoche"
+                return f"el día {day_f} de cada mes a las {time_str}"
+            if dow_f in days_of_week and day_f == "*":
+                return f"cada {days_of_week[dow_f]} a las {time_str}"
+            if day_f == "*" and month_f == "*" and dow_f == "*":
+                if hour_f == "0" and min_f == "0":
+                    return "cada día a medianoche"
+                return f"cada día a las {time_str}"
+        return "horario personalizado"
+
+    print(describe_cron("* * * * * /scripts/healthcheck.sh"))
+    print(describe_cron("0 23 * * * /scripts/backup.sh"))
+    print(describe_cron("0 0 1 * * /scripts/monthly-report.sh"))
+    print(describe_cron("*/15 * * * * /scripts/ping.sh"))
+    print(describe_cron("0 9 * * 1 /scripts/weekly-report.sh"))

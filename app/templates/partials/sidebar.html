@@ -1,0 +1,57 @@
+<aside id="nav">
+  <a href="/" class="brand">
+    <strong>bato-learning</strong>
+    <span class="sub">de Excel a vender agentes IA</span>
+  </a>
+
+  <div id="py-status" class="py-status">esperando Python…</div>
+
+  {% for track, mods in (groups or []) %}
+    {% set tp = (track_progress[track] if track_progress and track in track_progress else None) %}
+    <section class="nav-track" data-track="{{ track }}" style="--track-color: var(--track-{{ track }});">
+      <div class="nav-track-head">
+        <h3>{{ track | track_label }}</h3>
+        {% if tp %}<span class="pct">{{ tp.visited }}/{{ tp.total }}</span>{% endif %}
+      </div>
+      {% if tp %}
+      <div class="track-bar"><div class="fill" style="--pct: {{ tp.pct }}%"></div></div>
+      {% endif %}
+      <ol>
+        {% for m in mods %}
+          <li>
+            <a href="/m/{{ m.slug }}"
+               class="nav-link {% if current and current.id == m.id %}active{% endif %} {% if visited and m.id in visited %}visited{% endif %}">
+              <span class="num">{{ m.ext_id }}</span>
+              <span class="ttl">{{ m.title }}</span>
+              <span class="dot" aria-hidden="true"></span>
+            </a>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+  {% endfor %}
+
+  {# G14 — achievements mini-grid #}
+  {% if gam and gam.achievements_all %}
+  <section class="achievements-grid-sidebar" aria-label="Logros">
+    {% for ach in gam.achievements_all %}
+      <a href="/progreso#logros"
+         class="ach-chip {% if ach.unlocked %}unlocked{% else %}locked{% endif %}"
+         title="{{ ach.title }} — {{ ach.description }}">{{ ach.icon }}</a>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <div class="nav-auth">
+    {% if current_user %}
+      <span class="nav-auth-name">Hola, {{ current_user.display_name }}</span>
+      <form method="post" action="/logout" style="display:inline">
+        <button type="submit" class="nav-auth-link">Salir</button>
+      </form>
+    {% else %}
+      <a href="/login" class="nav-auth-link">Iniciar sesión</a>
+      <span class="nav-auth-sep">/</span>
+      <a href="/register" class="nav-auth-link">Registrarse</a>
+    {% endif %}
+  </div>
+</aside>

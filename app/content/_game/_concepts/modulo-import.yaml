@@ -1,0 +1,10 @@
+slug: modulo-import
+title: "¿Qué es un módulo?"
+analogy_md: |
+  En Excel, instalas un complemento (Power Query, Solver) para tener funciones extra.
+  En Python, un módulo es un archivo de código que importas para reutilizar lo que ya existe.
+example_md: |
+  ```python
+  import csv
+  from pathlib import Path
+  ```

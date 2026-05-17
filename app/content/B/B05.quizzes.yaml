@@ -1,0 +1,69 @@
+# B05 — Quizzes: CodeMirror + Pyodide
+
+- slug: pyodide_what_it_is
+  question: |
+    ¿Qué es Pyodide exactamente?
+  explanation: |
+    Pyodide es CPython compilado a WebAssembly. No es una reimplementación ni
+    un transpilador. Es el mismo intérprete, con el mismo `io`, `sys`, `re` y
+    la misma semántica, empaquetado para correr en el navegador mediante
+    WebAssembly.
+  options:
+    - text: "Una reimplementación de Python en JavaScript."
+      correct: false
+      feedback: "No es una reimplementación. Es el intérprete CPython compilado a WebAssembly. El código Python se comporta exactamente igual."
+    - text: "Un transpilador que convierte Python a JavaScript antes de ejecutarlo."
+      correct: false
+      feedback: "No transpila. Compila CPython a WebAssembly. El JavaScript solo llama a la máquina virtual WebAssembly."
+    - text: "CPython compilado a WebAssembly que corre directamente en el navegador."
+      correct: true
+      feedback: "Exacto. Misma semántica, mismos módulos de stdlib, mismo modelo de objetos. Solo que el ejecutable es .wasm en vez de un binario nativo."
+    - text: "Un servidor Python ligero que recibe código del navegador y lo ejecuta."
+      correct: false
+      feedback: "No hay servidor. Pyodide corre completamente en el navegador del lector, sin ningún request al backend."
+
+- slug: ns_isolation_why
+  question: |
+    ¿Por qué el runner usa `exec(code, __ns)` con un dict explícito en lugar de
+    ejecutar `exec(code)` sin namespace?
+  explanation: |
+    `exec(code)` sin namespace ejecuta en el namespace global actual del proceso
+    Pyodide. Dos ejercicios distintos contaminarían el mismo espacio de nombres.
+    Un variable `result` del ejercicio 1 sería visible en el ejercicio 2. Con
+    `__ns` cada ejercicio tiene su propio espacio aislado.
+  options:
+    - text: "Para que el código del usuario tenga acceso a las variables de Pyodide."
+      correct: false
+      feedback: "Es lo contrario. El dict explícito aísla el código del usuario del namespace de Pyodide."
+    - text: "Para evitar que las variables de un ejercicio contaminen los demás."
+      correct: true
+      feedback: "Exacto. Con `__ns = {}` cada ejercicio empieza con un namespace limpio. Las variables que define el lector no se filtran a otros ejercicios."
+    - text: "Porque `exec` sin namespace lanza un `SyntaxError`."
+      correct: false
+      feedback: "`exec(code)` es válido Python. No lanza un error — el problema es semántico, no sintáctico."
+    - text: "Porque Pyodide no soporta `exec` sin argumentos extra."
+      correct: false
+      feedback: "Pyodide soporta `exec` de la misma forma que CPython. Es una decisión de diseño, no una limitación."
+
+- slug: infinite_loop_problem
+  question: |
+    Un lector escribe `while True: pass` en el editor y pulsa «Ejecutar».
+    ¿Qué ocurre en la implementación actual de la app?
+  explanation: |
+    Pyodide corre en el hilo principal del navegador. Un bucle infinito bloquea
+    el event loop de JavaScript, congela el tab y hace imposible interactuar con
+    la página. La solución en producción es mover Pyodide a un Web Worker y
+    llamar a `worker.terminate()` después de un timeout.
+  options:
+    - text: "El runner detecta el bucle infinito y lo termina automáticamente después de 5 segundos."
+      correct: false
+      feedback: "No hay ningún mecanismo de timeout en la implementación actual. El runner usa `pyodide.runPython` de forma síncrona."
+    - text: "El servidor recibe la señal y mata el proceso Pyodide."
+      correct: false
+      feedback: "Pyodide corre en el navegador, no en el servidor. El servidor no puede interactuar con él."
+    - text: "El tab del navegador se congela y el lector tiene que recargarlo."
+      correct: true
+      feedback: "Correcto. Pyodide bloquea el hilo principal. La solución en producción es un Web Worker con `worker.terminate()` tras timeout."
+    - text: "JavaScript lanza un `TimeoutError` que el runner captura y muestra."
+      correct: false
+      feedback: "JavaScript no lanza `TimeoutError` por código lento. Solo hay un `setTimeout` si el desarrollador lo implementa explícitamente."

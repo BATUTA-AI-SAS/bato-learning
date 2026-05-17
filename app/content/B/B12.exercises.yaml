@@ -1,0 +1,194 @@
+- slug: breaking-change-classifier
+  title: "Clasifica cambios en el schema de la API como breaking o non-breaking"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `classify_change(change: dict) -> str` que dado un dict que describe
+    un cambio en el schema de una API, devuelva `"breaking"` o `"non_breaking"`.
+
+    El dict tiene la forma:
+    `{"type": str, "field": str, "details": str}`
+
+    Reglas:
+    - `type == "remove_field"` → `"breaking"`
+    - `type == "rename_field"` → `"breaking"`
+    - `type == "change_type"` → `"breaking"` (ej. float → str)
+    - `type == "change_method"` → `"breaking"` (ej. POST → PUT)
+    - `type == "add_optional_field"` → `"non_breaking"`
+    - `type == "add_endpoint"` → `"non_breaking"`
+    - `type == "add_field_with_default"` → `"non_breaking"`
+    - Cualquier otro tipo → `"breaking"` (conservador: si no sabemos, es breaking)
+
+    Prueba con los cambios de la API de auditoría de ACME:
+    ```python
+    changes = [
+        {"type": "rename_field", "field": "period", "details": "period → audit_period"},
+        {"type": "add_optional_field", "field": "notes", "details": "campo opcional"},
+        {"type": "remove_field", "field": "legacy_code", "details": "eliminado en v2"},
+        {"type": "add_field_with_default", "field": "currency", "details": "default EUR"},
+        {"type": "change_type", "field": "amount", "details": "float → str"},
+        {"type": "add_endpoint", "field": "N/A", "details": "POST /api/v2/bulk-audit"},
+    ]
+    ```
+  hint: |
+    Un set de tipos non-breaking es más limpio que `if/elif` largo:
+    `NON_BREAKING = {"add_optional_field", "add_endpoint", "add_field_with_default"}`.
+  starter: |
+    NON_BREAKING_TYPES = {"add_optional_field", "add_endpoint", "add_field_with_default"}
+
+    def classify_change(change: dict) -> str:
+        if change["type"] in NON_BREAKING_TYPES:
+            return "non_breaking"
+        return "breaking"
+
+    changes = [
+        {"type": "rename_field", "field": "period", "details": "period → audit_period"},
+        {"type": "add_optional_field", "field": "notes", "details": "campo opcional"},
+        {"type": "remove_field", "field": "legacy_code", "details": "eliminado en v2"},
+        {"type": "add_field_with_default", "field": "currency", "details": "default EUR"},
+        {"type": "change_type", "field": "amount", "details": "float → str"},
+        {"type": "add_endpoint", "field": "N/A", "details": "POST /api/v2/bulk-audit"},
+    ]
+    for c in changes:
+        result = classify_change(c)
+        print(f"{c['type']:30s} → {result}")
+  test: |
+    NON_BREAKING_TYPES = {"add_optional_field", "add_endpoint", "add_field_with_default"}
+
+    def classify_change(change: dict) -> str:
+        if change["type"] in NON_BREAKING_TYPES:
+            return "non_breaking"
+        return "breaking"
+
+    cases = [
+        ({"type": "rename_field", "field": "period", "details": ""}, "breaking"),
+        ({"type": "add_optional_field", "field": "notes", "details": ""}, "non_breaking"),
+        ({"type": "remove_field", "field": "legacy_code", "details": ""}, "breaking"),
+        ({"type": "add_field_with_default", "field": "currency", "details": ""}, "non_breaking"),
+        ({"type": "change_type", "field": "amount", "details": ""}, "breaking"),
+        ({"type": "add_endpoint", "field": "N/A", "details": ""}, "non_breaking"),
+        ({"type": "change_method", "field": "N/A", "details": ""}, "breaking"),
+        ({"type": "unknown_change", "field": "x", "details": ""}, "breaking"),
+    ]
+    for change, expected in cases:
+        got = classify_change(change)
+        assert got == expected, (
+            f"type={change['type']!r} → esperaba {expected!r}, obtuve {got!r}"
+        )
+    print("ok")
+  solution: |
+    NON_BREAKING_TYPES = {"add_optional_field", "add_endpoint", "add_field_with_default"}
+
+    def classify_change(change: dict) -> str:
+        if change["type"] in NON_BREAKING_TYPES:
+            return "non_breaking"
+        return "breaking"
+
+    changes = [
+        {"type": "rename_field", "field": "period", "details": "period → audit_period"},
+        {"type": "add_optional_field", "field": "notes", "details": "campo opcional"},
+        {"type": "remove_field", "field": "legacy_code", "details": "eliminado en v2"},
+        {"type": "add_field_with_default", "field": "currency", "details": "default EUR"},
+        {"type": "change_type", "field": "amount", "details": "float → str"},
+        {"type": "add_endpoint", "field": "N/A", "details": "POST /api/v2/bulk-audit"},
+    ]
+    for c in changes:
+        print(f"{c['type']:30s} → {classify_change(c)}")
+
+- slug: deprecation-header-builder
+  title: "Construye los headers de deprecación correctos"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `build_deprecation_headers(sunset_date: str, successor_path: str) -> dict`
+    que devuelva un dict con los tres headers de deprecación estándar:
+
+    - `"Deprecation"`: siempre `"true"`
+    - `"Sunset"`: la fecha en formato RFC 1123 (pasa el string tal cual — el test usa
+      el mismo string que entró)
+    - `"Link"`: `f'<{successor_path}>; rel="successor-version"'`
+
+    Luego implementa `days_until_sunset(sunset_iso: str, today_iso: str) -> int`
+    que dado una fecha de sunset y la fecha de hoy en formato `"YYYY-MM-DD"`,
+    devuelva los días que faltan.
+
+    Prueba con:
+    - `sunset_date = "Sat, 31 Dec 2026 23:59:59 GMT"`
+    - `successor_path = "/api/v2/invoices"`
+    - `sunset_iso = "2026-12-31"`, `today_iso = "2026-05-16"`
+  hint: |
+    Para `days_until_sunset`, parsea las fechas con `datetime.date.fromisoformat()`
+    y calcula `(sunset - today).days`.
+  starter: |
+    from datetime import date
+
+    def build_deprecation_headers(sunset_date: str, successor_path: str) -> dict:
+        return {
+            "Deprecation": "true",
+            "Sunset": sunset_date,
+            "Link": f'<{successor_path}>; rel="successor-version"',
+        }
+
+    def days_until_sunset(sunset_iso: str, today_iso: str) -> int:
+        # parsea las fechas y calcula la diferencia en días
+        ...
+
+    headers = build_deprecation_headers(
+        "Sat, 31 Dec 2026 23:59:59 GMT",
+        "/api/v2/invoices"
+    )
+    for k, v in headers.items():
+        print(f"{k}: {v}")
+
+    print(days_until_sunset("2026-12-31", "2026-05-16"))
+  test: |
+    from datetime import date
+
+    def build_deprecation_headers(sunset_date: str, successor_path: str) -> dict:
+        return {
+            "Deprecation": "true",
+            "Sunset": sunset_date,
+            "Link": f'<{successor_path}>; rel="successor-version"',
+        }
+
+    def days_until_sunset(sunset_iso: str, today_iso: str) -> int:
+        sunset = date.fromisoformat(sunset_iso)
+        today = date.fromisoformat(today_iso)
+        return (sunset - today).days
+
+    h = build_deprecation_headers("Sat, 31 Dec 2026 23:59:59 GMT", "/api/v2/invoices")
+    assert h["Deprecation"] == "true"
+    assert h["Sunset"] == "Sat, 31 Dec 2026 23:59:59 GMT"
+    assert h["Link"] == '</api/v2/invoices>; rel="successor-version"'
+
+    h2 = build_deprecation_headers("Thu, 30 Jun 2027 00:00:00 GMT", "/api/v3/audits")
+    assert "v3/audits" in h2["Link"]
+    assert 'rel="successor-version"' in h2["Link"]
+
+    assert days_until_sunset("2026-12-31", "2026-05-16") == 229
+    assert days_until_sunset("2026-06-01", "2026-05-31") == 1
+    assert days_until_sunset("2026-05-16", "2026-05-16") == 0
+    assert days_until_sunset("2026-01-01", "2026-05-16") == -135
+    print("ok")
+  solution: |
+    from datetime import date
+
+    def build_deprecation_headers(sunset_date: str, successor_path: str) -> dict:
+        return {
+            "Deprecation": "true",
+            "Sunset": sunset_date,
+            "Link": f'<{successor_path}>; rel="successor-version"',
+        }
+
+    def days_until_sunset(sunset_iso: str, today_iso: str) -> int:
+        sunset = date.fromisoformat(sunset_iso)
+        today = date.fromisoformat(today_iso)
+        return (sunset - today).days
+
+    headers = build_deprecation_headers(
+        "Sat, 31 Dec 2026 23:59:59 GMT",
+        "/api/v2/invoices"
+    )
+    for k, v in headers.items():
+        print(f"{k}: {v}")
+    print(days_until_sunset("2026-12-31", "2026-05-16"))

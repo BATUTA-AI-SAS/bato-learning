@@ -1,0 +1,65 @@
+# B04 — Quizzes: Las cuatro capas
+
+- slug: dependency_direction
+  question: |
+    ¿Cuál de estas importaciones viola la regla de dirección de capas?
+  explanation: |
+    Las dependencias fluyen hacia adentro: `router → service → repo → model`.
+    Un repo importando de un servicio invierte esa dirección.
+  options:
+    - text: "`app/routers/invoices.py` importa de `app/services/invoice_service.py`"
+      correct: false
+      feedback: "Correcto según la regla: el router importa del servicio (hacia adentro)."
+    - text: "`app/repos/invoices.py` importa de `app/services/invoice_service.py`"
+      correct: true
+      feedback: "Violación: el repo está en una capa más interna que el servicio. Si el repo importa del servicio, la dependencia fluye hacia afuera."
+    - text: "`app/services/invoice_service.py` importa de `app/repos/invoices.py`"
+      correct: false
+      feedback: "Correcto: el servicio importa del repo (hacia adentro)."
+    - text: "`app/routers/invoices.py` importa de `app/deps.py`"
+      correct: false
+      feedback: "`deps.py` es infraestructura de inyección de dependencias. El router puede importar de ahí sin romper la regla de capas."
+
+- slug: service_when_optional
+  question: |
+    `app/routers/progress.py` llama directamente a `progress_repo` sin pasar
+    por un servicio. ¿Por qué esto es aceptable en este caso?
+  explanation: |
+    La regla de capas no prohíbe que el router llame directo al repo: prohíbe
+    que las dependencias fluyan hacia afuera. Si no hay lógica de negocio que
+    orquestar, un servicio vacío solo agrega ruido.
+  options:
+    - text: "Porque los routers siempre pueden llamar a repos directamente."
+      correct: false
+      feedback: "No siempre. Si hay lógica de negocio, debe ir a un servicio. La llamada directa es válida solo cuando la lógica es trivial."
+    - text: "Porque `progress_repo` no usa `AsyncSession`."
+      correct: false
+      feedback: "Sí usa `AsyncSession` — se la pasa el router vía `SessionDep`. Eso no es la razón."
+    - text: "Porque la lógica es trivial (leer + devolver) y no hay nada que orquestar."
+      correct: true
+      feedback: "Exacto. Cuando el router solo lee y devuelve sin tomar decisiones, añadir un servicio sería una capa vacía que no aporta separación real."
+    - text: "Porque el router y el repo están en el mismo paquete."
+      correct: false
+      feedback: "La ubicación en el mismo paquete no cambia las reglas de responsabilidad."
+
+- slug: repo_session_ownership
+  question: |
+    Un repo crea su propia `AsyncSession` internamente (`async with get_session() as s:`).
+    ¿Cuál es el problema principal?
+  explanation: |
+    Si el repo controla la sesión, el servicio que lo llama no puede participar
+    en la misma transacción. Tampoco puede hacer rollback si algo falla después
+    de que el repo commitea.
+  options:
+    - text: "Viola el principio de responsabilidad única porque el repo hace demasiado."
+      correct: false
+      feedback: "Aunque es cierto que el repo asume más responsabilidad, ese no es el problema operativo más grave."
+    - text: "El servicio pierde control del ciclo de vida de la transacción."
+      correct: true
+      feedback: "Exacto. Si el repo commitea internamente, el servicio ya no puede revertir la operación si algo falla después. Dos repos en el mismo servicio tampoco pueden ser atómicos."
+    - text: "La sesión interna del repo no soporta async."
+      correct: false
+      feedback: "Técnicamente puede ser async igual. El problema no es técnico de async, sino de diseño."
+    - text: "No hay problema; es una convención de estilo nada más."
+      correct: false
+      feedback: "Sí hay un problema concreto: pérdida de control transaccional y dificultad para testear sin levantar la DB."

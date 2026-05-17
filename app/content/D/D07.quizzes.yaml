@@ -1,0 +1,64 @@
+- slug: rollback-time-comparison
+  question: |
+    En un blue-green deploy, la nueva versión (green) tiene un bug crítico que se detecta
+    5 minutos después del swap. ¿Cuánto tarda aproximadamente el rollback?
+  explanation: |
+    En blue-green, el rollback es un cambio en el routing del load balancer: de apuntar
+    a green, pasa a apuntar a blue. Blue estuvo corriendo (sin tráfico) durante esos
+    5 minutos, así que está warm y listo. El tiempo de switch es < 1 segundo; el tiempo
+    de verificación puede ser 1-2 minutos. El rollback completo no requiere reconstruir
+    ni redeplegar nada.
+  options:
+    - text: "El mismo tiempo que el deploy original: 8-12 minutos."
+      correct: false
+      feedback: "Eso sería el tiempo de un rollback big-bang (construir la imagen vieja, redeplegar). Blue-green mantiene la versión anterior corriendo en standby, así que el rollback es un swap de routing, no un redeploy."
+    - text: "Menos de 1 minuto: es un cambio de routing en el load balancer."
+      correct: true
+      feedback: "Exacto. Blue sigue corriendo sin tráfico. El rollback es cambiar el routing de Traefik de green a blue. El tiempo es el de una operación de configuración, no de un deploy."
+    - text: "No se puede hacer rollback en blue-green; hay que hacer un nuevo deploy de la versión anterior."
+      correct: false
+      feedback: "La ventaja central de blue-green es precisamente el rollback instantáneo. Si blue sigue corriendo (que es el punto), el rollback es cambiar el routing. Si eliminaste blue antes de verificar, perdiste esa ventaja."
+
+- slug: canary-sample-size
+  question: |
+    Un equipo tiene una app con 40 tenants activos. Quieren hacer canary al 5 % del tráfico
+    para probar una nueva versión. ¿Cuántos tenants ven la nueva versión?
+  explanation: |
+    El 5 % de 40 tenants son 2 tenants. Con una muestra de 2, no hay suficiente señal
+    estadística para detectar bugs que afecten a subconjuntos específicos de tenants.
+    Para tamaños tan pequeños, un feature flag por tenant con selección manual de los
+    tenants piloto da más control y mejor información que un porcentaje aleatorio.
+  options:
+    - text: "2 tenants — suficiente para detectar los bugs más importantes."
+      correct: false
+      feedback: "2 tenants es una muestra demasiado pequeña. Si el bug solo aparece con cierta configuración de tenant (industria, volumen, features activadas), 2 tenants elegidos al azar probablemente no lo cubren."
+    - text: "2 tenants — insuficiente; con 40 tenants el canary no aporta valor estadístico."
+      correct: true
+      feedback: "Correcto. 2 tenants es una muestra inútil para detección estadística. Con 40 tenants, la herramienta correcta es un feature flag: seleccionas manualmente 3-5 tenants representativos, los activas, y monitorizas. Tienes más control y mejor señal."
+    - text: "40 tenants al 5 % no tiene sentido; canary requiere al menos 1 000 usuarios."
+      correct: false
+      feedback: "No hay un mínimo absoluto de usuarios para canary, pero sí se necesita suficiente muestra para que la señal estadística sea válida. La afirmación de 1 000 es arbitraria; el punto es que 2 tenants no son suficiente muestra."
+
+- slug: expand-contract-order
+  question: |
+    Usas expand-contract para agregar una nueva columna `amount_eur` a `invoices`
+    y eventualmente eliminar la columna vieja `amount_usd`. ¿En qué release se puede
+    hacer el `DROP COLUMN amount_usd`?
+  explanation: |
+    El `DROP COLUMN` solo es seguro en el Release 3 (contract), después de que:
+    (a) el backfill completó y toda fila tiene `amount_eur` no nulo,
+    (b) el código de la aplicación ya no referencia `amount_usd` en ningún query,
+    (c) ese código sin referencia está desplegado y verificado.
+    Si haces el DROP en el mismo release que el código nuevo, hay un período
+    donde el código viejo (aún sirviendo tráfico durante el rolling) intenta
+    leer `amount_usd` que ya no existe.
+  options:
+    - text: "En el Release 1, junto con la creación de `amount_eur`."
+      correct: false
+      feedback: "El Release 1 solo añade la columna nueva (expand). El código viejo aún referencia `amount_usd`; eliminarla en este release causa errores en los contenedores viejos que aún sirven tráfico."
+    - text: "En el Release 2, después del backfill."
+      correct: false
+      feedback: "En el Release 2, el backfill llena `amount_eur`, pero el código de la app puede aún referenciar `amount_usd` en algunos paths. El DROP en Release 2 es prematuro."
+    - text: "En el Release 3, después de que el código ya no referencia `amount_usd`."
+      correct: true
+      feedback: "Correcto. El DROP es seguro solo cuando: (1) el backfill está completo, (2) el código desplegado no referencia la columna vieja en ningún query, y (3) ese código lleva suficiente tiempo en producción para confirmar que no hay referencias en paths poco frecuentes."

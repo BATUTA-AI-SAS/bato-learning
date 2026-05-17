@@ -1,0 +1,38 @@
+slug: prompt-caching
+title: "Cachea el system prompt para no pagar doble"
+kind: code
+phase: PH03
+ord: 43
+trains_skill: cost-engineering
+concepts_introduced: [prompt-caching, cache-control, ttl]
+concepts_reinforced: [llm-api, system-prompt, tokens]
+xp: 20
+est_seconds: 150
+scenario_md: |
+  El asistente de ACME recibe 200 preguntas al día. El system prompt tiene
+  800 tokens. Sin caché: 160 000 tokens de entrada/día. Con caché: casi cero.
+  Implementa `cache_control` para amortizar el costo.
+payload:
+  starter: |
+    from anthropic import AsyncAnthropic
+
+    client = AsyncAnthropic()
+    SYSTEM_PROMPT = "Eres el asistente financiero de ACME Manufacturing..." * 50
+
+    async def ask_cached(question: str) -> dict:
+        """Retorna dict con 'text' y 'cache_read_tokens'."""
+        # añade cache_control al bloque del system prompt
+        ...
+  tests: |
+    import asyncio
+    result = asyncio.run(ask_cached("¿Qué facturas están pendientes?"))
+    assert "text" in result
+    assert isinstance(result["text"], str)
+hint_md: |
+  El system prompt como lista de bloques: `[{"type": "text", "text": "...",
+  "cache_control": {"type": "ephemeral"}}]`. Lee `usage.cache_read_input_tokens`
+  en la segunda llamada para verificar el hit.
+solution_md: |
+  La primera llamada llena el caché (cache_creation_input_tokens > 0).
+  La segunda lee del caché (cache_read_input_tokens > 0) y cuesta 10x menos.
+  El TTL es 5 minutos en claude-3-5-haiku, 1 hora en claude-3-5-sonnet.

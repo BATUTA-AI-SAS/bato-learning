@@ -1,0 +1,236 @@
+- slug: api-key-validator
+  title: "Implementa la validación de API key con scopes"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `validate_api_key(key: str, required_scope: str, registry: dict) -> dict`
+    que valida una API key contra un registro y devuelve el resultado.
+
+    El `registry` es un dict `{key: {"tenant": str, "scopes": set[str]}}`.
+
+    Reglas:
+    - Si `key` no está en `registry` → devuelve `{"ok": False, "status": 401, "detail": "invalid API key"}`
+    - Si `required_scope` no está en los scopes del key → devuelve `{"ok": False, "status": 403, "detail": "scope 'X' required"}`
+    - Si todo está bien → devuelve `{"ok": True, "status": 200, "tenant": tenant}`
+
+    Prueba con:
+    ```python
+    registry = {
+        "acme-key-abc123": {"tenant": "acme", "scopes": {"read:invoices", "write:audits"}},
+        "globex-key-xyz789": {"tenant": "globex", "scopes": {"read:invoices"}},
+    }
+    ```
+  hint: |
+    Comprueba la existencia de la key primero (401), luego los scopes (403).
+    Para el mensaje de error del scope, usa f-string: `f"scope '{required_scope}' required"`.
+  starter: |
+    def validate_api_key(key: str, required_scope: str, registry: dict) -> dict:
+        if key not in registry:
+            return {"ok": False, "status": 401, "detail": "invalid API key"}
+        # comprueba el scope y devuelve el resultado correcto
+        ...
+
+    registry = {
+        "acme-key-abc123": {"tenant": "acme", "scopes": {"read:invoices", "write:audits"}},
+        "globex-key-xyz789": {"tenant": "globex", "scopes": {"read:invoices"}},
+    }
+    print(validate_api_key("acme-key-abc123", "write:audits", registry))
+    print(validate_api_key("globex-key-xyz789", "write:audits", registry))
+    print(validate_api_key("invalid-key", "read:invoices", registry))
+  test: |
+    def validate_api_key(key: str, required_scope: str, registry: dict) -> dict:
+        if key not in registry:
+            return {"ok": False, "status": 401, "detail": "invalid API key"}
+        info = registry[key]
+        if required_scope not in info["scopes"]:
+            return {"ok": False, "status": 403, "detail": f"scope '{required_scope}' required"}
+        return {"ok": True, "status": 200, "tenant": info["tenant"]}
+
+    registry = {
+        "acme-key-abc123": {"tenant": "acme", "scopes": {"read:invoices", "write:audits"}},
+        "globex-key-xyz789": {"tenant": "globex", "scopes": {"read:invoices"}},
+    }
+
+    r = validate_api_key("acme-key-abc123", "write:audits", registry)
+    assert r == {"ok": True, "status": 200, "tenant": "acme"}, f"acme con write: {r}"
+
+    r = validate_api_key("acme-key-abc123", "read:invoices", registry)
+    assert r["ok"] is True and r["tenant"] == "acme"
+
+    r = validate_api_key("globex-key-xyz789", "write:audits", registry)
+    assert r["status"] == 403 and "write:audits" in r["detail"], f"globex sin write: {r}"
+
+    r = validate_api_key("invalid-key", "read:invoices", registry)
+    assert r["status"] == 401 and "invalid API key" in r["detail"]
+
+    r = validate_api_key("acme-key-abc123", "delete:everything", registry)
+    assert r["status"] == 403 and "delete:everything" in r["detail"]
+    print("ok")
+  solution: |
+    def validate_api_key(key: str, required_scope: str, registry: dict) -> dict:
+        if key not in registry:
+            return {"ok": False, "status": 401, "detail": "invalid API key"}
+        info = registry[key]
+        if required_scope not in info["scopes"]:
+            return {"ok": False, "status": 403, "detail": f"scope '{required_scope}' required"}
+        return {"ok": True, "status": 200, "tenant": info["tenant"]}
+
+    registry = {
+        "acme-key-abc123": {"tenant": "acme", "scopes": {"read:invoices", "write:audits"}},
+        "globex-key-xyz789": {"tenant": "globex", "scopes": {"read:invoices"}},
+    }
+    print(validate_api_key("acme-key-abc123", "write:audits", registry))
+    print(validate_api_key("globex-key-xyz789", "write:audits", registry))
+    print(validate_api_key("invalid-key", "read:invoices", registry))
+
+- slug: jwt-claims-validator
+  title: "Valida los claims de un JWT decodificado"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Un JWT ya decodificado llega como un dict de claims. Implementa
+    `validate_jwt_claims(claims: dict, now_ts: int) -> dict` que valida
+    los claims y devuelve el resultado.
+
+    Reglas de validación (en orden):
+    1. Si falta el claim `"exp"` → `{"ok": False, "error": "missing exp claim"}`
+    2. Si `claims["exp"] <= now_ts` → `{"ok": False, "error": "token expired"}`
+    3. Si falta el claim `"tenant"` → `{"ok": False, "error": "missing tenant claim"}`
+    4. Si `claims["tenant"]` está vacío → `{"ok": False, "error": "empty tenant"}`
+    5. Si todo está bien → `{"ok": True, "tenant": claims["tenant"], "scopes": claims.get("scopes", [])}`
+
+    Prueba con `now_ts = 1746000000` (timestamp fijo para reproducibilidad).
+  hint: |
+    Valida en orden: primero que `exp` existe, luego que no expiró, luego el tenant.
+    Un token expirado tiene `exp <= now_ts` (menor o igual, porque `exp` es el último
+    segundo válido — en el segundo siguiente ya no es válido).
+  starter: |
+    def validate_jwt_claims(claims: dict, now_ts: int) -> dict:
+        if "exp" not in claims:
+            return {"ok": False, "error": "missing exp claim"}
+        # valida el resto de las condiciones
+        ...
+
+    now = 1746000000
+    valid = {"exp": now + 3600, "tenant": "acme", "scopes": ["read:invoices"]}
+    expired = {"exp": now - 1, "tenant": "acme"}
+    no_tenant = {"exp": now + 3600}
+    no_exp = {"tenant": "acme"}
+
+    print(validate_jwt_claims(valid, now))
+    print(validate_jwt_claims(expired, now))
+    print(validate_jwt_claims(no_exp, now))
+  test: |
+    def validate_jwt_claims(claims: dict, now_ts: int) -> dict:
+        if "exp" not in claims:
+            return {"ok": False, "error": "missing exp claim"}
+        if claims["exp"] <= now_ts:
+            return {"ok": False, "error": "token expired"}
+        if "tenant" not in claims:
+            return {"ok": False, "error": "missing tenant claim"}
+        if not claims["tenant"]:
+            return {"ok": False, "error": "empty tenant"}
+        return {"ok": True, "tenant": claims["tenant"], "scopes": claims.get("scopes", [])}
+
+    now = 1746000000
+
+    r = validate_jwt_claims({"exp": now + 3600, "tenant": "acme", "scopes": ["read:invoices"]}, now)
+    assert r == {"ok": True, "tenant": "acme", "scopes": ["read:invoices"]}, f"válido: {r}"
+
+    r = validate_jwt_claims({"exp": now - 1, "tenant": "acme"}, now)
+    assert not r["ok"] and r["error"] == "token expired", f"expirado: {r}"
+
+    r = validate_jwt_claims({"exp": now}, now)
+    assert not r["ok"] and r["error"] == "token expired", f"exp == now debe fallar: {r}"
+
+    r = validate_jwt_claims({"tenant": "acme"}, now)
+    assert not r["ok"] and r["error"] == "missing exp claim"
+
+    r = validate_jwt_claims({"exp": now + 100}, now)
+    assert not r["ok"] and r["error"] == "missing tenant claim"
+
+    r = validate_jwt_claims({"exp": now + 100, "tenant": ""}, now)
+    assert not r["ok"] and r["error"] == "empty tenant"
+
+    r = validate_jwt_claims({"exp": now + 100, "tenant": "globex"}, now)
+    assert r["ok"] and r["scopes"] == []
+    print("ok")
+  solution: |
+    def validate_jwt_claims(claims: dict, now_ts: int) -> dict:
+        if "exp" not in claims:
+            return {"ok": False, "error": "missing exp claim"}
+        if claims["exp"] <= now_ts:
+            return {"ok": False, "error": "token expired"}
+        if "tenant" not in claims:
+            return {"ok": False, "error": "missing tenant claim"}
+        if not claims["tenant"]:
+            return {"ok": False, "error": "empty tenant"}
+        return {"ok": True, "tenant": claims["tenant"], "scopes": claims.get("scopes", [])}
+
+    now = 1746000000
+    valid = {"exp": now + 3600, "tenant": "acme", "scopes": ["read:invoices"]}
+    expired = {"exp": now - 1, "tenant": "acme"}
+    no_tenant = {"exp": now + 3600}
+    no_exp = {"tenant": "acme"}
+    print(validate_jwt_claims(valid, now))
+    print(validate_jwt_claims(expired, now))
+    print(validate_jwt_claims(no_exp, now))
+
+- slug: oauth2-token-refresh
+  title: "Decide cuándo renovar un access token OAuth2"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El agente de ACME usa OAuth2 Client Credentials para obtener tokens de Belvo.
+    Implementa `should_refresh_token(token_info: dict, now_ts: int) -> bool`
+    que decide si el token debe renovarse antes de la próxima llamada API.
+
+    Regla: renovar si el token expira en menos de 60 segundos
+    (es decir, `token_info["expires_at"] - now_ts < 60`).
+
+    `token_info` tiene:
+    - `"access_token"` (str): el token
+    - `"expires_at"` (int): timestamp de expiración
+    - `"tenant"` (str): tenant al que pertenece
+
+    Prueba con varios escenarios para verificar la lógica del margen de 60s.
+  hint: |
+    La condición es `expires_at - now_ts < 60`. Esto cubre tres casos:
+    ya expirado (resultado negativo), a punto de expirar (0-59s), y válido (≥ 60s).
+  starter: |
+    def should_refresh_token(token_info: dict, now_ts: int) -> bool:
+        # devuelve True si el token expira en menos de 60 segundos
+        ...
+
+    now = 1746000000
+    token_fresh = {"access_token": "tok-abc", "expires_at": now + 3600, "tenant": "acme"}
+    token_soon = {"access_token": "tok-abc", "expires_at": now + 30, "tenant": "acme"}
+    token_expired = {"access_token": "tok-abc", "expires_at": now - 10, "tenant": "acme"}
+
+    print(should_refresh_token(token_fresh, now))    # False
+    print(should_refresh_token(token_soon, now))     # True
+    print(should_refresh_token(token_expired, now))  # True
+  test: |
+    def should_refresh_token(token_info: dict, now_ts: int) -> bool:
+        return token_info["expires_at"] - now_ts < 60
+
+    now = 1746000000
+
+    assert not should_refresh_token({"access_token": "t", "expires_at": now + 3600, "tenant": "acme"}, now)
+    assert not should_refresh_token({"access_token": "t", "expires_at": now + 60, "tenant": "acme"}, now)
+    assert should_refresh_token({"access_token": "t", "expires_at": now + 59, "tenant": "acme"}, now)
+    assert should_refresh_token({"access_token": "t", "expires_at": now + 30, "tenant": "acme"}, now)
+    assert should_refresh_token({"access_token": "t", "expires_at": now, "tenant": "acme"}, now)
+    assert should_refresh_token({"access_token": "t", "expires_at": now - 1, "tenant": "acme"}, now)
+    print("ok")
+  solution: |
+    def should_refresh_token(token_info: dict, now_ts: int) -> bool:
+        return token_info["expires_at"] - now_ts < 60
+
+    now = 1746000000
+    token_fresh = {"access_token": "tok-abc", "expires_at": now + 3600, "tenant": "acme"}
+    token_soon = {"access_token": "tok-abc", "expires_at": now + 30, "tenant": "acme"}
+    token_expired = {"access_token": "tok-abc", "expires_at": now - 10, "tenant": "acme"}
+    print(should_refresh_token(token_fresh, now))
+    print(should_refresh_token(token_soon, now))
+    print(should_refresh_token(token_expired, now))

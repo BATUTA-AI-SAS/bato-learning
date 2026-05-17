@@ -1,0 +1,67 @@
+- slug: classify-extensions
+  title: "Clasificar archivos por extensión"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `classify_by_extension` recibe una lista de nombres de archivo
+    y devuelve un diccionario que agrupa los nombres por categoría.
+
+    Categorías:
+    - `"python"`: archivos `.py`
+    - `"data"`: archivos `.csv`, `.json`, `.yaml`
+    - `"docs"`: archivos `.md`, `.txt`
+    - `"other"`: cualquier otra extensión o sin extensión
+
+    Ejemplo:
+    - entrada: `["audit.py", "facturas.csv", "README.md", "config.yaml", "Makefile"]`
+    - salida: `{"python": ["audit.py"], "data": ["facturas.csv", "config.yaml"], "docs": ["README.md"], "other": ["Makefile"]}`
+  hint: |
+    Usa `filename.rsplit(".", 1)` para separar el nombre de la extensión.
+    Si no hay punto, la extensión es vacía. Mapea cada extensión a su categoría
+    con un dict de lookup.
+  starter: |
+    def classify_by_extension(filenames: list) -> dict:
+        """Agrupa nombres de archivo por categoría según extensión."""
+        result = {"python": [], "data": [], "docs": [], "other": []}
+        # implementa aquí
+        return result
+
+    files = ["audit.py", "facturas.csv", "README.md", "config.yaml", "Makefile", "report.json"]
+    groups = classify_by_extension(files)
+    for category, items in groups.items():
+        if items:
+            print(f"{category}: {items}")
+  test: |
+    files = ["audit.py", "facturas.csv", "README.md", "config.yaml", "Makefile", "report.json"]
+    groups = classify_by_extension(files)
+
+    assert "audit.py" in groups["python"], "audit.py debe estar en 'python'"
+    assert "facturas.csv" in groups["data"], "facturas.csv debe estar en 'data'"
+    assert "config.yaml" in groups["data"], "config.yaml debe estar en 'data'"
+    assert "report.json" in groups["data"], "report.json debe estar en 'data'"
+    assert "README.md" in groups["docs"], "README.md debe estar en 'docs'"
+    assert "Makefile" in groups["other"], "Makefile (sin extensión) debe estar en 'other'"
+    print("ok")
+  solution: |
+    def classify_by_extension(filenames: list) -> dict:
+        """Agrupa nombres de archivo por categoría según extensión."""
+        ext_to_category = {
+            "py": "python",
+            "csv": "data", "json": "data", "yaml": "data",
+            "md": "docs", "txt": "docs",
+        }
+        result = {"python": [], "data": [], "docs": [], "other": []}
+        for name in filenames:
+            if "." in name:
+                ext = name.rsplit(".", 1)[1].lower()
+                category = ext_to_category.get(ext, "other")
+            else:
+                category = "other"
+            result[category].append(name)
+        return result
+
+    files = ["audit.py", "facturas.csv", "README.md", "config.yaml", "Makefile", "report.json"]
+    groups = classify_by_extension(files)
+    for category, items in groups.items():
+        if items:
+            print(f"{category}: {items}")

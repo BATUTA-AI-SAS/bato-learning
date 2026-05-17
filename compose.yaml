@@ -1,0 +1,29 @@
+## bato-learning — local app for the user
+## The technical companion (api/, docker-compose.yml) lives untouched.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bato-learning:dev
+    container_name: bato-learning
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      DATABASE_URL: sqlite+aiosqlite:////srv/data/learning.db
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/srv/data
+      - ./app/content:/srv/app/content:ro
+    command: >
+      sh -c "
+      uv run alembic upgrade head &&
+      uv run python -m scripts.seed &&
+      uv run uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+      "

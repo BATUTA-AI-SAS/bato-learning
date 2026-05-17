@@ -1,0 +1,55 @@
+- slug: finops-hard-stop
+  question: |
+    El tenant `globex` alcanza el 100% de su presupuesto mensual a mitad de mes. ¿Cuál es la
+    respuesta correcta del sistema?
+  explanation: |
+    El hard stop no debe bloquear el servicio con un 503: eso viola el SLA y genera churn.
+    La respuesta correcta es degradar gracefully: usar el modelo más barato (Haiku),
+    respuestas cacheadas, y notificar al equipo para que revise el presupuesto con el cliente.
+  options:
+    - text: "Bloquear todas las requests del tenant con HTTP 429 hasta que renueve."
+      correct: false
+      feedback: "Bloquear el servicio al 100% viola el SLA. Si tienes un contrato de disponibilidad, un 429 en producción por sobreconsumo es un incidente SEV2."
+    - text: "Degradar a modelo más barato (Haiku) y notificar al equipo; el servicio sigue disponible."
+      correct: true
+      feedback: "Correcto. Degradación graceful mantiene el servicio con menor calidad. La notificación permite resolver el límite antes de que el cliente lo note."
+    - text: "Ignorarlo hasta fin de mes; el costo extra se absorbe por el proveedor."
+      correct: false
+      feedback: "El costo extra sale del margen propio, no del proveedor. Sin hard stop ni degradación, un tenant puede consumir 10× su presupuesto en un fin de semana."
+
+- slug: finops-measure-first
+  question: |
+    ¿Cuándo deberías implementar la compresión de historial de contexto (la técnica más compleja)?
+  explanation: |
+    La regla es medir primero. La compresión de contexto tiene alta complejidad de implementación
+    y pruebas. Solo se justifica si el análisis del ledger muestra que el historial de sesión
+    es el top-1 o top-2 de consumo de tokens, y que su impacto en el margen es significativo.
+  options:
+    - text: "Desde el día uno, para tener el sistema más optimizado desde el principio."
+      correct: false
+      feedback: "Optimización prematura. Sin datos reales no sabes si el historial es tu cuello de botella. Puede que el system prompt largo sea el problema real."
+    - text: "Cuando el análisis del ledger muestra que el historial de sesión está en el top-3 de costo."
+      correct: true
+      feedback: "Correcto. Medir una semana en producción, identificar el top-3, atacar el #1. No antes."
+    - text: "Cuando el cliente pide que la app sea más rápida."
+      correct: false
+      feedback: "Velocidad y costo son dimensiones distintas. La compresión de contexto reduce costo; la latencia depende de tokens_out y la velocidad del modelo, no de la longitud del historial."
+
+- slug: cache-economics
+  question: |
+    El system prompt del agente tiene 80.000 tokens. Con `cache_control ttl=1h` y `claude-sonnet-4-6`:
+    ¿cuánto cuesta la primera llamada del turno vs la segunda llamada dentro de la hora?
+  explanation: |
+    Primera llamada: los 80.000 tokens se pagan como cache_write (3.75 USD/M) = 0.30 USD.
+    Segunda llamada dentro de la hora: los 80.000 tokens se leen del cache (0.30 USD/M) = 0.024 USD.
+    El ahorro de la segunda llamada respecto a pagar input completo (3.00/M = 0.24 USD) es ~90%.
+  options:
+    - text: "Primera: 0.24 USD. Segunda: 0.024 USD."
+      correct: false
+      feedback: "La primera llamada paga cache_write (3.75/M), no input (3.00/M). 80.000 × 3.75/M = 0.30 USD, no 0.24."
+    - text: "Primera: 0.30 USD (cache_write). Segunda: 0.024 USD (cache_read). Ahorro en 2ª llamada: ~90%."
+      correct: true
+      feedback: "Correcto. Cache_write cuesta más que input directo (3.75 > 3.00/M), pero desde la segunda llamada el ahorro es del 90% (0.30 vs 0.024/M)."
+    - text: "Ambas llamadas cuestan igual; el caching solo afecta la latencia, no el precio."
+      correct: false
+      feedback: "El prompt caching de Anthropic cobra cache_write en la primera llamada (3.75/M) y cache_read en las siguientes (0.30/M). El impacto en precio es significativo."

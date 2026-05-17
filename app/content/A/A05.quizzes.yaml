@@ -1,0 +1,107 @@
+- slug: module-vs-package
+  question: |
+    ¿Cuál de estas afirmaciones describe correctamente la diferencia entre
+    un módulo y un paquete en Python?
+  explanation: |
+    Un módulo es cualquier archivo `.py`. Un paquete es una carpeta que contiene
+    un `__init__.py`. Sin ese archivo, Python 3 trata la carpeta como
+    «namespace package» (comportamiento distinto y más frágil). En producción,
+    siempre añades `__init__.py` explícito.
+  options:
+    - text: "Un módulo es un archivo `.py`; un paquete es una carpeta con `__init__.py`."
+      correct: true
+      feedback: |
+        Correcto. El `__init__.py` convierte la carpeta en un paquete
+        importable con semántica predecible.
+    - text: "Un módulo es una función; un paquete es una clase."
+      correct: false
+      feedback: |
+        No. Módulo y paquete son conceptos de organización de archivos, no de
+        construcciones de código dentro de un archivo.
+    - text: "Un paquete es un módulo con más de 100 líneas."
+      correct: false
+      feedback: |
+        El tamaño no define si algo es paquete o módulo. La estructura del
+        sistema de archivos y la presencia de `__init__.py` son lo que importa.
+    - text: "Sin `__init__.py` una carpeta no puede importarse en Python 3."
+      correct: false
+      feedback: |
+        Python 3 sí puede importar carpetas sin `__init__.py` como «namespace
+        packages» (PEP 420). Pero el comportamiento es diferente y más frágil.
+        En producción siempre usas `__init__.py` explícito.
+
+- slug: python-m-vs-script
+  question: |
+    Un colega ejecuta `python app/main.py` y obtiene:
+
+    ```
+    ImportError: attempted relative import with no known parent package
+    ```
+
+    ¿Cuál es la causa?
+  explanation: |
+    `python app/main.py` añade `app/` al frente de `sys.path` y trata `main.py`
+    como el script raíz (no como parte de un paquete). Los imports relativos
+    (`from .routers import chat`) requieren que el módulo forme parte de un
+    paquete ya importado. La solución es ejecutar desde la raíz del repo como
+    `python -m app.main` o vía `uvicorn app.main:app`.
+  options:
+    - text: "Falta instalar las dependencias con `uv sync`."
+      correct: false
+      feedback: |
+        Las dependencias son ortogonales al error de import relativo. El error
+        indica que Python no reconoce `app` como paquete en el contexto de
+        ejecución, no que falte una librería.
+    - text: "`python app/main.py` añade `app/` a `sys.path`, por lo que los imports relativos fallan porque no hay paquete padre conocido."
+      correct: true
+      feedback: |
+        Exacto. El fix es `python -m app.main` desde la raíz, que añade
+        el directorio padre de `app/` a `sys.path` y lo trata como paquete.
+    - text: "El `__init__.py` de `app/` está vacío."
+      correct: false
+      feedback: |
+        Un `__init__.py` vacío es válido y correcto. El problema no es el
+        contenido del `__init__.py` sino desde dónde se ejecuta el script.
+    - text: "Hay un ciclo de import entre `main.py` y uno de los routers."
+      correct: false
+      feedback: |
+        Un ciclo de import produce `ImportError: cannot import name X from
+        partially initialized module Y`, no el error de «no known parent
+        package». Son problemas distintos.
+
+- slug: init-py-reexport
+  question: |
+    `app/models/__init__.py` tiene esta línea:
+
+    ```python
+    from .content import Module, Exercise, Quiz, QuizOption  # noqa: F401
+    ```
+
+    ¿Qué permite esto al resto de la app?
+  explanation: |
+    El `__init__.py` actúa como fachada del paquete `models`. Al reexportar
+    `Module`, cualquier código puede escribir `from app.models import Module`
+    en lugar de `from app.models.content import Module`. Si en el futuro
+    `content.py` se renombra a `catalog.py`, solo hay que cambiar el
+    `__init__.py`, no todos los archivos que importan `Module`.
+  options:
+    - text: "Impide que otros módulos importen directamente desde `app.models.content`."
+      correct: false
+      feedback: |
+        No impide nada. Python no tiene control de acceso a nivel de módulo.
+        La reexportación solo *facilita* el import corto; no *prohíbe* el largo.
+    - text: "Permite escribir `from app.models import Module` sin saber en qué archivo vive la clase."
+      correct: true
+      feedback: |
+        Correcto. El `__init__.py` es la fachada: oculta la organización
+        interna del paquete y expone una API limpia al exterior.
+    - text: "Hace que `Module` sea una variable global disponible en toda la app sin importar."
+      correct: false
+      feedback: |
+        No. Cada módulo que necesite `Module` tiene que importarlo
+        explícitamente. Python no tiene variables globales de aplicación.
+    - text: "Garantiza que `Module` se carga en memoria solo una vez."
+      correct: false
+      feedback: |
+        `sys.modules` ya garantiza eso independientemente del `__init__.py`.
+        El propósito de la reexportación es comodidad de API, no eficiencia.

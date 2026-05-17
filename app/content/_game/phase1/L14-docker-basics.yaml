@@ -1,0 +1,25 @@
+slug: docker-basics
+title: "Empaqueta el script en un contenedor"
+kind: order_steps
+trains_skill: docker
+concepts_introduced: [Docker, Dockerfile, layers, compose]
+concepts_reinforced: [terminal, modulos]
+scenario_md: |
+  El Director de TI de ACME quiere que el script de auditoría corra igual
+  en su laptop y en el servidor. La solución es Docker. ¿En qué orden
+  ejecutas los cinco pasos para tener el contenedor corriendo?
+payload:
+  steps:
+    - "Escribir el Dockerfile con FROM, COPY y CMD"
+    - "Ejecutar docker build -t audit-script . para construir la imagen"
+    - "Verificar que la imagen existe con docker images"
+    - "Ejecutar docker run audit-script para probar el contenedor"
+    - "Agregar el servicio a docker-compose.yml para el equipo"
+  correct_order: [0, 1, 2, 3, 4]
+hint_md: "No puedes construir una imagen sin Dockerfile, ni correr lo que no has construido."
+solution_md: |
+  Dockerfile primero: define qué imagen base, qué copias y qué comando ejecutar.
+  Luego build crea la imagen, images confirma que existe, run la prueba,
+  y compose la integra al flujo del equipo.
+xp: 10
+est_seconds: 90

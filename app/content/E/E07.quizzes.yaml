@@ -1,0 +1,104 @@
+- slug: golden-set-source
+  question: |
+    Tu cliente es ACME Manufacturing. Necesitas construir el primer golden set
+    para el agente de clasificación de facturas. ¿Cuál es la fuente más válida
+    para los casos de ejemplo?
+  explanation: |
+    El golden set debe reflejar la distribución real de datos del cliente.
+    Facturas reales del cliente (anonimizadas para quitar NIT de terceros)
+    son la fuente más válida porque capturan las particularidades locales:
+    descripciones con abreviaciones del sector, montos en rangos reales,
+    referencias en formato del ERP del cliente.
+    Los datos inventados crean una falsa sensación de calidad que no se traslada a producción.
+  options:
+    - text: "Facturas reales de ACME del período 2026-04, anonimizadas"
+      correct: true
+      feedback: "Correcto. Datos reales del cliente capturan las particularidades que el agente va a enfrentar en producción."
+    - text: "100 facturas generadas por GPT-4 para ser variadas y representativas"
+      correct: false
+      feedback: "Los datos sintéticos tienden a ser más 'prolijos' que los reales. Los bordes raros (abreviaciones locales, formatos de ERP) raramente aparecen en datos generados."
+    - text: "Los ejemplos del tutorial de LangChain para clasificación de documentos"
+      correct: false
+      feedback: "Los ejemplos de tutoriales están en inglés y representan casos de e-commerce de EE.UU. No capturan el dominio de manufactura LATAM de ACME."
+    - text: "5 casos que tú construyes para cubrir los cuatro tipos posibles"
+      correct: false
+      feedback: "Si tú construyes los casos desde cero sin datos del cliente, diseñas para que el agente actual pase, no para que el agente sea correcto. Es el camino al overfitting del golden set."
+
+- slug: judge-temperature
+  question: |
+    Corres el mismo caso del golden set dos veces con tu LLM judge configurado
+    con `temperature=0.5`. En el primero, el judge da score 3. En el segundo,
+    da score 2. ¿Cuál es la causa más probable?
+  explanation: |
+    Con temperatura > 0, el modelo de lenguaje introduce aleatoriedad en sus
+    respuestas. El mismo input puede producir outputs distintos en cada llamada.
+    Para el LLM judge, esto es un problema: si el resultado varía entre runs,
+    el CI no es reproducible. Un caso puede pasar en un run de CI y fallar en
+    el siguiente sin que cambie nada en el código. La solución es temperatura=0.
+  options:
+    - text: "El judge tiene temperatura > 0 y produce outputs no determinísticos"
+      correct: true
+      feedback: "Exacto. Temperatura > 0 introduce variabilidad. Para el judge, siempre usa temperatura=0."
+    - text: "El golden set cambió entre las dos ejecuciones"
+      correct: false
+      feedback: "Si el golden set estuviera cambiando entre runs de CI, tendrías un problema diferente de versionado. Pero la pregunta dice 'el mismo caso' — no cambió."
+    - text: "El modelo actualizó sus pesos entre las dos llamadas"
+      correct: false
+      feedback: "Anthropic (y los demás providers) no actualizan los pesos en tiempo real. Un modelo específico (claude-sonnet-4-6) tiene pesos fijos. La variabilidad viene de la temperatura, no de actualizaciones."
+    - text: "El servidor de la API tenía latencia alta en el segundo run"
+      correct: false
+      feedback: "La latencia afecta el tiempo de respuesta, no el contenido del output. La variabilidad en el score viene de la aleatoriedad del sampling, controlada por temperatura."
+
+- slug: eval-metric-choice
+  question: |
+    El agente de ACME genera un texto de 2-4 párrafos explicando por qué
+    una factura es una anomalía. ¿Qué métrica es más apropiada para evaluar
+    la calidad de ese output?
+  explanation: |
+    Exact match no funciona para texto libre: dos respuestas correctas raramente
+    son idénticas palabra a palabra. Schema validation tampoco aplica porque
+    el output no tiene estructura JSON.
+    LLM-as-judge es la métrica adecuada para outputs de texto libre: evalúa
+    si el texto menciona los elementos correctos (tipo de anomalía, monto,
+    referencia), si el tono es apropiado para un reporte ejecutivo, y si
+    la explicación es coherente — sin exigir que sea literalmente igual al ejemplo.
+  options:
+    - text: "LLM-as-judge con rúbrica de 3 criterios binarios"
+      correct: true
+      feedback: "Correcto. Para texto libre, el judge evalúa los elementos clave sin exigir match exacto de palabras."
+    - text: "Exact match entre el texto generado y el texto esperado"
+      correct: false
+      feedback: "Exact match para texto libre falla siempre: el agente puede describir correctamente la anomalía con palabras distintas a las del ejemplo. La métrica daría 0% de exactitud para outputs completamente válidos."
+    - text: "Schema validation contra un Pydantic model"
+      correct: false
+      feedback: "Schema validation aplica cuando el output es JSON estructurado. Un texto de 2-4 párrafos no tiene schema que validar."
+    - text: "Contar la longitud del texto (outputs más largos = más detallados = mejor)"
+      correct: false
+      feedback: "Longitud no es proxy de calidad. Un texto de 10 párrafos puede ser repetitivo y no mencionar el elemento clave. Un texto de 2 frases puede ser perfectamente preciso."
+
+- slug: threshold-setting
+  question: |
+    El contrato con ACME establece un SLA de «precisión ≥ 90% en clasificación
+    de facturas». Tu primera medición del golden set da 87%. ¿Qué threshold
+    pones en el CI?
+  explanation: |
+    El threshold del CI debe coincidir con el SLA comprometido con el cliente,
+    no con la medición actual. Si el SLA dice 90% y pones el threshold al 85%
+    (por debajo de la medición actual), el CI nunca falla aunque la calidad caiga.
+    El resultado correcto es: threshold = 90%, lo que significa que hay que
+    mejorar el agente antes de entregar al cliente — o renegociar el SLA.
+    Ajustar el threshold hacia abajo para que el CI «siempre pase» es el
+    anti-patrón más común.
+  options:
+    - text: "90% — debe coincidir con el SLA comprometido con el cliente"
+      correct: true
+      feedback: "Correcto. El threshold del CI es el contrato técnico que refleja el compromiso comercial."
+    - text: "87% — la medición actual, para que el CI no falle desde el primer commit"
+      correct: false
+      feedback: "Un threshold que siempre pasa no protege nada. Si el agente baja a 86%, el CI pasa aunque estés por debajo del SLA. El threshold debe estar en el nivel del SLA, no en el nivel actual."
+    - text: "80% — con margen de seguridad para no bloquear el desarrollo"
+      correct: false
+      feedback: "Un margen «de seguridad» hacia abajo significa que puedes entregar al cliente con 80% de precisión sin que el CI lo detecte. Eso rompe el SLA de 90%."
+    - text: "95% — más alto que el SLA para tener colchón"
+      correct: false
+      feedback: "Válido si tienes evidencia de que puedes alcanzar 95%. Si pones el threshold en 95% pero solo tienes 87%, estás bloqueando todo el desarrollo sin poder avanzar. El threshold debe ser el SLA: 90%."

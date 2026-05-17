@@ -1,0 +1,131 @@
+- slug: path-strings-match
+  kind: match
+  question: |
+    Empareja cada cadena de texto con lo que representa en el sistema de archivos.
+    No se escribe código — solo se interpreta qué significa cada ruta.
+  explanation: |
+    Estas cuatro formas de escribir rutas aparecerán constantemente en el curso.
+    `./reportes` indica la carpeta `reportes` dentro del directorio actual.
+    `../` sube un nivel al directorio padre.
+    `~/audit/2026-04.csv` usa `~` para referirse a la carpeta personal del usuario.
+    `/etc/hosts` es una ruta absoluta que empieza desde la raíz del sistema (`/`).
+  pairs:
+    - left: "./reportes"
+      right: "La carpeta reportes dentro del directorio actual"
+    - left: "../"
+      right: "El directorio padre (un nivel arriba)"
+    - left: "~/audit/2026-04.csv"
+      right: "El archivo 2026-04.csv en la carpeta audit del home del usuario"
+    - left: "/etc/hosts"
+      right: "Ruta absoluta: empieza desde la raíz del sistema"
+
+- slug: absolute-vs-relative
+  question: |
+    La terminal está en `/home/maria/proyectos/acme-audit`.
+    ¿Cuál de estas rutas referencia el archivo `facturas/acme_2026-04.csv`
+    con una ruta **relativa** correcta?
+  explanation: |
+    Una ruta relativa parte del directorio actual, sin empezar por `/`.
+    Desde `/home/maria/proyectos/acme-audit`, el archivo
+    `facturas/acme_2026-04.csv` está en la subcarpeta `facturas` del
+    directorio actual. La ruta relativa es simplemente `facturas/acme_2026-04.csv`.
+  options:
+    - text: "`/home/maria/proyectos/acme-audit/facturas/acme_2026-04.csv`"
+      correct: false
+      feedback: |
+        Esa es la ruta **absoluta** — empieza con `/` desde la raíz del sistema.
+        Es correcta para referenciar el archivo, pero no es relativa.
+        La ruta relativa no incluye todo el árbol desde la raíz.
+    - text: "`facturas/acme_2026-04.csv`"
+      correct: true
+      feedback: |
+        Correcto. Desde el directorio actual (`acme-audit`), la carpeta `facturas`
+        está un nivel adentro. La ruta relativa no empieza con `/` ni necesita
+        especificar todo el camino desde la raíz del sistema.
+    - text: "`~/proyectos/acme-audit/facturas/acme_2026-04.csv`"
+      correct: false
+      feedback: |
+        Esa es una ruta que usa `~` (el home del usuario). Es más corta que la
+        absoluta completa, pero sigue siendo una ruta absoluta — `~` se expande
+        a `/home/maria`. No es relativa al directorio actual.
+    - text: "`../acme-audit/facturas/acme_2026-04.csv`"
+      correct: false
+      feedback: |
+        `..` sube un nivel a `proyectos`, y luego baja a `acme-audit/facturas`.
+        Aunque llega al mismo archivo, es innecesariamente complicado cuando
+        ya estás en `acme-audit`. La ruta directa es `facturas/acme_2026-04.csv`.
+
+- slug: dotdot-navigation
+  question: |
+    Tienes esta estructura:
+    ```
+    ~/proyectos/
+    ├── acme-audit/
+    │   └── audit.py
+    └── datos/
+        └── acme_2026-04.csv
+    ```
+    El script `audit.py` necesita abrir `acme_2026-04.csv`.
+    ¿Cuál es la ruta relativa correcta desde `acme-audit/`?
+  explanation: |
+    Desde `acme-audit/`, hay que subir un nivel con `..` para llegar a
+    `proyectos/`, y luego entrar a `datos/`. La ruta es `../datos/acme_2026-04.csv`.
+    Esto funciona si el script se ejecuta desde `acme-audit/`.
+  options:
+    - text: "`datos/acme_2026-04.csv`"
+      correct: false
+      feedback: |
+        Esa ruta buscaría `datos/` dentro de `acme-audit/`, que no existe.
+        Para llegar a `datos/` hay que subir un nivel primero con `..`.
+    - text: "`../datos/acme_2026-04.csv`"
+      correct: true
+      feedback: |
+        Correcto. `..` sube de `acme-audit/` a `proyectos/`, y luego
+        `datos/acme_2026-04.csv` baja a la carpeta `datos`. Esta ruta
+        funciona cuando el script se ejecuta desde `acme-audit/`.
+    - text: "`./datos/acme_2026-04.csv`"
+      correct: false
+      feedback: |
+        `.` es el directorio actual (`acme-audit/`). La ruta
+        `./datos/acme_2026-04.csv` busca una subcarpeta `datos` dentro de
+        `acme-audit/`, que no existe según la estructura del ejercicio.
+    - text: "`../../datos/acme_2026-04.csv`"
+      correct: false
+      feedback: |
+        `../..` subiría dos niveles: de `acme-audit/` a `proyectos/`, y de
+        `proyectos/` a `~/`. Luego buscaría `datos/` en `~/`, que tampoco existe.
+        Solo se necesita subir un nivel.
+
+- slug: file-extension-meaning
+  question: |
+    Un archivo se llama `reporte_acme.py` pero su contenido es texto plano
+    sin ninguna instrucción Python — solo palabras en español.
+    ¿Qué pasa si intentas ejecutarlo con `python reporte_acme.py`?
+  explanation: |
+    Python intentará interpretar el contenido como código Python. Si el contenido
+    no es código válido, lanzará un `SyntaxError` al intentar parsearlo.
+    La extensión `.py` no garantiza que el contenido sea Python válido.
+  options:
+    - text: "Python lo convierte automáticamente en código válido porque la extensión es `.py`."
+      correct: false
+      feedback: |
+        La extensión no convierte el contenido. Python leerá el texto tal como
+        está e intentará interpretarlo como código. Si no es código válido,
+        fallará con un `SyntaxError`.
+    - text: "Python lanza un `SyntaxError` porque el texto no es código Python válido."
+      correct: true
+      feedback: |
+        Correcto. Python intenta leer y procesar el contenido del archivo
+        como código. Si el contenido es texto en español sin sintaxis Python,
+        fallará con `SyntaxError` antes de ejecutar nada.
+    - text: "Python lo ignora porque detecta que no es código."
+      correct: false
+      feedback: |
+        Python no «detecta» si algo es código antes de intentar parsearlo.
+        Lo intenta siempre, y falla si el contenido no es sintaxis Python válida.
+    - text: "Python lo ejecuta correctamente porque `.py` le dice al intérprete que confíe en el archivo."
+      correct: false
+      feedback: |
+        La extensión no da permisos ni garantías al intérprete. Es solo
+        una convención para humanos y editores. El intérprete lee el contenido
+        e intenta parsearlo como Python sin importar la extensión.

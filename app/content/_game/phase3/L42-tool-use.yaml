@@ -1,0 +1,41 @@
+slug: tool-use-invoices
+title: "El LLM consulta tu DB de facturas"
+kind: code
+phase: PH03
+ord: 42
+trains_skill: tool-calling
+concepts_introduced: [tool-use, json-schema, function-calling]
+concepts_reinforced: [llm-api, async, pydantic]
+xp: 20
+est_seconds: 180
+scenario_md: |
+  Claude no puede leer tu DB directamente. Necesita una "herramienta" que
+  tú defines. El LLM decide cuándo llamarla; tu código la ejecuta.
+  Implementa el patrón completo para que el CFO consulte facturas por mes.
+payload:
+  starter: |
+    import json
+    from anthropic import AsyncAnthropic
+
+    client = AsyncAnthropic()
+
+    def get_invoices_by_month(month: int, year: int) -> list[dict]:
+        """Simula consulta a DB. Retorna facturas del mes."""
+        return [{"id": "INV-042", "amount": 4820.50, "month": month}]
+
+    async def ask_with_tools(question: str) -> str:
+        # define la herramienta y maneja tool_use en la respuesta
+        ...
+  tests: |
+    import asyncio
+    result = asyncio.run(ask_with_tools("¿Cuántas facturas hubo en abril 2024?"))
+    assert isinstance(result, str)
+    assert len(result) > 5
+hint_md: |
+  Define `tools=[{"name": "get_invoices_by_month", "description": "...",
+  "input_schema": {...}}]`. Si la respuesta tiene `stop_reason == "tool_use"`,
+  ejecuta la función y vuelve a llamar a la API con el resultado.
+solution_md: |
+  El patrón es: (1) API llama → (2) si tool_use en content → (3) ejecuta
+  la función → (4) manda el resultado como `tool_result` → (5) API contesta.
+  El LLM nunca ejecuta código; tú eres el ejecutor. El LLM decide el cuándo.

@@ -1,0 +1,59 @@
+- slug: ttfv-importance
+  question: |
+    Estás en el Día 18 del onboarding de Andina. El agente aún no ha corrido
+    sobre los datos reales porque Héctor tardó en entregar los archivos y
+    hubo un problema de formato con BBVA. ¿Cuál es el riesgo principal?
+  explanation: |
+    Pasar los 14 días sin que el cliente vea el agente funcionando sobre sus
+    datos reales duplica el riesgo de churn. El sponsor ejecutivo pierde
+    visibilidad, el usuario sigue con el proceso manual, y la resistencia
+    al cambio se consolida.
+  options:
+    - text: "Ninguno — los retrasos son normales y el cliente entiende."
+      correct: false
+      feedback: "Los retrasos no son gratis. Cada día extra sin 'primer valor' aumenta la probabilidad de que el cliente racionalice 'en realidad no lo necesitamos ahora'."
+    - text: "El riesgo de churn antes de la primera renovación se duplica."
+      correct: true
+      feedback: "Correcto. El benchmark de TTFV (time-to-first-value) en PYME LATAM es 14 días. Superar 21 días sin que el cliente vea valor real activa el modo 'piloto eterno' que termina en abandono."
+    - text: "El SLA ya está incumplido — el cliente puede pedir reembolso."
+      correct: false
+      feedback: "El SLA aplica una vez que el servicio está en producción (post go-live). El período de onboarding es el período de implementación, no de operación. El SOW tiene su propio timeline."
+
+- slug: golden-set-purpose
+  question: |
+    ¿Para qué sirve el golden set después del go-live?
+  explanation: |
+    El golden set tiene dos usos post-go-live: detección de regresiones
+    (cuando actualizas el agente, corres el golden set para verificar que
+    los 5 casos siguen funcionando correctamente) y validación de cambios
+    de configuración del cliente.
+  options:
+    - text: "Solo sirve durante el onboarding para calibrar el agente."
+      correct: false
+      feedback: "El golden set tiene vida larga: cada vez que actualizas el agente (nueva versión del modelo, nuevo umbral, nuevo parser), corres el golden set para verificar que no rompiste nada."
+    - text: "Sirve como test de regresión cuando actualizas el agente o cambias la configuración."
+      correct: true
+      feedback: "Correcto. El golden set es el test de regresión más simple y efectivo para un agente IA: 5 casos que el cliente validó como correctos. Si todos pasan, el cambio es seguro."
+    - text: "Es solo para documentación legal — evidencia de que el agente funcionaba al go-live."
+      correct: false
+      feedback: "La evidencia de go-live es el email de confirmación de criterios del SOW. El golden set es operativo, no solo documental."
+
+- slug: handoff-timing
+  question: |
+    ¿Cuándo ocurre el hand-off operativo en el onboarding?
+  explanation: |
+    El hand-off es el momento específico en que el cliente asume la
+    operación autónoma del servicio. Ocurre en el Día 14, cuando se
+    verifican los criterios de aceptación del SOW y el cliente confirma
+    el go-live. El babysitting posterior (mes 1) es soporte activo,
+    no una extensión del onboarding.
+  options:
+    - text: "Al momento de firmar el SOW — el cliente sabe desde el inicio qué tiene que hacer."
+      correct: false
+      feedback: "Firmar el SOW es el inicio del proceso de implementación, no el hand-off. El hand-off ocurre cuando el agente está funcionando en producción y el cliente puede operar sin el proveedor."
+    - text: "En el Día 14, después de verificar los criterios de aceptación del SOW."
+      correct: true
+      feedback: "Correcto. El hand-off es el momento en que el proveedor dice 'el agente cumplió los criterios acordados' y el cliente confirma el go-live. A partir de ahí, el cliente opera; el proveedor da soporte."
+    - text: "Al final del primer mes de babysitting, cuando el cliente ya usa el servicio solo."
+      correct: false
+      feedback: "El babysitting es soporte post-go-live, no parte del onboarding formal. El hand-off ocurre antes: cuando se verifican los criterios del SOW en el Día 14."

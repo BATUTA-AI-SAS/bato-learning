@@ -1,0 +1,10 @@
+slug: rag
+title: "¿Qué es RAG?"
+analogy_md: |
+  RAG (Retrieval-Augmented Generation) es buscar documentos relevantes primero y luego
+  pasárselos al LLM para que responda. Es como darle a un asesor el manual de políticas de ACME
+  antes de pedirle una respuesta.
+example_md: |
+  ```
+  pregunta → buscar en vector DB → top-3 docs → LLM(docs + pregunta) → respuesta
+  ```

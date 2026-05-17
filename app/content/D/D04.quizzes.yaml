@@ -1,0 +1,71 @@
+- slug: openinference-vs-otel
+  question: |
+    ¿Cuál es la relación entre **OpenTelemetry** y **OpenInference**?
+  explanation: |
+    OpenTelemetry es el estándar genérico de CNCF para trazas distribuidas.
+    OpenInference es una convención de *nombres de atributos* sobre OpenTelemetry
+    específica para LLMs: define que el conteo de tokens va en `llm.token_count.prompt`,
+    los mensajes en `llm.input_messages`, etc. Phoenix entiende OpenInference;
+    cualquier herramienta OTel genérica entiende OpenTelemetry. Son complementarios,
+    no alternativos.
+  options:
+    - text: "OpenInference es una convención de atributos sobre OpenTelemetry, específica para LLMs"
+      correct: true
+      feedback: "Correcto. OTel define el transporte y la API; OpenInference define los nombres de atributo para el dominio LLM."
+    - text: "Son lo mismo: OpenInference es el nombre de OpenTelemetry cuando se usa con LLMs"
+      correct: false
+      feedback: "No. Son proyectos distintos. OpenTelemetry es CNCF, sin relación original con LLMs. OpenInference es Arize, centrado en LLMs."
+    - text: "OpenTelemetry reemplaza a OpenInference en Traefik v3"
+      correct: false
+      feedback: "Traefik no tiene relación con OpenInference. OpenTelemetry está en el SDK de la app, no en el proxy."
+    - text: "Phoenix solo acepta OpenInference; no entiende trazas OTel genéricas"
+      correct: false
+      feedback: "Phoenix acepta trazas OTel estándar. OpenInference añade atributos específicos de LLM que Phoenix interpreta como columnas en la UI; sin ellos, las trazas llegan igualmente pero con menos contexto."
+
+- slug: cache-read-price
+  question: |
+    Una llamada al tutor tiene `cache_read_input_tokens: 3000` y `output_tokens: 200`.
+    No hay `input_tokens` ni `cache_creation_input_tokens`. Usando los precios de
+    `claude-sonnet-4-6` del módulo, ¿cuál es el costo aproximado en USD?
+  explanation: |
+    Cálculo: (3000 × 0.30 + 200 × 15.00) / 1_000_000
+    = (900 + 3000) / 1_000_000 = 3900 / 1_000_000 = 0.0039 USD.
+    El cache_read es 10× más barato que el input normal (0.30 vs 3.00 por millón),
+    lo que explica el ahorro significativo con prompt caching activo.
+  options:
+    - text: "≈ 0.0039 USD"
+      correct: true
+      feedback: "Correcto. (3000 × 0.30 + 200 × 15.00) / 1_000_000 = 0.0039 USD."
+    - text: "≈ 0.0120 USD"
+      correct: false
+      feedback: "Ese sería el costo si los 3000 tokens se cobrarán como input normal (3.00/M) en vez de cache_read (0.30/M)."
+    - text: "≈ 0.0300 USD"
+      correct: false
+      feedback: "0.03 USD implicaría cobrar los 3000 tokens a precio de output (15.00/M). Los tokens de cache_read se cobran a 0.30/M."
+    - text: "0.0000 USD — el cache_read no tiene costo"
+      correct: false
+      feedback: "El cache_read sí tiene costo, pero es 10× más barato que el input normal: 0.30 USD/M vs 3.00 USD/M. No es gratuito."
+
+- slug: phoenix-no-auth
+  question: |
+    Decides exponer Phoenix en `https://traces.acme.com` con Traefik y TLS automático,
+    sin ningún middleware de autenticación. ¿Cuál es el riesgo principal?
+  explanation: |
+    Phoenix almacena el contenido completo de los prompts y respuestas de todos los
+    tenants. Sin autenticación, cualquier persona con la URL accede al historial
+    completo de conversaciones, que puede incluir datos confidenciales del negocio
+    del cliente. Phoenix no tiene sistema de autenticación nativo; la protección
+    debe venir de Traefik (basicauth, forward auth) o de una VPN.
+  options:
+    - text: "Cualquier persona accede al historial completo de prompts y respuestas de todos los tenants"
+      correct: true
+      feedback: "Exacto. Phoenix es una base de datos de conversaciones. Sin auth, es acceso público a datos confidenciales del cliente."
+    - text: "Phoenix consume demasiado CPU si está expuesto públicamente"
+      correct: false
+      feedback: "El consumo de CPU de Phoenix no depende de si está expuesto o no. El problema es de confidencialidad, no de rendimiento."
+    - text: "Traefik no puede enrutar a Phoenix sin configuración adicional"
+      correct: false
+      feedback: "Traefik enruta a cualquier servicio con las labels correctas. El problema no es técnico de routing; es de seguridad."
+    - text: "Let's Encrypt no emite certificados para subdominios internos"
+      correct: false
+      feedback: "Let's Encrypt emite para cualquier subdominio que resuelva a una IP pública. El problema no es el certificado, sino que el contenido es confidencial y no debe estar accesible públicamente sin auth."

@@ -1,0 +1,25 @@
+{% extends "_layout.html" %}
+{% block title %}bato-learning · arena{% endblock %}
+
+{% block main %}
+<header class="hero">
+  <h1>Arena de práctica</h1>
+  <p class="lede">Elige una fase y empieza a jugar.</p>
+</header>
+
+<section class="game-phases">
+  {% for item in phases_with_progress %}
+  {% set phase = item.phase %}
+  {% set prog = item.progress %}
+  <a class="phase-card {% if current_phase and current_phase.id == phase.id %}active{% endif %}"
+     href="/game/{{ phase.slug }}">
+    <div class="phase-code">{{ phase.code }}</div>
+    <div class="phase-title">{{ phase.title }}</div>
+    <div class="phase-meta">{{ prog.levels_passed }}/{{ prog.total }} niveles · {{ prog.percent }}%</div>
+    <div class="phase-bar"><div class="fill" style="width: {{ prog.percent }}%"></div></div>
+  </a>
+  {% else %}
+  <p class="muted">Aún no hay fases cargadas. Ejecuta <code>make seed</code>.</p>
+  {% endfor %}
+</section>
+{% endblock %}

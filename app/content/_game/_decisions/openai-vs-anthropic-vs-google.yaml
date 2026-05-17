@@ -1,0 +1,23 @@
+slug: openai-vs-anthropic-vs-google
+chapter_ref: phase3
+prompt_md: |
+  El agente de facturación de ACME necesita un LLM. El equipo evalúa tres proveedores.
+  ¿Cuál eliges para un caso de uso de análisis de documentos financieros en producción?
+options:
+  - label: "OpenAI (GPT-4o / o3)"
+    tradeoff_md: |
+      + Mayor ecosistema: más ejemplos, librerías y soporte comunitario.
+      + Modelos de razonamiento (o1, o3) para análisis complejo paso a paso.
+      + Assistants API con threads para estado gestionado por el proveedor.
+      − Historial de interrupciones de servicio documentadas en producción.
+      − Precio por token más alto en los modelos de mayor capacidad.
+    consequence_skill: openai-ops
+  - label: "Anthropic (Claude) o Google (Gemini)"
+    tradeoff_md: |
+      + Claude: contexto de 200k tokens, prompt caching nativo que reduce costo hasta 90%.
+        Fuerte en análisis de documentos largos y seguir instrucciones complejas.
+      + Gemini: multimodal nativo, integración con Google Cloud, grounding en búsqueda.
+      + Ambos ofrecen SLAs de enterprise con acuerdos de confidencialidad de datos.
+      − Menor ecosistema de ejemplos que OpenAI en proyectos open source.
+      − Cambiar de proveedor requiere ajustar prompts; no son intercambiables sin pruebas.
+    consequence_skill: alternative-llm-ops

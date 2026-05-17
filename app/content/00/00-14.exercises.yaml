@@ -1,0 +1,171 @@
+- slug: parse-amount-basic
+  title: "Parsear un monto con try/except"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La función `parse_amount` debe convertir un texto a `float`.
+    Si el texto no es un número válido, devuelve `None`.
+
+    Completa la función y comprueba que los tests pasan.
+  hint: |
+    Usa `float(text)` dentro de `try`. Si lanza `ValueError`, devuelve `None`.
+  starter: |
+    def parse_amount(text: str) -> float | None:
+        # completa aquí
+        pass
+
+
+    # pruebas manuales (los tests automáticos van abajo)
+    print(parse_amount("4820.50"))   # debe imprimir 4820.5
+    print(parse_amount("N/A"))       # debe imprimir None
+    print(parse_amount(""))          # debe imprimir None
+  test: |
+    assert parse_amount("4820.50") == 4820.5, "texto numérico debe convertirse a float"
+    assert parse_amount("1500") == 1500.0, "entero en texto también es float válido"
+    assert parse_amount("N/A") is None, "texto no numérico debe devolver None"
+    assert parse_amount("") is None, "texto vacío debe devolver None"
+    assert parse_amount("cuatro mil") is None, "palabras deben devolver None"
+    print("ok")
+  solution: |
+    def parse_amount(text: str) -> float | None:
+        try:
+            return float(text)
+        except ValueError:
+            return None
+
+
+    print(parse_amount("4820.50"))
+    print(parse_amount("N/A"))
+    print(parse_amount(""))
+
+- slug: safe-dict-access
+  title: "Acceso seguro a clave de diccionario"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Las facturas de ACME a veces no tienen el campo `"notes"`.
+    Escribe la función `get_notes(invoice)` que:
+    - Devuelve el valor de `invoice["notes"]` si existe.
+    - Devuelve la cadena vacía `""` si la clave no existe (`KeyError`).
+
+    No uses `.get()` — practica `try/except KeyError`.
+  hint: |
+    Accede con `invoice["notes"]` dentro de `try`. Si lanza `KeyError`, devuelve `""`.
+  starter: |
+    def get_notes(invoice: dict) -> str:
+        # completa aquí
+        pass
+
+
+    inv_con_notas = {"id": "INV-001", "vendor": "ACME", "amount": 4820.0, "notes": "urgente"}
+    inv_sin_notas = {"id": "INV-002", "vendor": "Globex", "amount": 1500.0}
+
+    print(get_notes(inv_con_notas))  # → "urgente"
+    print(get_notes(inv_sin_notas))  # → ""
+  test: |
+    inv_a = {"id": "INV-001", "vendor": "ACME", "amount": 4820.0, "notes": "urgente"}
+    inv_b = {"id": "INV-002", "vendor": "Globex", "amount": 1500.0}
+    inv_c = {"id": "INV-003", "vendor": "Initech", "notes": ""}
+
+    assert get_notes(inv_a) == "urgente", "debe devolver el valor de notes"
+    assert get_notes(inv_b) == "", "sin clave notes debe devolver cadena vacía"
+    assert get_notes(inv_c) == "", "notes vacío debe devolver cadena vacía"
+    print("ok")
+  solution: |
+    def get_notes(invoice: dict) -> str:
+        try:
+            return invoice["notes"]
+        except KeyError:
+            return ""
+
+
+    inv_con_notas = {"id": "INV-001", "vendor": "ACME", "amount": 4820.0, "notes": "urgente"}
+    inv_sin_notas = {"id": "INV-002", "vendor": "Globex", "amount": 1500.0}
+
+    print(get_notes(inv_con_notas))
+    print(get_notes(inv_sin_notas))
+
+- slug: filter-valid-amounts
+  title: "Filtrar montos válidos de un lote"
+  runner: pyodide
+  kind: code
+  prompt: |
+    ACME recibe un lote de facturas. Cada factura es un diccionario con
+    `"vendor"` y `"raw_amount"` (texto). Algunas tienen montos inválidos.
+
+    Escribe una función `filter_valid(invoices)` que devuelva una lista
+    con solo las facturas cuyo `"raw_amount"` se puede convertir a `float`.
+
+    Usa `parse_amount` (ya definida abajo) para decidir si es válido.
+  hint: |
+    Itera con `for`, llama `parse_amount(inv["raw_amount"])`, y si el resultado
+    no es `None`, añade la factura a la lista de válidas.
+  starter: |
+    def parse_amount(text: str) -> float | None:
+        try:
+            return float(text)
+        except ValueError:
+            return None
+
+
+    def filter_valid(invoices: list[dict]) -> list[dict]:
+        # completa aquí
+        pass
+
+
+    batch = [
+        {"vendor": "ACME",    "raw_amount": "4820.50"},
+        {"vendor": "Globex",  "raw_amount": "N/A"},
+        {"vendor": "Initech", "raw_amount": "1500.0"},
+        {"vendor": "ACME",    "raw_amount": ""},
+        {"vendor": "Globex",  "raw_amount": "3100.75"},
+    ]
+
+    validas = filter_valid(batch)
+    print(f"Válidas: {len(validas)}")
+    for inv in validas:
+        print(inv["vendor"], inv["raw_amount"])
+  test: |
+    batch = [
+        {"vendor": "ACME",    "raw_amount": "4820.50"},
+        {"vendor": "Globex",  "raw_amount": "N/A"},
+        {"vendor": "Initech", "raw_amount": "1500.0"},
+        {"vendor": "ACME",    "raw_amount": ""},
+        {"vendor": "Globex",  "raw_amount": "3100.75"},
+    ]
+    result = filter_valid(batch)
+    assert len(result) == 3, f"esperaba 3 válidas, obtuve {len(result)}"
+    vendors = [inv["vendor"] for inv in result]
+    assert "ACME" in vendors
+    assert "Initech" in vendors
+    # Globex con N/A y ACME con "" deben quedar fuera
+    assert result[0]["raw_amount"] == "4820.50"
+    print("ok")
+  solution: |
+    def parse_amount(text: str) -> float | None:
+        try:
+            return float(text)
+        except ValueError:
+            return None
+
+
+    def filter_valid(invoices: list[dict]) -> list[dict]:
+        valid = []
+        for inv in invoices:
+            if parse_amount(inv["raw_amount"]) is not None:
+                valid.append(inv)
+        return valid
+
+
+    batch = [
+        {"vendor": "ACME",    "raw_amount": "4820.50"},
+        {"vendor": "Globex",  "raw_amount": "N/A"},
+        {"vendor": "Initech", "raw_amount": "1500.0"},
+        {"vendor": "ACME",    "raw_amount": ""},
+        {"vendor": "Globex",  "raw_amount": "3100.75"},
+    ]
+
+    validas = filter_valid(batch)
+    print(f"Válidas: {len(validas)}")
+    for inv in validas:
+        print(inv["vendor"], inv["raw_amount"])

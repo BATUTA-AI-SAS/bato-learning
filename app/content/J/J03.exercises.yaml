@@ -1,0 +1,265 @@
+- slug: cfdi_cancellation_router
+  title: "Router de cancelación CFDI: ¿automático o interrupt_before?"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `cfdi_cancel_route(motivo: str, has_replacement_uuid: bool) -> dict`
+    que decide si una cancelación de CFDI 4.0 puede ser automática o requiere
+    pausa para aprobación humana.
+
+    Reglas del SAT:
+    - Motivo "01" (error con relación): automático SOLO si `has_replacement_uuid` es True;
+      si es False → requiere interrupt_before.
+    - Motivo "02" (error sin relación): automático siempre.
+    - Motivo "03" (no se realizó la operación): SIEMPRE requiere interrupt_before
+      (receptor debe aceptar o esperar 72h de auto-aceptación).
+    - Motivo "04" (operación en factura global): automático siempre.
+    - Cualquier otro motivo: requiere interrupt_before.
+
+    Retorna:
+    ```python
+    {
+        "action": "auto_cancel" | "interrupt_before",
+        "reason": str,   # explicación en español
+        "max_wait_hours": int | None,  # solo para interrupt_before; 72 para motivo 03
+    }
+    ```
+  hint: |
+    Usa un dict de configuración por motivo antes de la función principal.
+  starter: |
+    def cfdi_cancel_route(motivo: str, has_replacement_uuid: bool) -> dict:
+        if motivo == "03":
+            return {
+                "action": "interrupt_before",
+                "reason": "Motivo 03 requiere aceptación del receptor o espera de 72h",
+                "max_wait_hours": 72,
+            }
+        # Completa los demás motivos...
+        return {
+            "action": "interrupt_before",
+            "reason": "Motivo desconocido — requiere revisión manual",
+            "max_wait_hours": None,
+        }
+  test: |
+    # Motivo 01 con UUID de sustitución → automático
+    r1 = cfdi_cancel_route("01", has_replacement_uuid=True)
+    assert r1["action"] == "auto_cancel", f"01 con UUID debe ser auto: {r1}"
+
+    # Motivo 01 sin UUID de sustitución → interrupt
+    r2 = cfdi_cancel_route("01", has_replacement_uuid=False)
+    assert r2["action"] == "interrupt_before", f"01 sin UUID debe ser interrupt: {r2}"
+
+    # Motivo 02 → siempre automático
+    r3 = cfdi_cancel_route("02", has_replacement_uuid=False)
+    assert r3["action"] == "auto_cancel", f"02 debe ser auto: {r3}"
+
+    # Motivo 03 → siempre interrupt, 72h
+    r4 = cfdi_cancel_route("03", has_replacement_uuid=True)
+    assert r4["action"] == "interrupt_before"
+    assert r4["max_wait_hours"] == 72, f"Motivo 03 debe tener 72h wait: {r4}"
+
+    # Motivo 04 → automático
+    r5 = cfdi_cancel_route("04", has_replacement_uuid=False)
+    assert r5["action"] == "auto_cancel", f"04 debe ser auto: {r5}"
+
+    # Motivo desconocido → interrupt
+    r6 = cfdi_cancel_route("99", has_replacement_uuid=True)
+    assert r6["action"] == "interrupt_before", f"Motivo desconocido debe ser interrupt: {r6}"
+
+    print("ok")
+  solution: |
+    def cfdi_cancel_route(motivo: str, has_replacement_uuid: bool) -> dict:
+        if motivo == "01":
+            if has_replacement_uuid:
+                return {"action": "auto_cancel",
+                        "reason": "Motivo 01 con UUID de sustitución: automático",
+                        "max_wait_hours": None}
+            return {"action": "interrupt_before",
+                    "reason": "Motivo 01 sin UUID de sustitución: requiere revisión",
+                    "max_wait_hours": None}
+        if motivo == "02":
+            return {"action": "auto_cancel",
+                    "reason": "Motivo 02 (error sin relación): automático",
+                    "max_wait_hours": None}
+        if motivo == "03":
+            return {"action": "interrupt_before",
+                    "reason": "Motivo 03 requiere aceptación del receptor o espera de 72h",
+                    "max_wait_hours": 72}
+        if motivo == "04":
+            return {"action": "auto_cancel",
+                    "reason": "Motivo 04 (factura global): automático",
+                    "max_wait_hours": None}
+        return {"action": "interrupt_before",
+                "reason": "Motivo desconocido — requiere revisión manual",
+                "max_wait_hours": None}
+
+- slug: invoice_workflow_legal_steps
+  title: "Pasos legalmente requeridos vs opcionales en un workflow de emisión de factura"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Dado el siguiente workflow de emisión de factura para un tenant mexicano
+    (TiendaBox, retail), clasifica cada paso como "required" (legalmente
+    obligatorio bajo SAT/LFPDPPP) u "optional" (buena práctica pero no exigido).
+
+    Pasos del workflow:
+    1. "validate_rfc_receptor": validar RFC del receptor contra SAT
+    2. "generate_xml_cfdi40": generar XML CFDI 4.0 con campos obligatorios
+    3. "send_to_pac": enviar a PAC para timbre fiscal digital
+    4. "add_company_logo": añadir logo de la empresa al PDF de representación
+    5. "store_uuid_in_db": guardar UUID del CFDI en la base de datos
+    6. "send_pdf_to_client": enviar PDF al cliente por email
+    7. "store_xml_5years": conservar XML original 5 años
+    8. "log_rfc_in_analytics": registrar el RFC en dashboard de analytics del tenant
+
+    Implementa `classify_invoice_step(step_name: str) -> dict` que retorna:
+    ```python
+    {"classification": "required" | "optional", "reason": str}
+    ```
+
+    Reglas:
+    - required: PAC timbre, XML CFDI 4.0, validar RFC, conservar XML 5 años.
+    - optional: logo en PDF, analytics con RFC, envío de PDF por email.
+    - store_uuid_in_db: required (sin UUID no puedes cancelar ni conciliar).
+  hint: |
+    Crea un dict con la clasificación predefinida para cada paso conocido.
+  starter: |
+    STEP_CLASSIFICATIONS: dict[str, dict] = {
+        # Completa este dict
+    }
+
+    def classify_invoice_step(step_name: str) -> dict:
+        return STEP_CLASSIFICATIONS.get(
+            step_name,
+            {"classification": "optional", "reason": "Paso no catalogado"}
+        )
+  test: |
+    # Pasos required
+    for step in ("validate_rfc_receptor", "generate_xml_cfdi40",
+                 "send_to_pac", "store_uuid_in_db", "store_xml_5years"):
+        r = classify_invoice_step(step)
+        assert r["classification"] == "required", f"{step} debe ser required, got {r}"
+
+    # Pasos optional
+    for step in ("add_company_logo", "send_pdf_to_client"):
+        r = classify_invoice_step(step)
+        assert r["classification"] == "optional", f"{step} debe ser optional, got {r}"
+
+    # log_rfc_in_analytics: depende de si el RFC es de persona física (PII)
+    # Para el test asumimos que es opcional (analytics no es requisito fiscal)
+    r_log = classify_invoice_step("log_rfc_in_analytics")
+    assert r_log["classification"] == "optional", f"log_rfc_in_analytics debe ser optional: {r_log}"
+
+    print("ok")
+  solution: |
+    STEP_CLASSIFICATIONS: dict[str, dict] = {
+        "validate_rfc_receptor": {
+            "classification": "required",
+            "reason": "RFC inválido → PAC rechaza el timbre; CFDI sin validez fiscal"
+        },
+        "generate_xml_cfdi40": {
+            "classification": "required",
+            "reason": "Estructura CFDI 4.0 obligatoria desde 1 abril 2023 (SAT)"
+        },
+        "send_to_pac": {
+            "classification": "required",
+            "reason": "Sin timbre PAC el CFDI no tiene validez fiscal (SAT)"
+        },
+        "add_company_logo": {
+            "classification": "optional",
+            "reason": "El PDF es representación gráfica opcional; el XML timbrado es el documento legal"
+        },
+        "store_uuid_in_db": {
+            "classification": "required",
+            "reason": "Sin UUID no puedes cancelar el CFDI ni conciliarlo contra el SAT"
+        },
+        "send_pdf_to_client": {
+            "classification": "optional",
+            "reason": "El SAT exige entregar el comprobante, no necesariamente en PDF; el XML basta"
+        },
+        "store_xml_5years": {
+            "classification": "required",
+            "reason": "Art. 30 CFF México: obligación de conservar contabilidad 5 años"
+        },
+        "log_rfc_in_analytics": {
+            "classification": "optional",
+            "reason": "Analytics no es requisito fiscal; si el RFC es de persona física, requiere finalidad en aviso de privacidad (LFPDPPP 2025)"
+        },
+    }
+
+    def classify_invoice_step(step_name: str) -> dict:
+        return STEP_CLASSIFICATIONS.get(
+            step_name,
+            {"classification": "optional", "reason": "Paso no catalogado"}
+        )
+
+- slug: rfc_pii_classifier
+  title: "Clasificador RFC persona física vs moral"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `classify_rfc(rfc: str) -> dict` que clasifica un RFC mexicano y
+    retorna si es PII o no bajo la LFPDPPP 2025.
+
+    Reglas:
+    - RFC de persona física: 13 caracteres (4 letras + 6 dígitos fecha + 3 alfanuméricos homoclave)
+    - RFC de persona moral: 12 caracteres (3 letras + 6 dígitos fecha + 3 alfanuméricos)
+    - RFC genérico "XAXX010101000" (extranjero sin RFC): no es PII
+    - RFC inválido (longitud incorrecta o formato erróneo): lanzar ValueError
+
+    Retorna:
+    ```python
+    {"rfc": str, "type": "fisica" | "moral" | "extranjero", "is_pii": bool}
+    ```
+  hint: |
+    La longitud es el indicador más confiable: 13 = física, 12 = moral (salvo XAXX...).
+  starter: |
+    def classify_rfc(rfc: str) -> dict:
+        rfc = rfc.strip().upper()
+        if rfc in ("XAXX010101000", "XEXX010101000"):
+            return {"rfc": rfc, "type": "extranjero", "is_pii": False}
+        if len(rfc) == 13:
+            return {"rfc": rfc, "type": "fisica", "is_pii": True}
+        elif len(rfc) == 12:
+            return {"rfc": rfc, "type": "moral", "is_pii": False}
+        else:
+            raise ValueError(f"RFC inválido: longitud {len(rfc)}, esperado 12 o 13")
+  test: |
+    # Persona física (13 chars)
+    r1 = classify_rfc("GODE561231GR8")
+    assert r1["type"] == "fisica"
+    assert r1["is_pii"] is True
+
+    # Persona moral (12 chars)
+    r2 = classify_rfc("IIA891205XX3")
+    assert r2["type"] == "moral"
+    assert r2["is_pii"] is False
+
+    # Extranjero genérico
+    r3 = classify_rfc("XAXX010101000")
+    assert r3["type"] == "extranjero"
+    assert r3["is_pii"] is False
+
+    # RFC inválido → ValueError
+    try:
+        classify_rfc("ABC123")
+        assert False, "Debería lanzar ValueError"
+    except ValueError:
+        pass
+
+    # Espacios al inicio/final deben limpiarse
+    r4 = classify_rfc("  GODE561231GR8  ")
+    assert r4["type"] == "fisica"
+
+    print("ok")
+  solution: |
+    def classify_rfc(rfc: str) -> dict:
+        rfc = rfc.strip().upper()
+        if rfc in ("XAXX010101000", "XEXX010101000"):
+            return {"rfc": rfc, "type": "extranjero", "is_pii": False}
+        if len(rfc) == 13:
+            return {"rfc": rfc, "type": "fisica", "is_pii": True}
+        elif len(rfc) == 12:
+            return {"rfc": rfc, "type": "moral", "is_pii": False}
+        else:
+            raise ValueError(f"RFC inválido: longitud {len(rfc)}, esperado 12 o 13")

@@ -1,0 +1,68 @@
+- slug: accumulator-init
+  question: |
+    ¿Qué ocurre si olvidas inicializar `total` antes del bucle?
+
+    ```python
+    for inv in invoices:
+        total += inv["amount"]
+    ```
+  explanation: |
+    Python no puede sumar a una variable que no existe. `total += x` es
+    equivalente a `total = total + x`. Si `total` no existe todavía,
+    la parte derecha `total + x` lanza `NameError`.
+  options:
+    - text: "`total` se inicializa automáticamente en `0`"
+      correct: false
+      feedback: "Python no inicializa variables automáticamente. `total += x` requiere que `total` ya exista."
+    - text: "Lanza `NameError: name 'total' is not defined`"
+      correct: true
+      feedback: "Correcto. Debes declarar `total = 0.0` antes del bucle."
+    - text: "`total` toma el valor del primer elemento"
+      correct: false
+      feedback: "Eso no ocurre en Python. En algunos otros lenguajes sí, pero Python es estricto: la variable debe existir antes."
+    - text: "El bucle se salta y `total` no se crea"
+      correct: false
+      feedback: "El bucle no se salta. Lanza `NameError` en la primera iteración al intentar evaluar `total + inv['amount']`."
+
+- slug: for-vs-range-len
+  question: |
+    Tienes `invoices = [inv1, inv2, inv3]`. ¿Cuál es la forma **más idiomática**
+    de iterar sobre los elementos sin necesitar el índice numérico?
+  explanation: |
+    Cuando solo necesitas el elemento (no su posición), `for inv in invoices:`
+    es la forma idiomática. `range(len(invoices))` es correcto pero innecesariamente
+    indirecto — obliga a acceder por índice `invoices[i]` cuando no lo necesitas.
+  options:
+    - text: "`for i in range(len(invoices)): inv = invoices[i]`"
+      correct: false
+      feedback: "Funciona, pero es el anti-patrón. Usa `for inv in invoices:` directamente."
+    - text: "`for inv in invoices:`"
+      correct: true
+      feedback: "Correcto. Directo, legible, sin riesgo de error de índice."
+    - text: "`for i in range(3):`"
+      correct: false
+      feedback: "Hardcodear `3` es frágil. Si la lista cambia de tamaño, el código falla."
+    - text: "`while i < len(invoices): inv = invoices[i]; i += 1`"
+      correct: false
+      feedback: "Un `while` con contador manual es mucho más verboso y propenso a errores. `for` es la herramienta correcta aquí."
+
+- slug: continue-behavior
+  question: |
+    ¿Qué hace `continue` dentro de un bucle `for`?
+  explanation: |
+    `continue` interrumpe la iteración actual y salta directamente al siguiente
+    elemento del iterable. El resto del cuerpo del bucle, después del `continue`,
+    no se ejecuta para ese elemento. El bucle no termina — solo salta esa vuelta.
+  options:
+    - text: "Termina el bucle completamente"
+      correct: false
+      feedback: "Eso lo hace `break`. `continue` solo salta la vuelta actual y sigue con la siguiente."
+    - text: "Salta al siguiente elemento y sigue el bucle"
+      correct: true
+      feedback: "Correcto. `continue` descarta el resto del cuerpo para esa iteración y avanza al siguiente elemento."
+    - text: "Repite el elemento actual de nuevo"
+      correct: false
+      feedback: "No. El elemento actual ya no se vuelve a procesar. `continue` avanza al siguiente."
+    - text: "Devuelve el valor actual de la variable del bucle"
+      correct: false
+      feedback: "`continue` no devuelve nada. `return` devuelve valores, pero solo desde dentro de una función."

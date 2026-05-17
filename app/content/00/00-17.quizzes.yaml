@@ -1,0 +1,59 @@
+- slug: json-syntax-rules
+  question: |
+    ¿Cuál de estos fragmentos es JSON válido?
+  explanation: |
+    JSON exige comillas dobles en claves y valores de tipo string. Los booleanos
+    son `true`/`false` en minúscula. No admite comentarios ni trailing commas.
+    El segundo y tercer fragmentos usan comillas simples y `True` con mayúscula,
+    que son válidos en Python pero no en JSON.
+  options:
+    - text: '`{"vendor": "ACME", "paid": false}`'
+      correct: true
+      feedback: 'Correcto. Comillas dobles, booleano en minúscula: JSON válido.'
+    - text: "`{'vendor': 'ACME', 'paid': False}`"
+      correct: false
+      feedback: "Comillas simples y `False` con mayúscula: esto es Python, no JSON. `json.loads` lanzaría `JSONDecodeError`."
+    - text: '`{"vendor": "ACME", "paid": False}`'
+      correct: false
+      feedback: '`False` con mayúscula es Python. En JSON el booleano es `false` (todo minúscula).'
+
+- slug: http-status-codes
+  question: |
+    Tu script llama a la API de facturas de ACME y recibe una respuesta con
+    status `422`. ¿Qué indica y qué debes hacer?
+  explanation: |
+    `422 Unprocessable Entity` es un código `4xx`, que indica un error del cliente:
+    los datos que enviaste no pasaron la validación del servidor. El servidor
+    entendió el request pero no pudo procesarlo porque algo en el body es inválido.
+    La acción correcta es leer el body de la respuesta — las APIs bien diseñadas
+    incluyen detalles de qué campo es incorrecto.
+  options:
+    - text: "Error del cliente (4xx): los datos enviados son inválidos. Lee el body de la respuesta para saber qué campo está mal."
+      correct: true
+      feedback: "Correcto. `422` es `4xx` (cliente), específicamente error de validación. El cuerpo de la respuesta suele decir exactamente qué campo falló."
+    - text: "Error del servidor (5xx): el servidor falló internamente. Reintenta en unos minutos."
+      correct: false
+      feedback: "`422` es `4xx`, no `5xx`. Los errores `5xx` indican fallo del servidor. `4xx` indica que la request en sí tiene un problema que debes corregir."
+    - text: "El request fue exitoso y el servidor está procesando la factura de forma asíncrona."
+      correct: false
+      feedback: "No. `2xx` indica éxito. `422` indica que el servidor rechazó el request porque los datos enviados no son válidos."
+
+- slug: yaml-vs-json-use
+  question: |
+    ¿En cuál de estos contextos es más apropiado usar YAML en lugar de JSON?
+  explanation: |
+    YAML es más legible para humanos (admite comentarios, no requiere comillas en
+    la mayoría de strings, usa indentación) y por eso se usa principalmente en
+    archivos de configuración que los desarrolladores editan a mano: Docker Compose,
+    GitHub Actions, archivos de configuración de aplicaciones. JSON es más apropiado
+    para intercambio de datos entre programas, donde la legibilidad humana no importa.
+  options:
+    - text: "Archivo de configuración de Docker Compose que los desarrolladores editan a mano."
+      correct: true
+      feedback: "Correcto. YAML es el formato nativo de `compose.yaml`. Su legibilidad y soporte de comentarios lo hacen ideal para configuración manual."
+    - text: "Respuesta de una API REST que un script consume de forma automática."
+      correct: false
+      feedback: "Las APIs REST usan JSON por convención. JSON es más predecible y su parser está en la librería estándar de todos los lenguajes. YAML se usa raramente en APIs HTTP."
+    - text: "Payload de un webhook enviado desde Slack a tu servidor."
+      correct: false
+      feedback: "Los webhooks de Slack (y casi todos los servicios web) envían JSON. YAML se usa en configuración, no en comunicación entre servicios."

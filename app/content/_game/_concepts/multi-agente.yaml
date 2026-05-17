@@ -1,0 +1,10 @@
+slug: multi-agente
+title: "¿Qué es un sistema multi-agente?"
+analogy_md: |
+  En lugar de un solo agente que hace todo, varios agentes especializados colaboran como
+  departamentos en ACME: uno extrae datos, otro los valida, otro genera el informe. Un orquestador
+  coordina el flujo.
+example_md: |
+  ```
+  orquestador → agente-extraccion → agente-validacion → agente-reporte
+  ```

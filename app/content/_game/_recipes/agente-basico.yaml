@@ -1,0 +1,17 @@
+slug: agente-basico
+title: "Receta: Agente básico con bucle ReAct"
+chapter_ref: phase3
+ingredients: [agente, tool-calling, llm, guardrails]
+body_md: |
+  El patrón ReAct: el LLM razona, actúa (llama herramienta), observa el resultado y repite.
+  El bucle termina cuando el modelo responde sin pedir herramientas o se alcanza el límite de pasos.
+yields_md: |
+  ```python
+  mensajes = [{"role": "user", "content": tarea}]
+  for _ in range(MAX_PASOS):
+      resp = client.messages.create(model=MODEL, tools=TOOLS, messages=mensajes)
+      if resp.stop_reason != "tool_use":
+          break
+      resultado = ejecutar_tool(resp.content[0])
+      mensajes += [{"role": "assistant", ...}, {"role": "user", "content": resultado}]
+  ```

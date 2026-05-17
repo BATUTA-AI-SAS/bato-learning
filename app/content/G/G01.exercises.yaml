@@ -1,0 +1,234 @@
+- slug: discovery-brief-andina
+  title: "Brief de discovery para Constructora Andina"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Completaste el discovery con Constructora Andina. Tus notas:
+    - Héctor Rivas (contador general) describió el proceso: 3 bancos, 2 días/mes,
+      PDFs con formatos distintos.
+    - El macro de Excel que usaban se rompe con cada cambio de PDF del banco.
+    - En febrero, un cargo duplicado de $1.8M COP pasó desapercibido 40 días.
+    - Héctor mencionó que «el gerente decide estas cosas».
+    - No se habló de presupuesto.
+    - Acordaron reunirse la semana siguiente.
+
+    Completa el diccionario `brief` con los campos del template BANT
+    post-discovery. Usa `None` para los campos que no pudiste validar.
+    El campo `validated` debe ser `True` solo si el dato fue confirmado
+    en la reunión, `False` si es una inferencia tuya.
+  hint: |
+    El Budget de la PYME raramente se confirma en el primer discovery.
+    La Authority tampoco: Héctor dice «el gerente decide» pero no diste
+    con el gerente. Marca esos como no validados.
+  starter: |
+    brief = {
+        "pain_quantified": {
+            "description": "",  # descripción del dolor en lenguaje del cliente
+            "monthly_cost_cop": 0,  # estimación en COP/mes
+            "incident": ""  # incidente concreto con costo
+        },
+        "bant": {
+            "budget": {"validated": False, "range_usd": None},
+            "authority": {
+                "economic_buyer_name": "",
+                "economic_buyer_role": "",
+                "validated": False
+            },
+            "need": {"validated": False, "description": ""},
+            "timing": {"validated": False, "next_step": "", "date": ""}
+        },
+        "champion": {"name": "", "role": ""},
+        "tried_before": "",  # qué intentaron y por qué falló
+        "next_step_agreed": ""
+    }
+  test: |
+    assert isinstance(brief, dict), "brief debe ser dict"
+
+    pain = brief["pain_quantified"]
+    assert pain["description"] != "", "description del dolor no puede estar vacía"
+    assert pain["monthly_cost_cop"] > 0, "monthly_cost_cop debe ser > 0 (16h × 25000 COP)"
+    assert pain["incident"] != "", "el incidente del duplicado debe estar documentado"
+
+    bant = brief["bant"]
+    # Budget no validado en este discovery
+    assert bant["budget"]["validated"] is False, \
+        "Budget no fue validado — Héctor no conoce el presupuesto de software"
+
+    # Authority: Héctor no es el comprador económico
+    auth = bant["authority"]
+    assert auth["economic_buyer_name"] != "", "hay un comprador económico: el gerente general"
+    assert auth["validated"] is False, \
+        "Authority no validada — no hablaste con el gerente directamente"
+
+    # Need: sí validada
+    assert bant["need"]["validated"] is True, \
+        "El need sí fue validado: dolor cuantificado (16h/mes + incidente)"
+
+    # Timing: siguiente reunión acordada
+    assert bant["timing"]["next_step"] != "", "next_step no puede estar vacío"
+    assert bant["timing"]["date"] != "", "debe haber una fecha acordada"
+
+    champion = brief["champion"]
+    assert champion["name"] != "", "champion debe tener nombre"
+    assert "contador" in champion["role"].lower() or "contaduría" in champion["role"].lower(), \
+        "el champion es Héctor Rivas, contador general"
+
+    assert brief["tried_before"] != "", "documenta qué intentaron antes (macro de Excel)"
+    print("ok")
+  solution: |
+    brief = {
+        "pain_quantified": {
+            "description": "La conciliación bancaria de 3 cuentas toma 2 días/mes. PDFs con formatos distintos que rompen el macro de Excel.",
+            "monthly_cost_cop": 400000,  # 16h × 25000 COP/h
+            "incident": "Febrero 2026: cargo duplicado Bancolombia de $1.8M COP, detectado 40 días después."
+        },
+        "bant": {
+            "budget": {"validated": False, "range_usd": None},
+            "authority": {
+                "economic_buyer_name": "Carlos Mendoza (o equivalente)",
+                "economic_buyer_role": "Gerente general",
+                "validated": False
+            },
+            "need": {"validated": True, "description": "Automatizar conciliación bancaria 3 cuentas, eliminar trabajo manual de 16h/mes y detección tardía de duplicados."},
+            "timing": {"validated": True, "next_step": "Reunión con gerente general + Héctor", "date": "En 5 días hábiles"}
+        },
+        "champion": {"name": "Héctor Rivas", "role": "Contador general"},
+        "tried_before": "Macro de Excel que se rompe cada vez que el banco cambia el formato del PDF.",
+        "next_step_agreed": "Reunión la semana siguiente con el gerente general para demo + propuesta."
+    }
+  hints:
+    - "monthly_cost_cop = horas/mes × tarifa horaria. Héctor mencionó cuánto tiempo tarda."
+    - "El comprador económico es quien firmará el contrato, no quien sufre el dolor diario."
+    - "BANT: Budget y Authority no validados es CORRECTO para este discovery. No inventes."
+
+- slug: qualify-or-not
+  title: "¿Califica o no califica?"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Tienes tres casos de discovery. Para cada uno, decide si el lead está
+    calificado para avanzar a demo (`True`) o no (`False`), y documenta
+    la razón principal.
+
+    Un lead califica si tiene: (1) dolor cuantificado, (2) acceso al
+    comprador económico confirmado o en agenda, (3) budget implícito
+    compatible con tu oferta (200–2000 USD/mes).
+  hint: |
+    Caso C tiene dolor pero el «gerente de IT» raramente es el comprador
+    económico en una PYME LATAM para herramientas contables.
+  starter: |
+    cases = [
+        {
+            "id": "A",
+            "description": "CFO de distribuidora de 150 empleados. Quiere automatizar el reporte de cartera. Dolor: 8h/semana del analista. Budget: 'lo que sea razonable'. Firmaron LOI del POC.",
+            "qualifies": None,  # True o False
+            "reason": ""
+        },
+        {
+            "id": "B",
+            "description": "Contador de una microempresa de 5 personas. Quiere 'algo de IA'. No tiene ERP, usa Excel. Presupuesto: 'lo menos posible'.",
+            "qualifies": None,
+            "reason": ""
+        },
+        {
+            "id": "C",
+            "description": "Gerente de IT de empresa manufacturera de 300 empleados. Quiere automatizar reportes. Dice que el dueño 'está interesado'. No has hablado con el dueño.",
+            "qualifies": None,
+            "reason": ""
+        }
+    ]
+  test: |
+    assert isinstance(cases, list) and len(cases) == 3
+    for c in cases:
+        assert c["qualifies"] is not None, f"Caso {c['id']}: qualifies no puede ser None"
+        assert c["reason"] != "", f"Caso {c['id']}: reason no puede estar vacía"
+
+    # Caso A: CFO con LOI firmada = califica
+    case_a = next(c for c in cases if c["id"] == "A")
+    assert case_a["qualifies"] is True, \
+        "Caso A califica: CFO (comprador económico), dolor cuantificado, LOI firmada."
+
+    # Caso B: microempresa sin ERP, presupuesto mínimo = no califica hoy
+    case_b = next(c for c in cases if c["id"] == "B")
+    assert case_b["qualifies"] is False, \
+        "Caso B no califica: 5 empleados sin ERP, presupuesto incompatible, sin dolor cuantificado."
+
+    # Caso C: gerente IT sin acceso al dueño = no califica hasta hablar con el dueño
+    case_c = next(c for c in cases if c["id"] == "C")
+    assert case_c["qualifies"] is False, \
+        "Caso C no califica todavía: no has hablado con el comprador económico (el dueño)."
+    print("ok")
+  solution: |
+    cases = [
+        {
+            "id": "A",
+            "description": "CFO de distribuidora de 150 empleados...",
+            "qualifies": True,
+            "reason": "Comprador económico (CFO) confirmado y en reunión. Dolor cuantificado (8h/semana). LOI firmada = compromiso de avanzar."
+        },
+        {
+            "id": "B",
+            "description": "Contador de microempresa de 5 personas...",
+            "qualifies": False,
+            "reason": "Sin ERP, sin dolor cuantificado, presupuesto incompatible. No es el perfil de cliente objetivo (PYME 10-500 empleados con ERP)."
+        },
+        {
+            "id": "C",
+            "description": "Gerente de IT de empresa manufacturera...",
+            "qualifies": False,
+            "reason": "No se ha accedido al comprador económico (el dueño). El gerente de IT es un champion potencial, no el firmante. Próximo paso: reunión con el dueño antes de avanzar."
+        }
+    ]
+  hints:
+    - "Un champion útil no reemplaza al comprador económico. Los dos tienen roles distintos."
+    - "Tamaño < 10 empleados raramente justifica 300+ USD/mes en automatización."
+
+- slug: spin-questions-design
+  title: "Diseña las 4 preguntas SPIN para un caso nuevo"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Tu próximo discovery es con TiendaBox Retail (50 empleados, e-commerce).
+    El contacto inicial dijo: «tenemos problemas con las devoluciones; el
+    proceso es muy manual».
+
+    Diseña 4 preguntas siguiendo el marco SPIN (una de cada tipo):
+    S = Situación, P = Problema, I = Implicación, N = Necesidad-beneficio.
+
+    Cada pregunta debe ser abierta (no responde «sí» o «no») y concreta
+    (no genérica tipo «¿qué problema tienes?»).
+  hint: |
+    La pregunta de Implicación amplifica el dolor: conecta el problema
+    con consecuencias en otros procesos o con costos reales.
+  starter: |
+    spin_questions = {
+        "S": "",  # pregunta de situación: cómo funciona hoy el proceso
+        "P": "",  # pregunta de problema: qué falla o duele
+        "I": "",  # pregunta de implicación: qué consecuencias tiene ese fallo
+        "N": ""   # pregunta de necesidad: qué valor tendría la solución
+    }
+  test: |
+    assert isinstance(spin_questions, dict)
+    for key in ["S", "P", "I", "N"]:
+        q = spin_questions[key]
+        assert q != "", f"Pregunta {key} no puede estar vacía"
+        assert len(q) > 20, f"Pregunta {key} muy corta — debe ser una pregunta completa"
+        # Verificar que son preguntas (terminan en ?)
+        assert "?" in q, f"Pregunta {key} debe ser una pregunta (contener '?')"
+        # Verificar que son abiertas (no responden sí/no con una sola palabra)
+        starts_lower = q.strip().lower()
+        closed_starters = ["¿tienes", "¿hay", "¿es ", "¿tiene"]
+        is_closed = any(starts_lower.startswith(s) for s in closed_starters)
+        assert not is_closed, \
+            f"Pregunta {key} parece cerrada (sí/no). Usa '¿cómo', '¿qué', '¿cuánto', '¿cuándo'."
+    print("ok")
+  solution: |
+    spin_questions = {
+        "S": "¿Cómo manejan hoy el proceso de devoluciones? ¿Quién lo gestiona, con qué herramientas y cuántas devoluciones tienen en un mes normal?",
+        "P": "¿Qué partes de ese proceso son más problemáticas? ¿Dónde se generan los errores o los retrasos que más les cuestan tiempo?",
+        "I": "¿Qué pasa cuando una devolución se demora o se procesa mal? ¿Afecta la satisfacción del cliente, el inventario, o la conciliación contable?",
+        "N": "Si ese proceso fuera automático — el cliente recibe su nota de crédito en minutos y el inventario se actualiza solo — ¿qué haría tu equipo con el tiempo que se libera?"
+    }
+  hints:
+    - "Pregunta de Situación: empieza con '¿Cómo...' o '¿Cuántos...'"
+    - "Pregunta de Implicación: conecta el dolor con un costo mayor (contable, operativo, relación con cliente)."

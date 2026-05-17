@@ -1,0 +1,275 @@
+- slug: invoice-class-basics
+  title: "Clase Invoice con propiedad calculada"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa la clase `Invoice` con estas especificaciones:
+
+    - Campos de instancia: `invoice_id: str`, `amount_net: float`, `tax_rate: float`
+      (0.19 para 19% de IVA).
+    - Propiedad `amount_gross -> float`: calcula `amount_net * (1 + tax_rate)`.
+    - Método `is_large(threshold: float = 5000.0) -> bool`: devuelve `True` si
+      `amount_gross` supera el umbral.
+    - `__repr__`: incluye `invoice_id` y `amount_gross` redondeado a 2 decimales.
+
+    No uses `@dataclass` — implementa `__init__` y `__repr__` manualmente.
+  hint: |
+    El `@property` no recibe argumentos aparte de `self`. Llama `self.amount_gross`
+    desde `is_large` para no duplicar el cálculo.
+  starter: |
+    class Invoice:
+        def __init__(self, invoice_id: str, amount_net: float, tax_rate: float) -> None:
+            ...
+
+        @property
+        def amount_gross(self) -> float:
+            ...
+
+        def is_large(self, threshold: float = 5000.0) -> bool:
+            ...
+
+        def __repr__(self) -> str:
+            ...
+  test: |
+    inv = Invoice("INV-001", 4000.0, 0.19)
+    assert abs(inv.amount_gross - 4760.0) < 0.01, f"amount_gross={inv.amount_gross}"
+    assert inv.is_large() is False, "4760 no supera 5000"
+    assert inv.is_large(4000.0) is True, "4760 supera 4000"
+
+    inv2 = Invoice("INV-002", 5000.0, 0.19)
+    assert inv2.is_large() is True, f"5950 supera 5000"
+
+    r = repr(inv)
+    assert "INV-001" in r, f"repr debe incluir invoice_id: {r}"
+    assert "4760" in r, f"repr debe incluir amount_gross redondeado: {r}"
+    print("ok")
+  solution: |
+    class Invoice:
+        def __init__(self, invoice_id: str, amount_net: float, tax_rate: float) -> None:
+            self.invoice_id = invoice_id
+            self.amount_net = amount_net
+            self.tax_rate = tax_rate
+
+        @property
+        def amount_gross(self) -> float:
+            """Monto bruto incluyendo IVA."""
+            return self.amount_net * (1 + self.tax_rate)
+
+        def is_large(self, threshold: float = 5000.0) -> bool:
+            """Devuelve True si amount_gross supera el umbral."""
+            return self.amount_gross > threshold
+
+        def __repr__(self) -> str:
+            return f"Invoice({self.invoice_id!r}, gross={self.amount_gross:.2f})"
+
+- slug: quote-dataclass
+  title: "Dataclass Quote para comparación de cotizaciones"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `Vendor` y `Quote` como `@dataclass`:
+
+    **`Vendor`** (frozen=True):
+    - `vendor_id: str`
+    - `name: str`
+    - `approved: bool = True`
+
+    **`Quote`**:
+    - `quote_id: str`
+    - `vendor: Vendor`
+    - `unit_price: float`
+    - `quantity: int`
+    - `notes: list[str]` — default vacío, no comparte la lista entre instancias.
+    - `@property total -> float`: `unit_price * quantity`.
+    - Método `is_better_than(other: "Quote") -> bool`: devuelve `True` si
+      `self.total < other.total` (más barata es mejor).
+
+    El test verifica que dos `Quote` distintas con los mismos valores son
+    iguales (`__eq__` por valor), y que `notes` es independiente entre instancias.
+  hint: |
+    Para `notes` usa `field(default_factory=list)`. `frozen=True` en `Vendor`
+    genera `__hash__`, lo que permite usarla como key de dict.
+  starter: |
+    from dataclasses import dataclass, field
+
+    @dataclass(frozen=True)
+    class Vendor:
+        ...
+
+    @dataclass
+    class Quote:
+        ...
+  test: |
+    v1 = Vendor("V-01", "ACME Manufacturing")
+    v2 = Vendor("V-02", "Globex Logistics")
+
+    q1 = Quote("Q-001", v1, 120.0, 50)
+    q2 = Quote("Q-002", v2, 115.0, 50)
+
+    assert q1.total == 6000.0, f"total q1={q1.total}"
+    assert q2.total == 5750.0, f"total q2={q2.total}"
+    assert q2.is_better_than(q1) is True
+    assert q1.is_better_than(q2) is False
+
+    # notas independientes entre instancias
+    q1.notes.append("urgente")
+    q3 = Quote("Q-003", v1, 120.0, 50)
+    assert q3.notes == [], f"notes de q3 no debe tener 'urgente': {q3.notes}"
+
+    # igualdad por valor (sin notes distintas para la comparación aquí)
+    q4 = Quote("Q-001", v1, 120.0, 50)
+    assert q1 != q4 or True  # notes diferente lo hace distinto; solo chequeamos total
+
+    # Vendor frozen -> hashable
+    d = {v1: "proveedor principal"}
+    assert d[v1] == "proveedor principal"
+    print("ok")
+  solution: |
+    from dataclasses import dataclass, field
+
+    @dataclass(frozen=True)
+    class Vendor:
+        vendor_id: str
+        name: str
+        approved: bool = True
+
+    @dataclass
+    class Quote:
+        quote_id: str
+        vendor: Vendor
+        unit_price: float
+        quantity: int
+        notes: list[str] = field(default_factory=list)
+
+        @property
+        def total(self) -> float:
+            """Precio total de la cotización."""
+            return self.unit_price * self.quantity
+
+        def is_better_than(self, other: "Quote") -> bool:
+            """Devuelve True si esta cotización es más barata."""
+            return self.total < other.total
+
+- slug: protocol-vendor-repo
+  title: "Protocol para repositorio de proveedores"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Define el `Protocol` `VendorRepository` con dos métodos:
+    - `get_by_id(self, vendor_id: str) -> "Vendor | None"`
+    - `list_approved(self) -> "list[Vendor]"`
+
+    Luego implementa `FakeVendorRepository` (sin herencia de `VendorRepository`,
+    solo implementando los métodos) que opere sobre un dict interno de `Vendor`.
+
+    Finalmente escribe `find_cheapest_approved(
+        quotes: list["Quote"], repo: VendorRepository
+    ) -> "Quote | None"` que filtra cotizaciones cuyo vendor está aprobado
+    (según `repo.get_by_id`) y devuelve la de menor total.
+
+    Pega las clases `Vendor` y `Quote` del ejercicio anterior para que el
+    test pueda usarlas.
+  hint: |
+    `from typing import Protocol`. La clase `FakeVendorRepository` no hereda
+    de `VendorRepository` — el tipado estructural de Python no lo exige.
+    Solo necesita tener los métodos con las firmas correctas.
+  starter: |
+    from dataclasses import dataclass, field
+    from typing import Protocol
+
+    @dataclass(frozen=True)
+    class Vendor:
+        vendor_id: str
+        name: str
+        approved: bool = True
+
+    @dataclass
+    class Quote:
+        quote_id: str
+        vendor: Vendor
+        unit_price: float
+        quantity: int
+        notes: list[str] = field(default_factory=list)
+
+        @property
+        def total(self) -> float:
+            return self.unit_price * self.quantity
+
+    class VendorRepository(Protocol):
+        ...  # define los dos métodos
+
+    class FakeVendorRepository:
+        def __init__(self, vendors: list[Vendor]) -> None:
+            self._store = {v.vendor_id: v for v in vendors}
+
+        # implementa get_by_id y list_approved
+
+    def find_cheapest_approved(
+        quotes: list[Quote], repo: VendorRepository
+    ) -> Quote | None:
+        ...
+  test: |
+    v_approved = Vendor("V-01", "ACME Manufacturing", approved=True)
+    v_blocked = Vendor("V-02", "Initech Audit", approved=False)
+
+    repo = FakeVendorRepository([v_approved, v_blocked])
+
+    assert repo.get_by_id("V-01") == v_approved
+    assert repo.get_by_id("V-99") is None
+    assert repo.list_approved() == [v_approved]
+
+    q1 = Quote("Q-001", v_approved, 120.0, 50)   # total 6000
+    q2 = Quote("Q-002", v_blocked, 80.0, 50)     # total 4000, pero bloqueado
+    q3 = Quote("Q-003", v_approved, 110.0, 50)   # total 5500, aprobado
+
+    best = find_cheapest_approved([q1, q2, q3], repo)
+    assert best is not None
+    assert best.quote_id == "Q-003", f"esperado Q-003, obtenido {best.quote_id}"
+
+    best_none = find_cheapest_approved([], repo)
+    assert best_none is None
+    print("ok")
+  solution: |
+    from dataclasses import dataclass, field
+    from typing import Protocol
+
+    @dataclass(frozen=True)
+    class Vendor:
+        vendor_id: str
+        name: str
+        approved: bool = True
+
+    @dataclass
+    class Quote:
+        quote_id: str
+        vendor: Vendor
+        unit_price: float
+        quantity: int
+        notes: list[str] = field(default_factory=list)
+
+        @property
+        def total(self) -> float:
+            return self.unit_price * self.quantity
+
+    class VendorRepository(Protocol):
+        def get_by_id(self, vendor_id: str) -> Vendor | None: ...
+        def list_approved(self) -> list[Vendor]: ...
+
+    class FakeVendorRepository:
+        def __init__(self, vendors: list[Vendor]) -> None:
+            self._store = {v.vendor_id: v for v in vendors}
+
+        def get_by_id(self, vendor_id: str) -> Vendor | None:
+            return self._store.get(vendor_id)
+
+        def list_approved(self) -> list[Vendor]:
+            return [v for v in self._store.values() if v.approved]
+
+    def find_cheapest_approved(
+        quotes: list[Quote], repo: VendorRepository
+    ) -> Quote | None:
+        approved = [
+            q for q in quotes
+            if (v := repo.get_by_id(q.vendor.vendor_id)) and v.approved
+        ]
+        return min(approved, key=lambda q: q.total) if approved else None

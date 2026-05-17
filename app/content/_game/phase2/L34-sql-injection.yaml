@@ -1,0 +1,39 @@
+slug: sql-injection
+title: "Un hacker inyecta SQL en el buscador de facturas"
+kind: predict
+phase: PH02
+ord: 34
+trains_skill: sql-injection-defense
+xp: 20
+est_seconds: 120
+scenario_md: |
+  Un atacante escribe `' OR '1'='1` en el campo de búsqueda de proveedores.
+  Lee el código vulnerable y predice qué retorna la query en ese caso.
+  Luego identifica qué línea arregla el bug.
+payload:
+  code: |
+    import sqlite3
+
+    conn = sqlite3.connect(":memory:")
+    cur = conn.cursor()
+    cur.executescript("""
+    CREATE TABLE invoice (id INTEGER PRIMARY KEY, vendor TEXT, amount REAL, tenant_id TEXT);
+    INSERT INTO invoice VALUES (1, 'Proveedor ACME', 4820.50, 'acme');
+    INSERT INTO invoice VALUES (2, 'Proveedor Globex', 12300.00, 'globex');
+    INSERT INTO invoice VALUES (3, 'Datos Secretos', 99999.00, 'internal');
+    """)
+
+    # VULNERABLE: concatenación directa de input del usuario
+    user_input = "' OR '1'='1"
+    query = f"SELECT * FROM invoice WHERE vendor = '{user_input}'"
+    rows = cur.execute(query).fetchall()
+    print(f"filas devueltas: {len(rows)}")
+  expected_output: "filas devueltas: 3"
+hint_md: |
+  La query construida es: `SELECT * FROM invoice WHERE vendor = '' OR '1'='1'`
+  La condición `'1'='1'` siempre es verdadera — devuelve todas las filas.
+solution_md: |
+  La query resultante es `... WHERE vendor = '' OR '1'='1'` — siempre True.
+  La solución: parámetros enlazados. `cur.execute("SELECT * FROM invoice
+  WHERE vendor = ?", (user_input,))` — el driver escapa el input automáticamente
+  y la inyección es imposible. Nunca concatenes input de usuario en SQL.

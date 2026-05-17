@@ -1,0 +1,296 @@
+- slug: minimal-react-graph
+  title: "Grafo ReAct mínimo con 1 tool"
+  runner: backend
+  kind: code
+  prompt: |
+    Construye un `StateGraph` que:
+    1. Define `State` con `messages: Annotated[list, add_messages]`.
+    2. Tiene un nodo `model` que invoca `ChatAnthropic(model="claude-sonnet-4-6")` con la tool `sql_query` vinculada.
+    3. Tiene un nodo `tools` usando `ToolNode([sql_query])`.
+    4. Conecta `START → model → [tools_condition] → tools → model` y el camino alternativo hacia `END`.
+    5. Compila sin checkpointer.
+    6. Invoca el grafo con el mensaje `"¿Cuántas facturas tiene ACME en 2026-04?"` y verifica que la respuesta final contiene texto (no es vacía).
+
+    La tool `sql_query` ya está definida abajo — no la modifiques.
+
+    ```python
+    from langchain_core.tools import tool
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+    ```
+  hint: |
+    El orden importa: primero declara el LLM con `bind_tools`, luego los nodos,
+    luego las aristas. `add_conditional_edges("model", tools_condition)` añade
+    automáticamente la arista hacia `"tools"` y hacia `END` según el resultado
+    de `tools_condition`.
+  starter: |
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import tool
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+
+    # 1. Define State
+
+    # 2. Crea el LLM con bind_tools
+
+    # 3. Define model_node
+
+    # 4. Construye el grafo
+
+    # 5. Compila y ejecuta
+  test: |
+    # El test asume que el ejercicio expone `final_state` como dict con clave "messages"
+    assert "final_state" in dir() or "final_state" in locals(), \
+        "Debes guardar el resultado del grafo en la variable `final_state`"
+    msgs = final_state["messages"]
+    assert len(msgs) >= 2, f"Se esperan al menos 2 mensajes (user + assistant), hay {len(msgs)}"
+    last = msgs[-1]
+    content = last.content if hasattr(last, "content") else str(last)
+    if isinstance(content, list):
+        content = " ".join(p.get("text", "") for p in content if isinstance(p, dict))
+    assert len(content) > 10, "La respuesta final del modelo está vacía o demasiado corta"
+    print("ok: grafo ReAct ejecutó correctamente")
+  solution: |
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import tool
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+    import os
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-6",
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+    ).bind_tools([sql_query])
+
+    def model_node(state: State) -> dict[str, Any]:
+        return {"messages": [llm.invoke(state["messages"])]}
+
+    g = StateGraph(State)
+    g.add_node("model", model_node)
+    g.add_node("tools", ToolNode([sql_query]))
+    g.add_edge(START, "model")
+    g.add_conditional_edges("model", tools_condition)
+    g.add_edge("tools", "model")
+    app_graph = g.compile()
+
+    final_state = app_graph.invoke(
+        {"messages": [HumanMessage("¿Cuántas facturas tiene ACME en 2026-04?")]},
+    )
+
+- slug: checkpoint-two-turns
+  title: "Dos turnos con checkpointer SQLite"
+  runner: backend
+  kind: code
+  prompt: |
+    Toma el grafo del ejercicio anterior y añade un `SqliteSaver` en memoria
+    (`SqliteSaver.from_conn_string(":memory:")`). Luego:
+    1. Ejecuta el primer turno con `thread_id = "acme:audit:2026-04"`.
+    2. Ejecuta un segundo turno (misma sesión) preguntando `"¿Y cuál es el
+       proveedor con más facturas?"`. Verifica que el segundo turno tiene acceso
+       al historial del primero (el estado tiene al menos 4 mensajes).
+
+    Guarda el estado final del segundo turno en `state_turn2`.
+  hint: |
+    `SqliteSaver.from_conn_string(":memory:")` es un context manager — usa `with`.
+    El `config` lleva `{"configurable": {"thread_id": tid}}`. El segundo `invoke`
+    usa el mismo `config`.
+  starter: |
+    import sqlite3
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import tool
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    # Completa: LLM, nodos, grafo, compilación con checkpointer, dos turnos
+    state_turn2 = {}  # reemplaza con el resultado real
+  test: |
+    assert state_turn2, "state_turn2 no puede estar vacío"
+    msgs = state_turn2.get("messages", [])
+    assert len(msgs) >= 4, (
+        f"El segundo turno debe tener al menos 4 mensajes en el historial "
+        f"(turno 1 user + assistant + turno 2 user + assistant), hay {len(msgs)}"
+    )
+    print("ok: checkpointer mantiene el historial entre turnos")
+  solution: |
+    import os
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import tool
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-6",
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+    ).bind_tools([sql_query])
+
+    def model_node(state: State) -> dict[str, Any]:
+        return {"messages": [llm.invoke(state["messages"])]}
+
+    g = StateGraph(State)
+    g.add_node("model", model_node)
+    g.add_node("tools", ToolNode([sql_query]))
+    g.add_edge(START, "model")
+    g.add_conditional_edges("model", tools_condition)
+    g.add_edge("tools", "model")
+
+    tid = "acme:audit:2026-04"
+    cfg = {"configurable": {"thread_id": tid}}
+
+    with SqliteSaver.from_conn_string(":memory:") as cp:
+        app = g.compile(checkpointer=cp)
+        app.invoke(
+            {"messages": [HumanMessage("¿Cuántas facturas tiene ACME en 2026-04?")]},
+            config=cfg,
+        )
+        state_turn2 = app.invoke(
+            {"messages": [HumanMessage("¿Y cuál es el proveedor con más facturas?")]},
+            config=cfg,
+        )
+
+- slug: interrupt-inspect-resume
+  title: "interrupt_before: pausar, inspeccionar y reanudar"
+  runner: backend
+  kind: code
+  prompt: |
+    Compila el grafo con `interrupt_before=["tools"]`. Ejecuta el primer turno
+    con una pregunta que obligue al modelo a usar `sql_query`. Verifica que el
+    estado devuelto contiene `tool_calls` en el último mensaje (el grafo pausó
+    antes de ejecutar la tool). Luego reanuda con `None` y verifica que la
+    respuesta final es texto (el grafo completó la ejecución).
+
+    Guarda:
+    - `state_paused`: resultado del primer `invoke` (con `interrupt_before`).
+    - `state_final`: resultado del `invoke(None, config=...)` de reanudación.
+  hint: |
+    `state_paused["messages"][-1]` es un `AIMessage` con `tool_calls`. Para
+    reanudar, llama `app.invoke(None, config=cfg)` — el primer argumento es
+    `None`, no un dict vacío.
+  starter: |
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import tool
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    # Completa el grafo, compilación con interrupt_before y checkpointer
+    state_paused = {}
+    state_final = {}
+  test: |
+    # Verificar pausa
+    assert state_paused, "state_paused no puede estar vacío"
+    last_paused = state_paused.get("messages", [])
+    assert last_paused, "No hay mensajes en state_paused"
+    last_msg = last_paused[-1]
+    tool_calls = getattr(last_msg, "tool_calls", [])
+    assert tool_calls, (
+        "El último mensaje en state_paused debe tener tool_calls "
+        "(el grafo pausó antes de ejecutar la tool)"
+    )
+    # Verificar reanudación
+    assert state_final, "state_final no puede estar vacío"
+    final_content = state_final.get("messages", [])[-1].content
+    if isinstance(final_content, list):
+        final_content = " ".join(p.get("text", "") for p in final_content if isinstance(p, dict))
+    assert len(final_content) > 5, "La respuesta final tras la reanudación está vacía"
+    print("ok: interrupt_before pausó y reanudó correctamente")
+  solution: |
+    import os
+    from typing import Annotated, Any, TypedDict
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import tool
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    from langgraph.graph import END, START, StateGraph
+    from langgraph.graph.message import add_messages
+    from langgraph.prebuilt import ToolNode, tools_condition
+
+    @tool
+    def sql_query(query: str, tenant: str) -> str:
+        """Ejecuta una query SQL de solo-lectura sobre el warehouse del tenant."""
+        return f"[{tenant}] 12 facturas, total 48 210,00 EUR"
+
+    class State(TypedDict):
+        messages: Annotated[list, add_messages]
+
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-6",
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+    ).bind_tools([sql_query])
+
+    def model_node(state: State) -> dict[str, Any]:
+        return {"messages": [llm.invoke(state["messages"])]}
+
+    g = StateGraph(State)
+    g.add_node("model", model_node)
+    g.add_node("tools", ToolNode([sql_query]))
+    g.add_edge(START, "model")
+    g.add_conditional_edges("model", tools_condition)
+    g.add_edge("tools", "model")
+
+    tid = "acme:interrupt-demo:2026-04"
+    cfg = {"configurable": {"thread_id": tid}}
+
+    with SqliteSaver.from_conn_string(":memory:") as cp:
+        app = g.compile(checkpointer=cp, interrupt_before=["tools"])
+        state_paused = app.invoke(
+            {"messages": [HumanMessage("¿Cuántas facturas tiene ACME en 2026-04?")]},
+            config=cfg,
+        )
+        state_final = app.invoke(None, config=cfg)

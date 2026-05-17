@@ -1,0 +1,28 @@
+slug: reusable-iva
+title: "Función reutilizable para cualquier impuesto"
+kind: code
+trains_skill: funcion
+concepts_introduced: [funcion, def, return, parametros]
+concepts_reinforced: [aritmetica, variable]
+scenario_md: |
+  El CFO de ACME necesita que el script calcule distintos impuestos: IVA al
+  19 %, retención al 3.5 % y timbre al 0.5 %. En lugar de repetir la
+  fórmula, escribe una sola función reutilizable que reciba la base y la tasa.
+payload:
+  starter: |
+    def calcular_impuesto(base: float, tasa: float) -> float:
+        # Una sola línea es suficiente
+        ...
+  tests: |
+    assert calcular_impuesto(1_000_000, 0.19) == 190_000.0
+    assert calcular_impuesto(1_000_000, 0.035) == 35_000.0
+    assert calcular_impuesto(0, 0.19) == 0.0
+    assert calcular_impuesto(500, 0.005) == 2.5
+hint_md: "def define la función, return devuelve el resultado. La fórmula es base × tasa."
+solution_md: |
+  def calcular_impuesto(base: float, tasa: float) -> float:
+      return round(base * tasa, 2)
+  Una función con parámetros evita repetir lógica. Llámala con distintas
+  tasas y siempre hace lo correcto.
+xp: 20
+est_seconds: 90

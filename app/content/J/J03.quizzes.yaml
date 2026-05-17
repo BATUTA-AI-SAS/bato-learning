@@ -1,0 +1,72 @@
+- slug: pac_required_when
+  question: |
+    Tu agente de conciliación bancaria necesita leer 5.000 CFDIs del cliente
+    para compararlos con el libro contable. ¿Necesita integración con un PAC?
+  explanation: |
+    El PAC es necesario únicamente para las operaciones de emisión (timbre) y
+    cancelación de CFDIs. Leer, parsear y analizar CFDIs que ya fueron timbrados
+    no requiere PAC; el agente solo necesita acceso a los XMLs del cliente,
+    que el cliente puede exportar de su ERP (Contpaq, Aspel, Siigo) o descargar
+    del portal del SAT.
+  options:
+    - text: "No — el PAC solo es necesario para emitir o cancelar CFDIs, no para leerlos"
+      correct: true
+      feedback: "Correcto. La lectura y análisis de CFDIs ya timbrados es simplemente parseo de XML. No hay intervención del SAT ni del PAC en tiempo real."
+    - text: "Sí — toda operación con CFDIs requiere PAC por seguridad"
+      correct: false
+      feedback: "Incorrecto. El PAC interviene solo en emisión (timbre) y cancelación. La lectura de un XML ya timbrado no requiere PAC."
+    - text: "Depende — solo si los CFDIs tienen más de R$50.000 de valor"
+      correct: false
+      feedback: "Incorrecto. El umbral de valor no determina si se necesita PAC. La necesidad de PAC depende de la operación (emitir/cancelar), no del monto."
+    - text: "Sí — sin PAC el agente no puede validar que los CFDIs son auténticos"
+      correct: false
+      feedback: "Incorrecto. La autenticidad se puede verificar consultando el UUID en el portal del SAT directamente, sin necesitar un PAC propio. El PAC propio es para emisión/cancelación."
+
+- slug: inai_2025
+  question: |
+    A partir de marzo de 2025, ¿quién es la nueva autoridad de protección de
+    datos personales en México para el sector privado?
+  explanation: |
+    El decreto publicado el 20 de diciembre de 2024 extinguió el INAI. La nueva
+    LFPDPPP publicada el 20 de marzo de 2025 trasladó las funciones de protección
+    de datos del sector privado a la Secretaría de Anticorrupción y Buen Gobierno
+    (SABG). Este es un cambio estructural importante: antes el INAI era un órgano
+    constitucional autónomo; ahora la SABG es una Secretaría de Estado, lo que
+    cambia la naturaleza política de la supervisión.
+  options:
+    - text: "Secretaría de Anticorrupción y Buen Gobierno (SABG)"
+      correct: true
+      feedback: "Correcto. Decreto de 20 dic 2024 extinguió el INAI; la LFPDPPP 2025 asignó las funciones a la SABG."
+    - text: "INAI — sigue operando con nuevo nombre"
+      correct: false
+      feedback: "Incorrecto. El INAI fue extinguido formalmente. Sus funciones (transparencia, protección de datos) se distribuyeron entre distintas entidades; las de datos personales del sector privado fueron a la SABG."
+    - text: "Secretaría de Economía"
+      correct: false
+      feedback: "Incorrecto. La Secretaría de Economía no asumió funciones de protección de datos personales. La autoridad competente es la SABG."
+    - text: "No hay autoridad designada — hay un vacío regulatorio desde 2025"
+      correct: false
+      feedback: "Incorrecto. La LFPDPPP 2025 designó explícitamente a la SABG como la nueva autoridad competente. No hay vacío regulatorio."
+
+- slug: dian_rango_numerico
+  question: |
+    El rango numérico DIAN de un tenant colombiano tenía 1.000 facturas autorizadas
+    (1001–2000) y ya emitió 980. ¿Qué debe hacer el agente?
+  explanation: |
+    Cuando el rango numérico autorizado por la DIAN se agota, no se pueden emitir
+    más facturas hasta obtener un nuevo rango. El proceso tarda 24–48h. Si el agente
+    espera a que se agote para alertar, el cliente queda sin poder facturar. La buena
+    práctica es alertar cuando queda < 10% del rango disponible, permitiendo gestionar
+    el nuevo rango con anticipación.
+  options:
+    - text: "Alertar que quedan 20 facturas (< 10% del rango) y activar el proceso de solicitud de nuevo rango"
+      correct: true
+      feedback: "Correcto. Con 980 de 1000 usadas, quedan 20 (2%). La alerta debe dispararse antes: cuando quedan < 100 (10%). Si llegó a 980 sin alertar, es tarde pero aún hay margen. Solicitar nuevo rango de inmediato."
+    - text: "Continuar emitiendo facturas con número 2001 en adelante sin nuevo rango"
+      correct: false
+      feedback: "Incorrecto. Las facturas fuera del rango autorizado son inválidas fiscalmente. La DIAN solo acepta facturas dentro del rango vigente habilitado."
+    - text: "Reutilizar números del rango ya usado (emitir factura con número 500 otra vez)"
+      correct: false
+      feedback: "Incorrecto. Los números de factura son únicos dentro del rango; no se pueden reutilizar. Cada factura electrónica tiene un CUFE único que incluye el número de consecutivo."
+    - text: "Generar un XML con número 2001 y enviarlo igual — la DIAN lo acepta automáticamente"
+      correct: false
+      feedback: "Incorrecto. La DIAN valida el número de la factura contra el rango habilitado. Un número fuera del rango es rechazado y la factura no tiene validez fiscal."

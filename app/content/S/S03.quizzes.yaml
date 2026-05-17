@@ -1,0 +1,83 @@
+- slug: allowlist-vs-runtime
+  question: |
+    El agente de ACME necesita analizar un nuevo tipo de documento: contratos
+    en Word. Un desarrollador propone que el agente, cuando detecte que el documento
+    es un `.docx`, agregue automáticamente la tool `parse_word_document` a su lista
+    de tools disponibles en runtime. ¿Cuál es el problema con este enfoque?
+  explanation: |
+    Si el harness puede agregar tools en runtime basándose en el input (el tipo de
+    documento), un atacante que controle ese input puede inducir al harness a
+    agregar tools no autorizadas. El principio de allowlist estricta dice que las
+    tools disponibles son estáticas en configuración, no dinámicas. La solución
+    correcta es revisar si `parse_word_document` debe añadirse a la allowlist
+    permanente, con su nivel de riesgo evaluado.
+  options:
+    - text: "Ninguno. El harness controla qué tools se agregan, así que no hay riesgo."
+      correct: false
+      feedback: "El problema es la condición: si el harness agrega tools basándose en el contenido del documento, un documento malicioso puede manipular qué tools están disponibles. El harness es controlable si su lógica depende de datos no confiables."
+    - text: "La allowlist debe ser estática en configuración. Agregar tools en runtime basándose en el input viola el principio y abre un vector de manipulación."
+      correct: true
+      feedback: "Correcto. La solución es evaluar si parse_word_document pertenece a la allowlist permanente (con su nivel de riesgo), no agregarla dinámicamente. La lógica de qué tools existen nunca debe depender de datos del usuario."
+    - text: "El problema es que parse_word_document no tiene dry_run. Si lo tuviera, sería seguro agregarla en runtime."
+      correct: false
+      feedback: "El dry_run es una defensa de ejecución, no de existencia de la tool. El problema es agregar tools en runtime según el input — eso es manipulable independientemente de si tienen dry_run."
+    - text: "No hay problema si la tool es de solo lectura."
+      correct: false
+      feedback: "El nivel de riesgo de la tool es irrelevante para el principio de allowlist. Incluso una tool de solo lectura agregada dinámicamente según el input es un vector: el atacante puede inducir al agente a usar una tool que analiza y exfiltra datos."
+
+- slug: hitl-when
+  question: |
+    Tienes estas cuatro tools para el agente de auditoría:
+    A) `sql_query` — ejecuta SELECT en la DB del tenant
+    B) `write_report` — persiste un PDF en el bucket del tenant
+    C) `send_email` — envía el reporte al CFO del tenant
+    D) `post_slack_message` — publica un mensaje en el canal #audit del tenant
+
+    ¿Cuáles requieren HITL (confirmación humana antes de ejecutar)?
+  explanation: |
+    HITL aplica a tools con efectos irreversibles que salen del sistema del tenant
+    hacia terceros o sistemas externos. `send_email` es irreversible y va a terceros.
+    `post_slack_message` también sale del sistema hacia un canal externo.
+    `sql_query` es solo lectura — no hay efecto. `write_report` escribe en el bucket
+    del tenant pero es revisable — dry_run con preview es suficiente.
+    En la práctica, los umbrales dependen del contexto del cliente; aquí la regla
+    conservadora es: toda comunicación externa = HITL.
+  options:
+    - text: "Solo C) send_email."
+      correct: false
+      feedback: "send_email es HITL, correcto. Pero post_slack_message también envía comunicación externa irreversible — si el mensaje se publica en un canal visible para el cliente, no se puede «borrar» sin dejar rastro."
+    - text: "C) send_email y D) post_slack_message."
+      correct: true
+      feedback: "Correcto. Las dos tools envían comunicación externa irreversible. A) es solo lectura. B) escribe en el bucket del propio tenant — un dry_run con preview es suficiente antes de confirmar."
+    - text: "B) write_report, C) send_email, y D) post_slack_message."
+      correct: false
+      feedback: "write_report escribe en el bucket del tenant — es revisable y corregible antes de la entrega. Dry_run con preview es suficiente. HITL es para efectos que salen del sistema y son irreversibles externamente."
+    - text: "Todas: A, B, C y D."
+      correct: false
+      feedback: "sql_query es solo lectura, sin side-effects. HITL para una SELECT bloquearía cada análisis — sería inoperable. El principio es proporcionar: el costo del HITL debe ser justificado por el impacto de la tool."
+
+- slug: idempotency-replay
+  question: |
+    El agente de ACME llama a `write_report` tres veces con los mismos parámetros
+    (mismo tenant, mismo period, mismo título) porque el loop de LangGraph se reinició
+    dos veces por un error de red. ¿Qué debe pasar con el segundo y tercer intento
+    si `write_report` implementa idempotencia correctamente?
+  explanation: |
+    Con idempotencia, el segundo y tercer intento deben detectar que ya existe un
+    reporte con la misma `idempotency_key` y devolver el reporte existente sin crear
+    uno nuevo. El resultado es idéntico al del primer intento (mismo `report_id`).
+    Esto también protege contra ataques de replay: un atacante que repite la llamada
+    no crea duplicados ni consume presupuesto adicional del tenant.
+  options:
+    - text: "El segundo y tercer intento crean reportes duplicados — es responsabilidad del loop no llamar dos veces."
+      correct: false
+      feedback: "En sistemas distribuidos y agentes con retry, llamadas duplicadas son inevitables (fallos de red, reinicios de worker). La idempotencia en la tool es la defensa correcta, no asumir que el caller siempre llama exactamente una vez."
+    - text: "El segundo y tercer intento detectan la idempotency_key existente y devuelven el reporte ya creado, sin crear duplicados."
+      correct: true
+      feedback: "Correcto. La idempotency_key actúa como deduplicador. El resultado es el mismo reporte_id, sin duplicados. También funciona como defensa contra replay attacks."
+    - text: "El segundo intento crea un reporte nuevo; el tercero ya detecta el segundo y lo devuelve."
+      correct: false
+      feedback: "Si el segundo intento crea un reporte nuevo, hay dos reportes para el mismo período — un duplicado. La idempotency_key debe incluir todos los parámetros que identifican unívocamente la operación."
+    - text: "Los tres intentos fallan con un error de concurrencia porque la DB tiene lock en el tenant."
+      correct: false
+      feedback: "El comportamiento correcto no es fallar — es devolver el resultado existente. El lock de DB es un mecanismo de implementación de la idempotencia, no el resultado observado por el caller."

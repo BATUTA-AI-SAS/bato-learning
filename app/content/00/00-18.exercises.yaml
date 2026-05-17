@@ -1,0 +1,135 @@
+- slug: git-repo-state-simulation
+  title: "Simular el ciclo staging → commit con un dict"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Git mantiene tres zonas: working directory, staging y repository.
+    Simula ese ciclo con diccionarios de Python.
+
+    Completa las funciones:
+    - `stage_file(staging, filename, content)` → añade o actualiza el archivo en staging
+    - `commit(repo, staging, message)` → mueve staging al repo como un commit con número incremental
+    - `get_log(repo)` → devuelve lista de mensajes de commit en orden
+
+    Al final del código de prueba deben existir 2 commits en el log.
+  hint: |
+    Un commit es un dict con "message" y "files". El repo es una lista de esos dicts.
+    commit() vacía staging después de crear el commit.
+  starter: |
+    def stage_file(staging: dict, filename: str, content: str) -> None:
+        # añade filename → content a staging
+        pass
+
+    def commit(repo: list, staging: dict, message: str) -> None:
+        # crea un commit en repo; vacía staging
+        pass
+
+    def get_log(repo: list) -> list[str]:
+        # devuelve lista de mensajes en orden
+        pass
+
+    # --- prueba ---
+    staging = {}
+    repo = []
+
+    stage_file(staging, "invoice.py", "# parser v1")
+    stage_file(staging, "main.py", "# entrada")
+    commit(repo, staging, "feat: parser inicial de facturas ACME")
+
+    stage_file(staging, "invoice.py", "# parser v2 con validación")
+    commit(repo, staging, "fix: validar monto mayor a cero")
+
+    print(get_log(repo))
+  test: |
+    assert len(repo) == 2, f"esperaba 2 commits, obtuve {len(repo)}"
+    log = get_log(repo)
+    assert log[0] == "feat: parser inicial de facturas ACME", f"primer commit incorrecto: {log[0]}"
+    assert log[1] == "fix: validar monto mayor a cero", f"segundo commit incorrecto: {log[1]}"
+    assert len(staging) == 0, "staging debe estar vacío después del último commit"
+    assert "invoice.py" in repo[0]["files"], "el primer commit debe incluir invoice.py"
+    assert repo[1]["files"]["invoice.py"] == "# parser v2 con validación", \
+        "el segundo commit debe tener la versión actualizada de invoice.py"
+    print("ok")
+  solution: |
+    def stage_file(staging: dict, filename: str, content: str) -> None:
+        staging[filename] = content
+
+    def commit(repo: list, staging: dict, message: str) -> None:
+        repo.append({"message": message, "files": dict(staging)})
+        staging.clear()
+
+    def get_log(repo: list) -> list[str]:
+        return [c["message"] for c in repo]
+
+    staging = {}
+    repo = []
+
+    stage_file(staging, "invoice.py", "# parser v1")
+    stage_file(staging, "main.py", "# entrada")
+    commit(repo, staging, "feat: parser inicial de facturas ACME")
+
+    stage_file(staging, "invoice.py", "# parser v2 con validación")
+    commit(repo, staging, "fix: validar monto mayor a cero")
+
+    print(get_log(repo))
+
+- slug: conventional-commit-validator
+  title: "Validar formato de Conventional Commits"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Escribe la función `is_valid_commit(message: str) -> bool` que devuelve
+    `True` si el mensaje sigue el formato Conventional Commits:
+
+      <tipo>[(scope)]: <descripción>
+
+    Tipos válidos: feat, fix, refactor, test, docs, chore
+    Reglas:
+    - El tipo debe ser uno de los válidos
+    - Puede haber scope entre paréntesis (opcional)
+    - Dos puntos y espacio después del tipo/scope son obligatorios
+    - La descripción no puede estar vacía
+    - La descripción no puede empezar con mayúscula
+  hint: |
+    Puedes usar el módulo `re` con una expresión regular.
+    El patrón básico: "^(feat|fix|...)(\\(\\w+\\))?: .+"
+  starter: |
+    import re
+
+    VALID_TYPES = {"feat", "fix", "refactor", "test", "docs", "chore"}
+
+    def is_valid_commit(message: str) -> bool:
+        # implementa aquí
+        pass
+
+    # pruebas manuales
+    print(is_valid_commit("feat: agregar parser de facturas"))          # True
+    print(is_valid_commit("feat(audit): exportar PDF"))                 # True
+    print(is_valid_commit("Cambios varios"))                            # False
+    print(is_valid_commit("fix: "))                                     # False
+    print(is_valid_commit("arreglo: algo"))                             # False
+  test: |
+    assert is_valid_commit("feat: agregar parser de facturas") is True
+    assert is_valid_commit("feat(audit): exportar PDF") is True
+    assert is_valid_commit("fix: corregir cálculo de IVA") is True
+    assert is_valid_commit("chore: actualizar anthropic a 0.42.0") is True
+    assert is_valid_commit("Cambios varios") is False, "sin tipo válido"
+    assert is_valid_commit("fix: ") is False, "descripción vacía"
+    assert is_valid_commit("arreglo: algo") is False, "tipo inválido"
+    assert is_valid_commit("feat:sin espacio") is False, "falta espacio tras los dos puntos"
+    assert is_valid_commit("feat(audit):sin espacio") is False
+    print("ok")
+  solution: |
+    import re
+
+    VALID_TYPES = {"feat", "fix", "refactor", "test", "docs", "chore"}
+
+    def is_valid_commit(message: str) -> bool:
+        pattern = r'^(feat|fix|refactor|test|docs|chore)(\(\w+\))?: .+'
+        return bool(re.match(pattern, message))
+
+    print(is_valid_commit("feat: agregar parser de facturas"))
+    print(is_valid_commit("feat(audit): exportar PDF"))
+    print(is_valid_commit("Cambios varios"))
+    print(is_valid_commit("fix: "))
+    print(is_valid_commit("arreglo: algo"))

@@ -1,0 +1,62 @@
+- slug: rest-route-design
+  question: |
+    ACME necesita un endpoint para **crear** una nueva ejecución de auditoría.
+    ¿Cuál es la ruta REST correcta?
+  explanation: |
+    En REST los recursos son sustantivos. El método HTTP define la acción.
+    `POST /audits` crea un nuevo audit run. `GET /runAudit` rompe la convención REST.
+  options:
+    - text: "`POST /runAudit`"
+      correct: false
+      feedback: "El verbo `run` no debe ir en la ruta — eso es RPC, no REST. La ruta identifica el recurso (`audits`), el método HTTP define la acción (`POST` = crear)."
+    - text: "`POST /audits`"
+      correct: true
+      feedback: "Correcto. `audits` es el sustantivo (el recurso), `POST` es el verbo (crear). El resultado es un nuevo `audit` con su `id`."
+    - text: "`GET /audits/create`"
+      correct: false
+      feedback: "`GET` es para leer, no para crear. Además `create` en la ruta es un verbo — viola la convención REST de sustantivos."
+    - text: "`PUT /audits/new`"
+      correct: false
+      feedback: "`PUT` reemplaza un recurso existente, no crea uno nuevo. `new` es un verbo. La combinación correcta para crear es `POST /audits`."
+
+- slug: webhook-vs-polling
+  question: |
+    Siigo ofrece webhooks para notificar cuando se crea una factura. El equipo de ACME
+    propone hacer polling cada 30 segundos en lugar de implementar el webhook.
+    ¿Cuál es el problema principal del polling en este caso?
+  explanation: |
+    El polling consume recursos del servidor y del cliente constantemente aunque no haya datos nuevos.
+    Un webhook notifica en tiempo real solo cuando hay un evento.
+  options:
+    - text: "El polling no funciona con REST"
+      correct: false
+      feedback: "El polling sí funciona con REST — es simplemente hacer `GET` repetido. El problema no es técnico sino de eficiencia: consume recursos aunque no haya datos nuevos."
+    - text: "El polling consume recursos constantemente y puede perder eventos entre consultas"
+      correct: true
+      feedback: "Correcto. Si Siigo crea dos facturas en un intervalo de 30 segundos, el polling puede verlas juntas o tardar hasta 30 s en detectar la primera. El webhook las notifica en tiempo real."
+    - text: "El polling requiere autenticación y el webhook no"
+      correct: false
+      feedback: "Ambos requieren autenticación. El webhook requiere además verificación HMAC. La diferencia no es de autenticación sino de eficiencia y latencia."
+    - text: "El polling devuelve JSON y el webhook devuelve XML"
+      correct: false
+      feedback: "El formato del payload (JSON o XML) depende del proveedor, no del patrón. Siigo puede usar JSON en ambos. La diferencia es quién inicia la comunicación: el cliente (polling) o el servidor (webhook)."
+
+- slug: openapi-purpose
+  question: |
+    ¿Qué genera automáticamente FastAPI en `/docs` y `/openapi.json`?
+  explanation: |
+    FastAPI genera un schema OpenAPI 3.1 a partir de las firmas de funciones y modelos Pydantic.
+    La UI en `/docs` es Swagger UI — sirve para probar endpoints sin curl.
+  options:
+    - text: "El código fuente de los endpoints en Python"
+      correct: false
+      feedback: "FastAPI no expone el código fuente. Expone el contrato: qué acepta y qué devuelve cada endpoint, en formato estándar OpenAPI."
+    - text: "Un schema estándar OpenAPI 3.1 que describe todos los endpoints, sus inputs y sus outputs"
+      correct: true
+      feedback: "Correcto. FastAPI infiere este schema de las firmas de función, los modelos Pydantic y los decoradores de ruta. La UI en `/docs` lo usa para renderizar la interfaz interactiva."
+    - text: "Una página web para gestionar usuarios de la API"
+      correct: false
+      feedback: "`/docs` es una interfaz de documentación y prueba (Swagger UI), no un panel de administración. No gestiona usuarios ni permisos."
+    - text: "Los logs de todas las requests recibidas"
+      correct: false
+      feedback: "Los logs van a stdout o a un sistema de observabilidad (Phoenix, Logfire). `/docs` es documentación de la API, no un sistema de logging."

@@ -1,0 +1,83 @@
+- slug: flush-vs-commit
+  question: |
+    Un handler FastAPI agrega un `Vendor` a la sesión y necesita su `id`
+    autogenerado para crear un `Invoice` relacionado, todo dentro de la
+    misma transacción (sin hacer visible el vendor hasta que el invoice
+    también esté listo). ¿Qué operación debe llamar entre los dos `session.add`?
+  explanation: |
+    `flush()` envía los SQL a la BD y genera el `id` autoincrementado, pero
+    **no** hace commit: los cambios siguen en la misma transacción y no son
+    visibles para otras sesiones. Así el handler puede usar `vendor.id` para
+    construir el `Invoice` y hacer `commit()` al final cuando ambos están listos.
+    `commit()` haría la operación visible antes de tiempo; `rollback()` descarta
+    todo. `expire_on_commit` no es una operación sino una configuración del factory.
+  options:
+    - text: "`await session.flush()`"
+      correct: true
+      feedback: "Correcto. flush() genera el id sin commit: los datos siguen en la transacción abierta."
+    - text: "`await session.commit()`"
+      correct: false
+      feedback: "commit() hace la operación visible para otras sesiones. El invoice aún no existe en ese punto."
+    - text: "`await session.rollback()`"
+      correct: false
+      feedback: "rollback() descarta todos los cambios acumulados. Es lo contrario de lo que se necesita."
+    - text: "No hace falta nada: SQLAlchemy asigna el id en memoria automáticamente."
+      correct: false
+      feedback: "SQLAlchemy no puede inventar el id autoincrementado sin preguntarle a la BD. Necesita flush o commit."
+
+- slug: n-plus-one-detection
+  question: |
+    El siguiente código lista 30 módulos de la app y para cada uno imprime el
+    número de ejercicios:
+    ```python
+    result = await session.execute(select(Module).order_by(Module.ord))
+    modules = list(result.scalars().all())
+    for mod in modules:
+        print(f"{mod.title}: {len(mod.exercises)} ejercicios")
+    ```
+    ¿Cuántas queries SQL ejecuta este código (aproximadamente)?
+  explanation: |
+    Sin eager loading, acceder a `mod.exercises` dentro del bucle desencadena una
+    query lazy por cada módulo. Con 30 módulos: 1 query para la lista + 30 queries
+    lazy = 31 queries. En async SQLAlchemy esto además lanza `MissingGreenlet` si
+    la sesión ya se cerró. La solución es `.options(selectinload(Module.exercises))`
+    en la query inicial: 1 query para módulos + 1 para todos los exercises = 2.
+  options:
+    - text: "31 queries: 1 para la lista de módulos, 30 más para los ejercicios de cada uno."
+      correct: true
+      feedback: "Correcto. Eso es el problema N+1: 1 query inicial + N queries lazy."
+    - text: "1 query: SQLAlchemy agrupa todas las subqueries automáticamente."
+      correct: false
+      feedback: "SQLAlchemy no agrupa lazy queries automáticamente. Cada acceso a una relación lazy dispara una query separada."
+    - text: "2 queries: una para módulos, una JOIN para todos los ejercicios."
+      correct: false
+      feedback: "Eso sería el resultado con `selectinload` o `joinedload`. Sin ellos, hay una query lazy por módulo."
+    - text: "0 queries adicionales: `exercises` es una lista Python en memoria."
+      correct: false
+      feedback: "La relación `exercises` no está en memoria hasta que se accede. SQLAlchemy la carga bajo demanda (lazy)."
+
+- slug: expire-on-commit
+  question: |
+    Un desarrollador configura `async_sessionmaker(engine, class_=AsyncSession)`
+    sin `expire_on_commit=False`. Después de `await session.commit()`, accede a
+    `new_module.title`. ¿Qué ocurre en un contexto async?
+  explanation: |
+    Por defecto `expire_on_commit=True`: SQLAlchemy marca todos los atributos del
+    objeto como expirados después del commit. La siguiente lectura de `title` intenta
+    una query lazy para refrescar el atributo. En un contexto async (sin greenlets
+    disponibles), esa lazy query lanza `MissingGreenlet`. La solución es configurar
+    `expire_on_commit=False` en el sessionmaker, que mantiene los atributos tal como
+    estaban después del commit sin intentar refrescarlos.
+  options:
+    - text: "`MissingGreenlet` porque SQLAlchemy intenta una lazy query fuera del contexto async correcto."
+      correct: true
+      feedback: "Exacto. `expire_on_commit=True` + lazy access post-commit = MissingGreenlet en async."
+    - text: "El atributo devuelve `None` porque fue expirado."
+      correct: false
+      feedback: "SQLAlchemy no devuelve None silenciosamente; intenta una query y falla si no puede."
+    - text: "No pasa nada: `expire_on_commit` solo afecta a `session.refresh()`."
+      correct: false
+      feedback: "`expire_on_commit=True` expira todos los atributos de todos los objetos después de cada commit."
+    - text: "El acceso funciona porque la sesión sigue abierta."
+      correct: false
+      feedback: "Aunque la sesión siga abierta, los atributos están marcados expirados. El intento de refresh falla en async."

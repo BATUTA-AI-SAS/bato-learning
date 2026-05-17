@@ -1,0 +1,31 @@
+slug: install-pandas
+title: "Instala pandas sin romper el proyecto"
+kind: multi_choice
+trains_skill: paquetes
+concepts_introduced: [paquete, uv-add, pyproject, lockfile]
+concepts_reinforced: [terminal]
+scenario_md: |
+  El Director de TI de ACME quiere analizar el extracto bancario con pandas.
+  El proyecto usa uv como gestor. ¿Cuál es el comando correcto para agregar
+  pandas al proyecto de forma que el lockfile quede actualizado?
+payload:
+  options:
+    - text: "pip install pandas"
+      correct: false
+      feedback: "pip no actualiza pyproject.toml ni el lockfile. El proyecto quedaría desincronizado."
+    - text: "uv add pandas"
+      correct: true
+      feedback: "Correcto. uv add registra la dependencia en pyproject.toml y actualiza el lockfile."
+    - text: "uv install pandas"
+      correct: false
+      feedback: "uv install no existe. El subcomando para agregar dependencias es uv add."
+    - text: "uv pip install pandas"
+      correct: false
+      feedback: "uv pip install instala sin actualizar pyproject.toml. Evítalo en proyectos uv."
+hint_md: "uv tiene un subcomando específico para agregar dependencias al proyecto."
+solution_md: |
+  uv add pandas actualiza pyproject.toml, resuelve versiones compatibles
+  y escribe el lockfile. El entorno virtual queda reproducible en cualquier
+  máquina con uv sync.
+xp: 10
+est_seconds: 60

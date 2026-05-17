@@ -1,0 +1,70 @@
+# B06 — Quizzes: SSE y arquitectura del chat tutor
+
+- slug: sse_vs_websocket
+  question: |
+    ¿Por qué el chat tutor usa SSE en lugar de WebSocket?
+  explanation: |
+    El patrón de chat es unidireccional durante la respuesta: el usuario envía
+    un mensaje (POST) y el servidor envía tokens de vuelta (SSE). No hay nada
+    que el cliente necesite enviar al servidor mientras recibe la respuesta.
+    WebSocket es bidireccional y añade complejidad de handshake y reconexión
+    sin aportar nada en este caso.
+  options:
+    - text: "Porque FastAPI no soporta WebSockets."
+      correct: false
+      feedback: "FastAPI soporta WebSockets con `@router.websocket`. La razón es de diseño, no de limitación técnica."
+    - text: "Porque la comunicación durante la respuesta es unidireccional (servidor → cliente) y SSE es suficiente."
+      correct: true
+      feedback: "Exacto. El cliente ya envió su mensaje en el POST. Durante el streaming, solo el servidor habla. WebSocket sería overkill."
+    - text: "Porque SSE permite enviar más tokens por segundo que WebSocket."
+      correct: false
+      feedback: "La velocidad del stream no depende del protocolo de transporte sino del modelo. Ambos pueden hacer streaming a la misma velocidad."
+    - text: "Porque `EventSource` del navegador es más fácil de usar que WebSocket."
+      correct: false
+      feedback: "La app usa `fetch + ReadableStream`, no `EventSource`. Y la razón de elegir SSE es arquitectónica, no por facilidad de la API del navegador."
+
+- slug: cache_min_tokens
+  question: |
+    El system prompt del tutor incluye el body del módulo marcado con
+    `cache_control`. ¿Qué ocurre si el módulo tiene menos de 1024 tokens?
+  explanation: |
+    El SDK de Anthropic (Sonnet 4.6) requiere un mínimo de 1024 tokens para
+    que el bloque sea elegible para cache. Si el módulo es muy corto, el cache
+    no aplica y se paga el precio normal de input. La app documenta esto en
+    `_team/ARCHITECTURE.md §8.4`.
+  options:
+    - text: "Anthropic cachea el bloque igualmente aunque tenga menos tokens."
+      correct: false
+      feedback: "No. El mínimo es 1024 tokens para Sonnet 4.6. Bloques más cortos no se cachean."
+    - text: "El SDK lanza un error y el request falla."
+      correct: false
+      feedback: "El SDK no lanza un error — simplemente no aplica el cache y cobra el precio normal de input. Silencioso."
+    - text: "El cache no aplica y el bloque se cobra al precio normal de input en cada request."
+      correct: true
+      feedback: "Exacto. Por eso la app recomienda concatenar el body con el footer de convenciones si el módulo es corto, para alcanzar el mínimo."
+    - text: "El `cache_control` se ignora para todos los bloques del request."
+      correct: false
+      feedback: "Solo el bloque corto no se cachea. Los otros bloques que superen el mínimo sí aplican."
+
+- slug: generator_persist_order
+  question: |
+    En el generador del endpoint de chat, ¿cuándo se debe persistir el mensaje
+    del asistente en la DB?
+  explanation: |
+    El mensaje del asistente se acumula en `text_acc` durante el streaming.
+    Persistirlo antes de que termine el stream significaría guardar un mensaje
+    incompleto si el cliente corta la conexión. Persistir al final garantiza
+    que lo que se guarda es lo que el usuario recibió realmente.
+  options:
+    - text: "Antes de empezar el stream, con el texto vacío."
+      correct: false
+      feedback: "Guardar un string vacío primero y actualizarlo al final introduce una race condition y un estado intermedio inválido."
+    - text: "En cada chunk de `delta`, para no perder datos si el cliente corta."
+      correct: false
+      feedback: "Actualizar la DB en cada token crea miles de writes innecesarios y deja mensajes parciales si el cliente corta a mitad."
+    - text: "Al final del generador, después de acumular todo el texto en `text_acc`."
+      correct: true
+      feedback: "Exacto. Se acumula el texto durante el stream y se persiste una sola vez al terminar. Es el patrón que usa `app/routers/chat.py`."
+    - text: "No se persiste; el frontend guarda el mensaje en localStorage."
+      correct: false
+      feedback: "El backend persiste todos los mensajes en `chat_message` para mantener el historial de la sesión. El frontend no tiene responsabilidad de persistencia."

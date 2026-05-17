@@ -1,0 +1,130 @@
+# Quizzes de E01 — Anthropic SDK: messages, tools, prompt caching
+# 4 preguntas. Cada distractor lleva feedback explicativo.
+
+- slug: tool_use_id_mismatch
+  kind: quiz
+  ord: 1
+  question_md: |
+    Envías un mensaje `user` con un `tool_result` cuyo `tool_use_id` no coincide
+    con ningún bloque `tool_use` de la respuesta anterior del modelo.
+    ¿Qué devuelve la API de Anthropic?
+  options:
+    - text_md: "Un error `400 invalid_request_error`."
+      is_correct: true
+      feedback_md: |
+        Correcto. La API valida que cada `tool_use_id` en los `tool_result`
+        corresponda a un bloque `tool_use` de la respuesta anterior. Si no hay
+        match, rechaza la request con 400.
+    - text_md: "El modelo ignora el `tool_result` y continúa respondiendo."
+      is_correct: false
+      feedback_md: |
+        No. La API no ignora discordancias de id; el emparejamiento es obligatorio
+        y se valida en el servidor antes de pasar al modelo.
+    - text_md: "El modelo devuelve un `tool_use` adicional solicitando el dato que faltó."
+      is_correct: false
+      feedback_md: |
+        El modelo no puede «pedir de nuevo» un tool_result; la validación falla
+        antes de que el modelo procese la request.
+    - text_md: "El SDK de Python lanza una excepción `ValidationError` antes de enviar."
+      is_correct: false
+      feedback_md: |
+        El SDK Python no valida el `tool_use_id` en el cliente (no tiene el
+        estado de la respuesta anterior en el mismo objeto). El rechazo viene
+        del servidor.
+
+- slug: cache_ttl_default
+  kind: quiz
+  ord: 2
+  question_md: |
+    Desde marzo 2026, si declaras un bloque con
+    `"cache_control": {"type": "ephemeral"}` sin campo `ttl`, ¿cuánto dura
+    el cache en Anthropic?
+  options:
+    - text_md: "5 minutos."
+      is_correct: true
+      feedback_md: |
+        Correcto. El default cambió de 1 h a 5 m en marzo 2026. Por eso el
+        curso y todo el código del repo declaran `ttl` explícito; sin él, el
+        cache expira demasiado rápido en sesiones de chat normales.
+    - text_md: "1 hora (el default no cambió)."
+      is_correct: false
+      feedback_md: |
+        Era el default antes de marzo 2026. Desde esa fecha el default es 5 m.
+        Código legado que no declare `ttl` corre con cache de 5 m sin saberlo.
+    - text_md: "24 horas."
+      is_correct: false
+      feedback_md: |
+        24 horas no existe como TTL de `cache_control`. Los valores válidos
+        son `"5m"` y `"1h"` (o el default, que es `"5m"` desde marzo 2026).
+    - text_md: "El cache no expira hasta que se supere la cuota de tokens."
+      is_correct: false
+      feedback_md: |
+        El cache siempre tiene un TTL. No existe almacenamiento indefinido en
+        el `cache_control` ephemeral de Anthropic.
+
+- slug: which_block_no_cache
+  kind: quiz
+  ord: 3
+  question_md: |
+    En el system prompt del tutor de bato-learning hay tres bloques:
+    (A) reglas del tutor, (B) body del módulo, (C) intentos recientes del lector.
+    ¿Cuál NO debe llevar `cache_control`?
+  options:
+    - text_md: "El bloque C (intentos recientes)."
+      is_correct: true
+      feedback_md: |
+        Los intentos recientes cambian en cada turno de la conversación.
+        Marcarlo con cache haría que el modelo vea datos desactualizados
+        (los del turno anterior), que es peor que no tener cache.
+    - text_md: "El bloque A (reglas del tutor)."
+      is_correct: false
+      feedback_md: |
+        Las reglas del tutor son el ejemplo canónico de prefijo estable:
+        no cambian durante la sesión ni entre sesiones. Son el primer
+        candidato al cache.
+    - text_md: "El bloque B (body del módulo)."
+      is_correct: false
+      feedback_md: |
+        El body del módulo no cambia durante la sesión del lector en ese
+        módulo. Es largo (normalmente > 1 024 tokens) y estable: cache ideal.
+    - text_md: "Todos deben llevar cache_control para maximizar el ahorro."
+      is_correct: false
+      feedback_md: |
+        Cachear datos dinámicos produce hits con información obsoleta. El
+        ahorro de coste no vale la degradación de calidad de la respuesta.
+
+- slug: additionalprops_false
+  kind: quiz
+  ord: 4
+  question_md: |
+    ¿Por qué el `input_schema` de una tool de producción debe incluir
+    `"additionalProperties": false`?
+  options:
+    - text_md: |
+        Para que el modelo no pueda añadir campos que el código de ejecución
+        no espera, evitando `KeyError` o ejecuciones en el tenant equivocado.
+      is_correct: true
+      feedback_md: |
+        Correcto. Sin esta restricción, el modelo puede inventar campos
+        adicionales (a veces lo hace cuando razona sobre la tool). Si tu
+        código no los valida, puede fallar silenciosamente o, en el peor
+        caso, enrutar la llamada al tenant incorrecto.
+    - text_md: "Para reducir la latencia de validación en el servidor de Anthropic."
+      is_correct: false
+      feedback_md: |
+        `additionalProperties: false` es un constraint del JSON Schema que
+        afecta a la validación del `input` que el modelo genera; no tiene
+        impacto directo en la latencia del servidor.
+    - text_md: "Es obligatorio por el SDK; si lo omites, `messages.create` lanza excepción."
+      is_correct: false
+      feedback_md: |
+        El SDK no lo exige. Puedes omitirlo y la llamada funciona. La razón
+        para incluirlo es defensiva: controlar lo que el modelo puede generar
+        como input de la tool.
+    - text_md: "Solo es necesario en tools que escriben datos; para las de solo-lectura no importa."
+      is_correct: false
+      feedback_md: |
+        `additionalProperties: false` protege contra campos inesperados en
+        cualquier tool, independientemente de si escribe o lee. Un campo
+        extra en una query de solo-lectura podría, por ejemplo, filtrar
+        datos del tenant incorrecto.

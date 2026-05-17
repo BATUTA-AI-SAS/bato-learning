@@ -1,0 +1,344 @@
+- slug: sqlalchemy-model-and-query
+  title: "Define un modelo ORM y consulta con select()"
+  runner: backend
+  kind: code
+  prompt: |
+    Completa el código para que haga tres cosas:
+
+    1. Define el modelo `AuditRun` (tabla `audit_run`) con estas columnas:
+       - `id` (int, primary key)
+       - `tenant` (str, String(32), no puede ser null)
+       - `period` (str, String(7), no puede ser null)
+       - `status` (str, String(32), default `"pending"`)
+
+    2. Inserta dos filas:
+       - `AuditRun(tenant="acme", period="2026-04", status="completed")`
+       - `AuditRun(tenant="acme", period="2026-03", status="pending")`
+
+    3. Ejecuta una query que devuelva solo los `AuditRun` con `tenant="acme"`
+       y `status="completed"`, ordenados por `period` descendente.
+       Imprime `run.period` de cada resultado.
+
+    Usa `sqlite+aiosqlite:///:memory:` como URL del engine.
+  hint: |
+    Sigue el patrón del ejemplo conducido: `Base`, clase con `Mapped[]`,
+    `engine.begin()` para crear tablas, `SessionFactory()` para operar.
+    Para el ORDER BY descendente usa `.order_by(AuditRun.period.desc())`.
+  starter: |
+    import asyncio
+    from sqlalchemy import String, select
+    from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    class Base(DeclarativeBase):
+        pass
+
+    class AuditRun(Base):
+        __tablename__ = "audit_run"
+        # define las columnas aquí
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    Factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    async def main() -> None:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with Factory() as session:
+            # inserta las dos filas
+
+        async with Factory() as session:
+            # query con where + order_by
+            pass
+
+    asyncio.run(main())
+  test: |
+    import asyncio
+    from sqlalchemy import String, select
+    from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    class Base(DeclarativeBase):
+        pass
+
+    class AuditRun(Base):
+        __tablename__ = "audit_run"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        tenant: Mapped[str] = mapped_column(String(32))
+        period: Mapped[str] = mapped_column(String(7))
+        status: Mapped[str] = mapped_column(String(32), default="pending")
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    Factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    async def run_test() -> None:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with Factory() as session:
+            session.add(AuditRun(tenant="acme", period="2026-04", status="completed"))
+            session.add(AuditRun(tenant="acme", period="2026-03", status="pending"))
+            await session.commit()
+
+        async with Factory() as session:
+            result = await session.execute(
+                select(AuditRun)
+                .where(AuditRun.tenant == "acme", AuditRun.status == "completed")
+                .order_by(AuditRun.period.desc())
+            )
+            rows = list(result.scalars().all())
+            assert len(rows) == 1, f"esperaba 1 fila, obtuve {len(rows)}"
+            assert rows[0].period == "2026-04", f"período incorrecto: {rows[0].period}"
+            assert rows[0].status == "completed"
+
+    asyncio.run(run_test())
+    print("ok")
+  solution: |
+    import asyncio
+    from sqlalchemy import String, select
+    from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    class Base(DeclarativeBase):
+        pass
+
+    class AuditRun(Base):
+        __tablename__ = "audit_run"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        tenant: Mapped[str] = mapped_column(String(32))
+        period: Mapped[str] = mapped_column(String(7))
+        status: Mapped[str] = mapped_column(String(32), default="pending")
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    Factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    async def main() -> None:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with Factory() as session:
+            session.add(AuditRun(tenant="acme", period="2026-04", status="completed"))
+            session.add(AuditRun(tenant="acme", period="2026-03", status="pending"))
+            await session.commit()
+
+        async with Factory() as session:
+            result = await session.execute(
+                select(AuditRun)
+                .where(AuditRun.tenant == "acme", AuditRun.status == "completed")
+                .order_by(AuditRun.period.desc())
+            )
+            for run in result.scalars().all():
+                print(run.period)
+
+    asyncio.run(main())
+
+- slug: selectinload-n-plus-one
+  title: "Carga eager para evitar N+1"
+  runner: backend
+  kind: code
+  prompt: |
+    El siguiente código tiene un problema N+1: accede a `vendor.invoices` dentro
+    del bucle sin eager loading. Con 100 vendors haría 101 queries.
+
+    Tu tarea:
+    1. Añade `selectinload(Vendor.invoices)` a la query de vendors para que
+       los invoices se carguen en una segunda query, no en N queries lazy.
+    2. El test verifica que el código produce la salida correcta **y** que
+       el total de queries ejecutadas es ≤ 3 (la de vendors + la de invoices
+       + la de creación de tablas).
+
+    No modifiques la función `main` más de lo necesario para añadir el
+    `selectinload`. No toques los modelos ni el setup.
+  hint: |
+    Importa `selectinload` de `sqlalchemy.orm`.
+    En la query de vendors, añade `.options(selectinload(Vendor.invoices))`.
+  starter: |
+    import asyncio
+    from sqlalchemy import String, ForeignKey, Integer, select, event
+    from sqlalchemy.orm import (
+        DeclarativeBase, Mapped, mapped_column, relationship, selectinload
+    )
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    class Base(DeclarativeBase):
+        pass
+
+    class Vendor(Base):
+        __tablename__ = "vendor"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        name: Mapped[str] = mapped_column(String(128))
+        tenant: Mapped[str] = mapped_column(String(32))
+        invoices: Mapped[list["Invoice"]] = relationship(
+            back_populates="vendor", cascade="all, delete-orphan"
+        )
+
+    class Invoice(Base):
+        __tablename__ = "invoice"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        vendor_id: Mapped[int] = mapped_column(ForeignKey("vendor.id"))
+        amount: Mapped[float]
+        vendor: Mapped["Vendor"] = relationship(back_populates="invoices")
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    Factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    async def main() -> None:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with Factory() as session:
+            acme = Vendor(name="ACME", tenant="acme")
+            globex = Vendor(name="Globex", tenant="globex")
+            session.add_all([acme, globex])
+            await session.flush()
+            session.add(Invoice(vendor_id=acme.id, amount=4820.0))
+            session.add(Invoice(vendor_id=acme.id, amount=1200.0))
+            session.add(Invoice(vendor_id=globex.id, amount=950.0))
+            await session.commit()
+
+        async with Factory() as session:
+            # PROBLEMA: sin selectinload, acceder a vendor.invoices en el bucle lanza N queries
+            result = await session.execute(
+                select(Vendor).order_by(Vendor.name)
+                # añade .options(selectinload(...)) aquí
+            )
+            vendors = list(result.scalars().all())
+            for v in vendors:
+                total = sum(inv.amount for inv in v.invoices)
+                print(f"{v.name}: {total:.2f}")
+
+    asyncio.run(main())
+  test: |
+    import asyncio
+    from sqlalchemy import String, ForeignKey, select, text
+    from sqlalchemy.orm import (
+        DeclarativeBase, Mapped, mapped_column, relationship, selectinload
+    )
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy import event as sa_event
+
+    class Base(DeclarativeBase):
+        pass
+
+    class Vendor(Base):
+        __tablename__ = "vendor"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        name: Mapped[str] = mapped_column(String(128))
+        tenant: Mapped[str] = mapped_column(String(32))
+        invoices: Mapped[list["Invoice"]] = relationship(
+            back_populates="vendor", cascade="all, delete-orphan"
+        )
+
+    class Invoice(Base):
+        __tablename__ = "invoice"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        vendor_id: Mapped[int] = mapped_column(ForeignKey("vendor.id"))
+        amount: Mapped[float]
+        vendor: Mapped["Vendor"] = relationship(back_populates="invoices")
+
+    query_count = 0
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True, echo=False)
+
+    @sa_event.listens_for(engine.sync_engine, "before_cursor_execute")
+    def count_queries(conn, cursor, statement, parameters, context, executemany):
+        global query_count
+        query_count += 1
+
+    Factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    async def run_test() -> None:
+        global query_count
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with Factory() as session:
+            acme = Vendor(name="ACME", tenant="acme")
+            globex = Vendor(name="Globex", tenant="globex")
+            session.add_all([acme, globex])
+            await session.flush()
+            session.add(Invoice(vendor_id=acme.id, amount=4820.0))
+            session.add(Invoice(vendor_id=acme.id, amount=1200.0))
+            session.add(Invoice(vendor_id=globex.id, amount=950.0))
+            await session.commit()
+
+        query_count = 0  # reinicia contador para la query de prueba
+        async with Factory() as session:
+            result = await session.execute(
+                select(Vendor)
+                .order_by(Vendor.name)
+                .options(selectinload(Vendor.invoices))
+            )
+            vendors = list(result.scalars().all())
+            totals = {}
+            for v in vendors:
+                totals[v.name] = sum(inv.amount for inv in v.invoices)
+
+        # validar resultados
+        assert abs(totals["ACME"] - 6020.0) < 0.01, f"total ACME incorrecto: {totals['ACME']}"
+        assert abs(totals["Globex"] - 950.0) < 0.01, f"total Globex incorrecto: {totals['Globex']}"
+
+        # validar que no hay N+1: exactamente 2 queries (vendors + invoices)
+        assert query_count <= 2, (
+            f"N+1 detectado: se ejecutaron {query_count} queries para 2 vendors. "
+            f"Usa selectinload(Vendor.invoices) en la query."
+        )
+
+    asyncio.run(run_test())
+    print("ok")
+  solution: |
+    import asyncio
+    from sqlalchemy import String, ForeignKey, select
+    from sqlalchemy.orm import (
+        DeclarativeBase, Mapped, mapped_column, relationship, selectinload
+    )
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    class Base(DeclarativeBase):
+        pass
+
+    class Vendor(Base):
+        __tablename__ = "vendor"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        name: Mapped[str] = mapped_column(String(128))
+        tenant: Mapped[str] = mapped_column(String(32))
+        invoices: Mapped[list["Invoice"]] = relationship(
+            back_populates="vendor", cascade="all, delete-orphan"
+        )
+
+    class Invoice(Base):
+        __tablename__ = "invoice"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        vendor_id: Mapped[int] = mapped_column(ForeignKey("vendor.id"))
+        amount: Mapped[float]
+        vendor: Mapped["Vendor"] = relationship(back_populates="invoices")
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    Factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    async def main() -> None:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        async with Factory() as session:
+            acme = Vendor(name="ACME", tenant="acme")
+            globex = Vendor(name="Globex", tenant="globex")
+            session.add_all([acme, globex])
+            await session.flush()
+            session.add(Invoice(vendor_id=acme.id, amount=4820.0))
+            session.add(Invoice(vendor_id=acme.id, amount=1200.0))
+            session.add(Invoice(vendor_id=globex.id, amount=950.0))
+            await session.commit()
+
+        async with Factory() as session:
+            result = await session.execute(
+                select(Vendor)
+                .order_by(Vendor.name)
+                .options(selectinload(Vendor.invoices))
+            )
+            vendors = list(result.scalars().all())
+            for v in vendors:
+                total = sum(inv.amount for inv in v.invoices)
+                print(f"{v.name}: {total:.2f}")
+
+    asyncio.run(main())

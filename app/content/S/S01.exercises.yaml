@@ -1,0 +1,280 @@
+- slug: bola-detection
+  title: "Detecta y corrige BOLA en un router de findings"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente código tiene exactamente **tres vulnerabilidades OWASP API Top 10**.
+    Escribe una función `audit_router(code: str) -> list[str]` que recibe el código
+    como string y devuelve una lista con los IDs de vulnerabilidad encontradas:
+    `["API1", "API3", "API5"]` (en ese orden exacto).
+
+    Usa búsqueda de patrones: detecta API1 si no hay filtro `tenant` en la query,
+    API3 si se devuelve el objeto ORM sin `response_model`, API5 si hay un endpoint
+    con `/admin/` sin dependency de rol.
+
+    ```python
+    VULNERABLE_CODE = """
+    @router.get("/findings/{finding_id}")
+    async def get_finding(finding_id: int, session: AsyncSession = Depends(get_session)):
+        return await session.get(Finding, finding_id)
+
+    @router.get("/findings", response_model=list[Finding])
+    async def list_all(session: AsyncSession = Depends(get_session)):
+        result = await session.execute(select(Finding))
+        return result.scalars().all()
+
+    @router.delete("/admin/findings/{finding_id}")
+    async def delete_finding(finding_id: int, session: AsyncSession = Depends(get_session)):
+        finding = await session.get(Finding, finding_id)
+        await session.delete(finding)
+    """
+    ```
+
+    Nota: `list_all` tiene `response_model=list[Finding]` — el modelo ORM es expuesto
+    como schema de salida (API3). Y no filtra por tenant (API1). `delete_finding`
+    no tiene dependency de rol (API5).
+  hint: |
+    Detecta API1: `"tenant" not in code` en el bloque del endpoint.
+    Detecta API3: `response_model=list[Finding]` donde `Finding` es el modelo ORM,
+    no un schema Pydantic separado (si el nombre del response_model coincide con el
+    modelo ORM, es API3).
+    Detecta API5: busca `/admin/` sin `require_admin` ni `require_scope` en el bloque.
+  starter: |
+    import re
+
+    VULNERABLE_CODE = """
+    @router.get("/findings/{finding_id}")
+    async def get_finding(finding_id: int, session: AsyncSession = Depends(get_session)):
+        return await session.get(Finding, finding_id)
+
+    @router.get("/findings", response_model=list[Finding])
+    async def list_all(session: AsyncSession = Depends(get_session)):
+        result = await session.execute(select(Finding))
+        return result.scalars().all()
+
+    @router.delete("/admin/findings/{finding_id}")
+    async def delete_finding(finding_id: int, session: AsyncSession = Depends(get_session)):
+        finding = await session.get(Finding, finding_id)
+        await session.delete(finding)
+    """
+
+    def audit_router(code: str) -> list[str]:
+        findings = []
+        # detecta API1: endpoints sin filtro por tenant
+        # detecta API3: response_model apunta al modelo ORM (no schema Pydantic separado)
+        # detecta API5: ruta /admin/ sin dependency de rol
+        return findings
+
+    result = audit_router(VULNERABLE_CODE)
+    print(result)
+  test: |
+    result = audit_router(VULNERABLE_CODE)
+    assert isinstance(result, list), "debe devolver una lista"
+    assert "API1" in result, "debe detectar API1 (falta filtro tenant)"
+    assert "API3" in result, "debe detectar API3 (modelo ORM como response_model)"
+    assert "API5" in result, "debe detectar API5 (admin sin rol check)"
+    assert len(result) == 3, f"debe haber exactamente 3 vulnerabilidades, encontró {len(result)}"
+    print("ok")
+  solution: |
+    import re
+
+    VULNERABLE_CODE = """
+    @router.get("/findings/{finding_id}")
+    async def get_finding(finding_id: int, session: AsyncSession = Depends(get_session)):
+        return await session.get(Finding, finding_id)
+
+    @router.get("/findings", response_model=list[Finding])
+    async def list_all(session: AsyncSession = Depends(get_session)):
+        result = await session.execute(select(Finding))
+        return result.scalars().all()
+
+    @router.delete("/admin/findings/{finding_id}")
+    async def delete_finding(finding_id: int, session: AsyncSession = Depends(get_session)):
+        finding = await session.get(Finding, finding_id)
+        await session.delete(finding)
+    """
+
+    def audit_router(code: str) -> list[str]:
+        findings = []
+        # API1: ningún bloque de función menciona "tenant"
+        if "tenant" not in code:
+            findings.append("API1")
+        # API3: response_model usa el modelo ORM directamente (Finding, no FindingOut/FindingPublic)
+        if re.search(r"response_model=list\[Finding\]", code):
+            findings.append("API3")
+        # API5: ruta /admin/ sin require_admin ni require_scope
+        admin_blocks = re.findall(r'@router\.\w+\("/admin/[^"]*"\).*?(?=@router|\Z)', code, re.DOTALL)
+        for block in admin_blocks:
+            if "require_admin" not in block and "require_scope" not in block:
+                findings.append("API5")
+                break
+        return findings
+
+    result = audit_router(VULNERABLE_CODE)
+    print(result)
+
+- slug: ssrf-validator
+  title: "Implementar validador anti-SSRF para el agente"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El agente de ACME tiene una tool `fetch_document(url)` que acepta URLs del modelo.
+    Escribe la función `validate_fetch_url(url: str) -> None` que lanza `ValueError`
+    en estos casos (en orden de verificación):
+
+    1. El scheme no es `"https"` → `ValueError("scheme not allowed")`
+    2. El hostname no está en `ALLOWED_DOMAINS = {"docs.acme.com", "storage.acme.com"}` → `ValueError("domain not allowed")`
+    3. La URL contiene una IP en lugar de hostname → `ValueError("IP addresses not allowed")`
+
+    Para la verificación 3: si `socket.gethostbyname(hostname)` lanza excepción,
+    trátalo como dominio inválido → `ValueError("cannot resolve host")`.
+
+    No bloquees por IP privada (ese check lo omitimos para Pyodide). Solo los tres
+    casos anteriores.
+  hint: |
+    Usa `urllib.parse.urlparse(url)` para extraer `scheme` y `hostname`.
+    Para detectar IP en hostname: `ipaddress.ip_address(hostname)` lanza
+    `ValueError` si no es una IP — inviértelo.
+  starter: |
+    import ipaddress
+    from urllib.parse import urlparse
+
+    ALLOWED_DOMAINS = {"docs.acme.com", "storage.acme.com"}
+
+    def validate_fetch_url(url: str) -> None:
+        parsed = urlparse(url)
+        # 1. verificar scheme
+        # 2. verificar dominio en allowlist
+        # 3. detectar IP directa en lugar de hostname
+        pass
+
+    # prueba manual
+    try:
+        validate_fetch_url("http://docs.acme.com/invoice.pdf")
+        print("debería haber fallado")
+    except ValueError as e:
+        print(f"bloqueado: {e}")
+
+    try:
+        validate_fetch_url("https://evil.com/steal")
+        print("debería haber fallado")
+    except ValueError as e:
+        print(f"bloqueado: {e}")
+
+    validate_fetch_url("https://docs.acme.com/report.pdf")
+    print("url válida: ok")
+  test: |
+    import ipaddress
+    from urllib.parse import urlparse
+
+    # scheme inválido
+    try:
+        validate_fetch_url("http://docs.acme.com/file.pdf")
+        assert False, "debió lanzar ValueError por scheme"
+    except ValueError as e:
+        assert "scheme" in str(e).lower(), f"mensaje incorrecto: {e}"
+
+    # dominio no permitido
+    try:
+        validate_fetch_url("https://evil.com/payload")
+        assert False, "debió lanzar ValueError por dominio"
+    except ValueError as e:
+        assert "domain" in str(e).lower(), f"mensaje incorrecto: {e}"
+
+    # IP directa
+    try:
+        validate_fetch_url("https://192.168.1.1/secrets")
+        assert False, "debió lanzar ValueError por IP"
+    except ValueError as e:
+        assert "ip" in str(e).lower() or "address" in str(e).lower(), f"mensaje incorrecto: {e}"
+
+    # URL válida no debe lanzar
+    try:
+        validate_fetch_url("https://docs.acme.com/report.pdf")
+    except ValueError as e:
+        assert False, f"URL válida lanzó error inesperado: {e}"
+
+    print("ok")
+  solution: |
+    import ipaddress
+    from urllib.parse import urlparse
+
+    ALLOWED_DOMAINS = {"docs.acme.com", "storage.acme.com"}
+
+    def validate_fetch_url(url: str) -> None:
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            raise ValueError("scheme not allowed")
+        hostname = parsed.hostname or ""
+        if hostname not in ALLOWED_DOMAINS:
+            raise ValueError("domain not allowed")
+        # detectar IP directa en el hostname
+        try:
+            ipaddress.ip_address(hostname)
+            raise ValueError("IP addresses not allowed")
+        except ValueError as exc:
+            if "IP addresses not allowed" in str(exc):
+                raise
+            # hostname es un nombre de dominio válido, continuar
+
+- slug: rate-limit-by-tenant
+  title: "Rate limit por tenant con slowapi"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Escribe una función `get_tenant_key(request_headers: dict) -> str` que extrae
+    el tenant de los headers HTTP para usar como `key_func` en slowapi.
+
+    Lógica:
+    1. Lee `request_headers.get("authorization", "")`.
+    2. Si empieza con `"Bearer "`, extrae el token (todo después de `"Bearer "`).
+    3. Busca el token en el diccionario `API_KEYS` (dado abajo). Si lo encuentra,
+       devuelve `f"tenant:{info['tenant']}"`.
+    4. Si el header no existe o el token no está en `API_KEYS`, devuelve `"anon"`.
+
+    ```python
+    API_KEYS = {
+        "acme-key-abc": {"tenant": "acme"},
+        "globex-key-xyz": {"tenant": "globex"},
+    }
+    ```
+  hint: |
+    `str.removeprefix("Bearer ")` quita el prefijo si existe.
+    `dict.get(key)` devuelve `None` si la clave no existe — úsalo para no lanzar KeyError.
+  starter: |
+    API_KEYS = {
+        "acme-key-abc": {"tenant": "acme"},
+        "globex-key-xyz": {"tenant": "globex"},
+    }
+
+    def get_tenant_key(request_headers: dict) -> str:
+        # implementa la lógica de extracción del tenant
+        pass
+
+    # pruebas manuales
+    print(get_tenant_key({"authorization": "Bearer acme-key-abc"}))   # tenant:acme
+    print(get_tenant_key({"authorization": "Bearer globex-key-xyz"})) # tenant:globex
+    print(get_tenant_key({"authorization": "Bearer invalid-key"}))    # anon
+    print(get_tenant_key({}))                                          # anon
+  test: |
+    assert get_tenant_key({"authorization": "Bearer acme-key-abc"}) == "tenant:acme"
+    assert get_tenant_key({"authorization": "Bearer globex-key-xyz"}) == "tenant:globex"
+    assert get_tenant_key({"authorization": "Bearer invalid-key"}) == "anon"
+    assert get_tenant_key({}) == "anon"
+    assert get_tenant_key({"authorization": "Basic dXNlcjpwYXNz"}) == "anon"
+    print("ok")
+  solution: |
+    API_KEYS = {
+        "acme-key-abc": {"tenant": "acme"},
+        "globex-key-xyz": {"tenant": "globex"},
+    }
+
+    def get_tenant_key(request_headers: dict) -> str:
+        auth = request_headers.get("authorization", "")
+        if not auth.startswith("Bearer "):
+            return "anon"
+        token = auth.removeprefix("Bearer ")
+        info = API_KEYS.get(token)
+        if info is None:
+            return "anon"
+        return f"tenant:{info['tenant']}"

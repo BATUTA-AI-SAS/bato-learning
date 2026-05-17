@@ -1,0 +1,24 @@
+slug: serverless-vs-always-on
+chapter_ref: phase4
+prompt_md: |
+  El nuevo endpoint de procesamiento de facturas de ACME recibe ráfagas de tráfico
+  al inicio del mes y casi nada el resto del tiempo. ¿Cómo lo despliegas?
+options:
+  - label: "Serverless (Lambda, Cloud Run, Fly Machines)"
+    tradeoff_md: |
+      + Paga solo por lo que usas. Cero costo cuando no hay tráfico.
+      + Escala automáticamente de 0 a miles de instancias sin configuración.
+      + Sin servidor que mantener ni parches de SO que aplicar.
+      − Cold start: la primera solicitud puede tardar 500ms-2s si la instancia estaba apagada.
+      − Límite de tiempo de ejecución (15 min en Lambda). No apto para workflows largos.
+      − Depurar problemas de producción es más complejo que en un servidor tradicional.
+    consequence_skill: serverless-ops
+  - label: "Always-on (servidor o contenedor permanente)"
+    tradeoff_md: |
+      + Sin cold starts: latencia consistente en toda solicitud.
+      + Sin límites de tiempo de ejecución. Apto para procesos largos y WebSockets.
+      + El modelo mental de depuración es directo: logs, SSH, métricas continuas.
+      − Pagas el servidor aunque esté al 5% de uso durante 3 semanas del mes.
+      − Escalar ante ráfagas requiere configuración explícita de auto-scaling o capacidad
+        de sobra aprovisionada.
+    consequence_skill: always-on-ops

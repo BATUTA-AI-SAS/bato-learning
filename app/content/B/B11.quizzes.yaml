@@ -1,0 +1,64 @@
+- slug: idempotency-key-reuse
+  question: |
+    El agente de ACME ejecuta `POST /api/purchase-orders` para crear una OC.
+    La red falla antes de recibir la respuesta. Al reintentar, ¿qué debe hacer el agente
+    con la idempotency key?
+  explanation: |
+    La idempotency key es el mecanismo de deduplicación. Debe ser la misma en todos los
+    intentos del mismo intento de negocio — no una nueva key en cada reintento.
+  options:
+    - text: "Generar una nueva idempotency key para el reintento, para evitar colisiones"
+      correct: false
+      feedback: "Generar una nueva key en cada reintento niega completamente el propósito de la idempotency key. El servidor verá cada reintento como una nueva OC y creará duplicados."
+    - text: "Usar la misma idempotency key que en el primer intento"
+      correct: true
+      feedback: "Correcto. La idempotency key representa 'quiero crear esta OC específica'. Si la OC ya se creó en el primer intento, el servidor lo detecta por la key y devuelve el resultado cacheado sin crear duplicado."
+    - text: "No enviar idempotency key en el reintento, solo en el primer intento"
+      correct: false
+      feedback: "Sin idempotency key en el reintento, el servidor no puede saber si es un duplicado. La deduplicación solo funciona si la key está presente en todos los intentos."
+    - text: "Esperar 24 horas antes de reintentar, para que el servidor limpie su caché"
+      correct: false
+      feedback: "Los servidores guardan las idempotency keys por un período definido (típicamente 24-72h). El reintento debe ocurrir dentro de ese período, usando la misma key."
+
+- slug: retry-status-codes
+  question: |
+    El agente llama a la API del ERP de ACME y recibe un `403 Forbidden`.
+    ¿Debe reintentar?
+  explanation: |
+    403 significa que el servidor conoce al caller pero le niega el acceso.
+    Es un error de autorización — reintentar no cambiará el resultado.
+  options:
+    - text: "Sí, con backoff exponencial de 3 intentos"
+      correct: false
+      feedback: "Reintentar un 403 es inútil — el servidor seguirá denegando el acceso con la misma key/token. El problema no es temporal sino de permisos."
+    - text: "No, porque 403 indica un error de autorización que no se resuelve reintentando"
+      correct: true
+      feedback: "Correcto. 403 = autorización falla. El servidor sabe quién eres pero no tienes permiso. La solución es verificar los scopes del API key o JWT, no reintentar."
+    - text: "Sí, porque puede ser un error transitorio del servidor"
+      correct: false
+      feedback: "Los errores transitorios del servidor son 5xx (500, 503, 504). Un 403 es una decisión del servidor basada en los permisos del caller — no es un error transitorio."
+    - text: "Sí, pero solo una vez, sin espera"
+      correct: false
+      feedback: "No importa cuántas veces ni con qué espera: un 403 siempre será 403 con las mismas credenciales. La acción correcta es elevar el error, no reintentar."
+
+- slug: thundering-herd
+  question: |
+    100 instancias del agente de ACME reciben simultáneamente un `503 Service Unavailable`
+    del ERP. Todas usan backoff exponencial con `base=2s` sin jitter.
+    ¿Qué problema ocurre?
+  explanation: |
+    Sin jitter, todos los agentes esperan exactamente el mismo tiempo y reintentan
+    al mismo tiempo — el «thundering herd». El jitter distribuye los reintentos en el tiempo.
+  options:
+    - text: "Ninguno — el backoff exponencial es suficiente para proteger al servidor"
+      correct: false
+      feedback: "El backoff protege al servidor del primer reintento inmediato. Pero si todos los agentes tienen exactamente el mismo backoff (sin jitter), reintentarán todos al mismo segundo — el servidor recibe 100 requests simultáneas de nuevo."
+    - text: "Los 100 agentes reintentan al mismo tiempo exacto — el servidor se satura de nuevo"
+      correct: true
+      feedback: "Correcto. Sin jitter, backoff(attempt=1) = 2s para todos. Los 100 agentes esperan exactamente 2s y vuelven a saturar el servidor. El jitter añade variación (ej. 2s ± 0.4s) para distribuir los reintentos."
+    - text: "Los agentes se coordinan automáticamente y se distribuyen los reintentos"
+      correct: false
+      feedback: "Los agentes son independientes — no tienen mecanismo de coordinación. Cada uno calcula su backoff por separado. Sin jitter, todos calculan lo mismo."
+    - text: "El ERP rechazará los reintentos porque la sesión expiró"
+      correct: false
+      feedback: "El problema no es la sesión sino la carga simultánea. El thundering herd ocurre cuando múltiples clientes sincronizan sus reintentos involuntariamente."

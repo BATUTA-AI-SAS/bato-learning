@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}bato-learning{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/site.css" />
+  <script>
+    /* Restore "Excel mode" preference before paint to avoid flicker. */
+    (function () {
+      try {
+        var on = localStorage.getItem("blearn.excel") === "on";
+        if (on) document.documentElement.setAttribute("data-excel", "on");
+      } catch (_) {}
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+<div id="layout">
+  {% include "partials/sidebar.html" %}
+
+  <main id="main">
+    {% if gam %}
+    <div id="app-header">
+      <div class="hdr-level" title="{{ gam.level.blurb }}">
+        <span class="lvl-badge">L{{ gam.level.idx }}</span>
+        <div>
+          <div class="lvl-name">{{ gam.level.name }}</div>
+          <div class="lvl-blurb">{{ gam.level.blurb }}</div>
+        </div>
+      </div>
+
+      <div class="hdr-xp">
+        <div class="xp-row">
+          <span>
+            {% if gam.next_level %}
+              hacia <strong>{{ gam.next_level.name }}</strong>
+            {% else %}
+              nivel máximo
+            {% endif %}
+          </span>
+          <span>
+            <strong>{{ gam.xp }}</strong>
+            {% if gam.next_level %}
+              <span class="muted"> / {{ gam.next_level.threshold }} XP</span>
+            {% else %}
+              <span class="muted"> XP</span>
+            {% endif %}
+          </span>
+        </div>
+        <div class="xp-bar" id="xp-bar" data-xp="{{ gam.xp }}" data-pct="{{ gam.pct_to_next_level }}">
+          <div class="fill" style="--pct: {{ gam.pct_to_next_level }}%"></div>
+        </div>
+      </div>
+
+      <div class="hdr-streak {% if gam.streak_days == 0 %}cold{% endif %}"
+           title="Días consecutivos de uso">
+        <span class="streak-num">{{ gam.streak_days }}</span>
+        <span>{% if gam.streak_days == 1 %}día{% else %}días{% endif %} al hilo</span>
+      </div>
+      {% if gam.streak_prompt %}
+      <span class="streak-prompt-banner" title="{{ gam.streak_prompt }}">{{ gam.streak_prompt }}</span>
+      {% endif %}
+
+      <div class="hdr-actions">
+        <button type="button" class="excel-toggle" id="excel-toggle"
+                title="Mostrar la fórmula Excel equivalente en los ejemplos">
+          modo Excel
+        </button>
+        <a href="/progreso" title="Tu dashboard de progreso">progreso</a>
+      </div>
+
+      {# G13 — near-unlock chip (JS-driven rotation; data in hidden node) #}
+      <div id="near-unlocks-data"
+           data-near-unlocks="{{ (gam.near_unlocks | default([])) | tojson | e }}"
+           hidden></div>
+      <div id="near-unlock-chip" class="near-unlock-chip" hidden>
+        <a href="/progreso#logros"></a>
+      </div>
+    </div>
+    {% endif %}
+
+    {% block main %}{% endblock %}
+  </main>
+
+  {% if current %}
+    {% include "partials/chat.html" %}
+  {% endif %}
+</div>
+
+<div id="xp-toast-stack" aria-live="polite"></div>
+
+<script>
+  /* Seed the in-page XP feedback for first-time module visits.
+     The server set xp_awarded_on_visit when this is a *new* visit. */
+  window.__BL_XP_ON_LOAD = {{ (xp_awarded_on_visit | default(0)) | int }};
+  window.__BL_NEWLY_UNLOCKED = {{ ((gam.newly_unlocked if gam else []) | tojson) }};
+  window.__BL_ACHIEVEMENTS = {{ ((gam.achievements_catalog if gam else []) | tojson) }};
+  window.__BL_NEAR_UNLOCKS = {{ ((gam.near_unlocks if gam else []) | tojson) }};
+</script>
+<script src="/static/js/app.js" type="module"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

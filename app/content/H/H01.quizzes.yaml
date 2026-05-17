@@ -1,0 +1,54 @@
+- slug: runbook-format
+  question: |
+    ¿Cuál de estas afirmaciones describe un runbook **ejecutable** correcto?
+  explanation: |
+    Un runbook ejecutable tiene comandos copiables con output esperado y ramificaciones concretas.
+    La prosa descriptiva sin comandos no es ejecutable: obliga al ingeniero a razonar bajo presión.
+  options:
+    - text: "Incluye comandos copiables con output esperado y un bloque de rollback por cada acción."
+      correct: true
+      feedback: "Sí. La clave es que el ingeniero copia, ejecuta, lee output y sigue la rama. Sin razonamiento adicional."
+    - text: "Describe en prosa qué hacer en cada escenario, con suficiente detalle para cualquier ingeniero."
+      correct: false
+      feedback: "Incorrecto. La prosa obliga a razonar bajo presión. Un runbook ejecutable reemplaza el razonamiento con comandos y ramas concretas."
+    - text: "Es un diagrama de flujo Mermaid que muestra todos los posibles caminos de un incidente."
+      correct: false
+      feedback: "Un diagrama ayuda a diseñar el runbook, pero no es el runbook. El ingeniero de turno necesita comandos, no diagramas que interpretar."
+
+- slug: severity-levels
+  question: |
+    Son las 2am. El tenant `globex` reporta que el chat responde pero tarda 45 segundos por mensaje
+    (lo normal es 3s). El tenant `acme` funciona con normalidad. ¿Qué severidad asignas?
+  explanation: |
+    SEV2 cubre servicio degradado para ≥1 tenant. No es SEV1 porque el servicio no está caído.
+    No es SEV3 porque el impacto en el cliente es significativo (45s vs 3s).
+    Fuera de horario, SEV2 exige respuesta en 1h.
+  options:
+    - text: "SEV1 — un tenant está afectado fuera de horario, máxima prioridad."
+      correct: false
+      feedback: "SEV1 requiere que el servicio esté completamente caído. Una latencia alta es degradación, no caída."
+    - text: "SEV2 — servicio degradado para ≥1 tenant; respuesta en 1h fuera de horario."
+      correct: true
+      feedback: "Correcto. Degradación significativa para un tenant activo = SEV2. La respuesta en 1h aplica para fuera de horario."
+    - text: "SEV3 — no es urgente porque acme funciona bien; se atiende el día hábil siguiente."
+      correct: false
+      feedback: "SEV3 es para errores funcionales sin impacto en disponibilidad. Una latencia 15x mayor impacta la usabilidad del cliente, es SEV2."
+
+- slug: oncall-tool
+  question: |
+    Eres un equipo de 1 persona, tienes 0 contratos SaaS firmados y presupuesto de 20 USD/mes
+    para herramientas. ¿Qué herramienta de on-call eliges?
+  explanation: |
+    BetterStack tiene plan gratuito con monitores de uptime, alertas por email/Slack y
+    página de status. Es la elección correcta para un equipo pequeño sin contrato SLA.
+    PagerDuty empieza en 21 USD/usuario/mes — excede el presupuesto. Opsgenie cerró ventas nuevas.
+  options:
+    - text: "PagerDuty — es la herramienta estándar de la industria."
+      correct: false
+      feedback: "PagerDuty es estándar para equipos con SLA contractual y >5 personas on-call. Para 1 persona con 20 USD/mes, es 21 USD por encima del presupuesto."
+    - text: "BetterStack — plan gratuito cubre monitores de uptime y alertas para un equipo pequeño."
+      correct: true
+      feedback: "Sí. BetterStack free cubre exactamente las necesidades de etapa 1: uptime monitoring, alertas email/Slack, status page."
+    - text: "Opsgenie — es más barato que PagerDuty y open source."
+      correct: false
+      feedback: "Opsgenie no es open source. Además, Atlassian detuvo ventas nuevas en junio 2025 y cerrará en abril 2027. No elijas herramientas en fin de vida para proyectos nuevos."

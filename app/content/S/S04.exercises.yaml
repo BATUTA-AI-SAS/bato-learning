@@ -1,0 +1,208 @@
+- slug: stride-classifier
+  title: "Clasificar amenazas con STRIDE"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `classify_threat(description: str) -> str` que clasifica una
+    descripción de amenaza en una categoría STRIDE.
+
+    Devuelve uno de: `"S"` (Spoofing), `"T"` (Tampering), `"R"` (Repudiation),
+    `"I"` (Information Disclosure), `"D"` (Denial of Service), `"E"` (Elevation).
+
+    Reglas de clasificación por palabras clave (en orden de evaluación):
+    - `"S"` si contiene `"suplantación"`, `"spoofing"`, `"forja"`, `"impersona"`, o `"fake"`.
+    - `"T"` si contiene `"modific"`, `"tamper"`, `"altera"`, o `"falsific"`.
+    - `"R"` si contiene `"niega"`, `"repudia"`, `"negar"`, o `"sin registro"`.
+    - `"I"` si contiene `"expone"`, `"filtra"`, `"fuga"`, `"leak"`, o `"acceso no autorizad"`.
+    - `"D"` if contiene `"agota"`, `"flood"`, `"dos"`, `"denial"`, `"saturar"`, o `"bloquea"`.
+    - `"E"` si contiene `"escalada"`, `"privilege"`, `"privilegio"`, o `"admin sin"`
+    - `"unknown"` si no coincide con ninguna.
+
+    Todas las comparaciones deben ser case-insensitive.
+  hint: |
+    Convierte `description` a minúsculas con `.lower()` antes de buscar.
+    Evalúa cada categoría en orden, devuelve en el primer match.
+  starter: |
+    def classify_threat(description: str) -> str:
+        text = description.lower()
+        # S: Spoofing
+        # T: Tampering
+        # R: Repudiation
+        # I: Information Disclosure
+        # D: Denial of Service
+        # E: Elevation of Privilege
+        return "unknown"
+
+    tests = [
+        ("El atacante forja un JWT para acceder como admin", "S"),
+        ("El ERP devuelve transacciones falsificadas", "T"),
+        ("El cliente niega haber aprobado el reporte enviado", "R"),
+        ("El agente expone facturas del tenant equivocado", "I"),
+        ("Flood de requests agota la DB", "D"),
+        ("Usuario sin permisos escala a admin sin autenticación", "E"),
+    ]
+
+    for desc, expected in tests:
+        result = classify_threat(desc)
+        status = "✓" if result == expected else "✗"
+        print(f"{status} '{desc[:40]}...' → {result} (esperado: {expected})")
+  test: |
+    assert classify_threat("El atacante forja un JWT") == "S", "forja → S"
+    assert classify_threat("Suplantación de identidad del tenant") == "S", "suplantación → S"
+    assert classify_threat("El ERP devuelve datos falsificados") == "T", "falsific → T"
+    assert classify_threat("El atacante modifica las facturas") == "T", "modific → T"
+    assert classify_threat("El cliente niega la acción del agente") == "R", "niega → R"
+    assert classify_threat("Operación sin registro en audit log") == "R", "sin registro → R"
+    assert classify_threat("El agente expone datos del tenant B") == "I", "expone → I"
+    assert classify_threat("Fuga de credenciales del ERP") == "I", "fuga → I"
+    assert classify_threat("Flood de requests satura la API") == "D", "flood/saturar → D"
+    assert classify_threat("El atacante agota el presupuesto LLM") == "D", "agota → D"
+    assert classify_threat("El usuario escala a privilegios de admin") == "E", "escalada → E"
+    assert classify_threat("Descripción sin categoría clara") == "unknown"
+    print("ok")
+  solution: |
+    def classify_threat(description: str) -> str:
+        text = description.lower()
+        if any(k in text for k in ("suplantación", "spoofing", "forja", "impersona", "fake")):
+            return "S"
+        if any(k in text for k in ("modific", "tamper", "altera", "falsific")):
+            return "T"
+        if any(k in text for k in ("niega", "repudia", "negar", "sin registro")):
+            return "R"
+        if any(k in text for k in ("expone", "filtra", "fuga", "leak", "acceso no autorizad")):
+            return "I"
+        if any(k in text for k in ("agota", "flood", "dos", "denial", "saturar", "bloquea")):
+            return "D"
+        if any(k in text for k in ("escalada", "privilege", "privilegio", "admin sin")):
+            return "E"
+        return "unknown"
+
+- slug: threat-score
+  title: "Calcular y ordenar el backlog de amenazas por score P×I"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado el siguiente threat model parcial del workflow de auditoría F-CTA-02,
+    implementa `prioritize_threats(threats: list[dict]) -> list[dict]` que:
+
+    1. Calcula `score = probability * impact` para cada amenaza.
+    2. Añade `score` como campo al dict de cada amenaza.
+    3. Devuelve la lista ordenada de mayor a menor score.
+    4. Si dos amenazas tienen el mismo score, las ordena por `id` alfabéticamente
+       (orden ascendente).
+
+    Cada elemento de `threats` tiene: `id`, `name`, `probability` (1-5), `impact` (1-5).
+  hint: |
+    Añade `score` al dict: `threat["score"] = threat["probability"] * threat["impact"]`.
+    Ordena con `sorted(threats, key=lambda t: (-t["score"], t["id"]))`.
+  starter: |
+    THREATS = [
+        {"id": "I1", "name": "Multitenancy escape", "probability": 4, "impact": 5},
+        {"id": "T2", "name": "IPI en documentos",   "probability": 4, "impact": 4},
+        {"id": "I3", "name": "SSRF desde tool",      "probability": 3, "impact": 5},
+        {"id": "D1", "name": "Agotamiento LLM",      "probability": 3, "impact": 4},
+        {"id": "E2", "name": "Confused Deputy",      "probability": 4, "impact": 4},
+    ]
+
+    def prioritize_threats(threats: list[dict]) -> list[dict]:
+        # calcula score y ordena
+        return threats
+
+    result = prioritize_threats(THREATS)
+    for t in result:
+        print(f"{t['id']}: {t['name']} → score {t['score']}")
+  test: |
+    import copy
+    threats_copy = copy.deepcopy(THREATS)
+    result = prioritize_threats(threats_copy)
+
+    # todos tienen score calculado
+    for t in result:
+        assert "score" in t, f"falta score en {t['id']}"
+        assert t["score"] == t["probability"] * t["impact"]
+
+    # ordenados de mayor a menor score
+    scores = [t["score"] for t in result]
+    assert scores == sorted(scores, reverse=True), f"no está ordenado: {scores}"
+
+    # I1 primero (score 20)
+    assert result[0]["id"] == "I1", f"I1 debería ser primero, es {result[0]['id']}"
+
+    # T2 y E2 tienen score 16, orden por id: E2 antes que T2
+    score_16 = [t["id"] for t in result if t["score"] == 16]
+    assert score_16 == ["E2", "T2"], f"orden con score igual incorrecto: {score_16}"
+
+    print("ok")
+  solution: |
+    import copy
+
+    THREATS = [
+        {"id": "I1", "name": "Multitenancy escape", "probability": 4, "impact": 5},
+        {"id": "T2", "name": "IPI en documentos",   "probability": 4, "impact": 4},
+        {"id": "I3", "name": "SSRF desde tool",      "probability": 3, "impact": 5},
+        {"id": "D1", "name": "Agotamiento LLM",      "probability": 3, "impact": 4},
+        {"id": "E2", "name": "Confused Deputy",      "probability": 4, "impact": 4},
+    ]
+
+    def prioritize_threats(threats: list[dict]) -> list[dict]:
+        for threat in threats:
+            threat["score"] = threat["probability"] * threat["impact"]
+        return sorted(threats, key=lambda t: (-t["score"], t["id"]))
+
+- slug: confused-deputy
+  title: "Implementar intersección de scopes para Confused Deputy"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El agente de servicio tiene scopes `{"read:invoices", "write:reports", "send:email", "admin"}`.
+    El usuario que activa el agente tiene scopes `{"read:invoices", "write:reports"}`.
+
+    El scope efectivo del agente para esa sesión debe ser la **intersección** — solo
+    lo que ambos tienen.
+
+    Implementa `effective_scopes(agent_scopes: set[str], user_scopes: set[str]) -> set[str]`
+    que devuelve la intersección.
+
+    Luego implementa `can_execute(tool_name: str, required_scope: str, effective: set[str]) -> bool`
+    que devuelve `True` si `required_scope` está en `effective`.
+  hint: |
+    La intersección de dos sets en Python es `set_a & set_b` o `set_a.intersection(set_b)`.
+  starter: |
+    AGENT_SCOPES = {"read:invoices", "write:reports", "send:email", "admin"}
+    USER_SCOPES  = {"read:invoices", "write:reports"}
+
+    def effective_scopes(agent_scopes: set[str], user_scopes: set[str]) -> set[str]:
+        pass
+
+    def can_execute(tool_name: str, required_scope: str, effective: set[str]) -> bool:
+        pass
+
+    eff = effective_scopes(AGENT_SCOPES, USER_SCOPES)
+    print(f"Scopes efectivos: {eff}")
+    print(f"¿Puede write_report? {can_execute('write_report', 'write:reports', eff)}")
+    print(f"¿Puede send_email?   {can_execute('send_email', 'send:email', eff)}")
+    print(f"¿Puede admin action? {can_execute('admin_action', 'admin', eff)}")
+  test: |
+    eff = effective_scopes(AGENT_SCOPES, USER_SCOPES)
+    assert isinstance(eff, set), "debe devolver un set"
+    assert "read:invoices" in eff, "read:invoices está en ambos — debe estar en la intersección"
+    assert "write:reports" in eff, "write:reports está en ambos"
+    assert "send:email" not in eff, "send:email solo tiene el agente — no debe estar en efectivo"
+    assert "admin" not in eff, "admin solo tiene el agente — no debe estar en efectivo"
+
+    # can_execute
+    assert can_execute("write_report", "write:reports", eff) is True
+    assert can_execute("send_email", "send:email", eff) is False, "no tiene send:email efectivo"
+    assert can_execute("admin_action", "admin", eff) is False, "no tiene admin efectivo"
+    assert can_execute("sql_query", "read:invoices", eff) is True
+
+    print("ok")
+  solution: |
+    AGENT_SCOPES = {"read:invoices", "write:reports", "send:email", "admin"}
+    USER_SCOPES  = {"read:invoices", "write:reports"}
+
+    def effective_scopes(agent_scopes: set[str], user_scopes: set[str]) -> set[str]:
+        return agent_scopes & user_scopes
+
+    def can_execute(tool_name: str, required_scope: str, effective: set[str]) -> bool:
+        return required_scope in effective

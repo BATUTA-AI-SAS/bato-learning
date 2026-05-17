@@ -1,0 +1,52 @@
+slug: rag-embeddings
+title: "Busca en 500 documentos del cliente con RAG"
+kind: code
+phase: PH03
+ord: 45
+trains_skill: rag
+concepts_introduced: [embeddings, similarity-search, chunking, rag]
+concepts_reinforced: [llm-api, tool-calling, async]
+xp: 20
+est_seconds: 240
+scenario_md: |
+  ACME tiene 500 contratos en PDF. El CFO pregunta: "¿qué dice el contrato
+  con Constructora Andina sobre penalidades?" El LLM no cabe todo en contexto.
+  Implementa el pipeline RAG básico: embed → busca → responde.
+payload:
+  starter: |
+    from anthropic import AsyncAnthropic
+    import numpy as np
+
+    client = AsyncAnthropic()
+
+    # Documentos de ejemplo (en producción vendrían de pgvector)
+    DOCS = [
+        {"id": 1, "text": "Contrato Constructora Andina: penalidad 2% por día de retraso."},
+        {"id": 2, "text": "Contrato Logística Express: entrega garantizada en 48h."},
+        {"id": 3, "text": "Contrato Clínica San Rafael: pago neto 30 días."},
+    ]
+
+    def cosine_similarity(a: list, b: list) -> float:
+        a, b = np.array(a), np.array(b)
+        return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+    async def rag_query(question: str, top_k: int = 2) -> str:
+        # 1. Embed la pregunta
+        # 2. Embed cada doc (o usa los pre-calculados)
+        # 3. Ordena por similaridad y toma top_k
+        # 4. Llama a Claude con el contexto recuperado
+        ...
+  tests: |
+    import asyncio
+    result = asyncio.run(rag_query("¿Cuál es la penalidad de Constructora Andina?"))
+    assert isinstance(result, str)
+    assert len(result) > 10
+hint_md: |
+  Usa `client.embeddings.create` (o `messages.create` con un texto corto si
+  no tienes embeddings API). Ordena por `cosine_similarity` descendente.
+  El contexto recuperado va en el mensaje del usuario, no en el system prompt.
+solution_md: |
+  RAG = Retrieval Augmented Generation. Sin RAG el LLM alucina si no tiene
+  el documento. Con RAG, primero buscas los fragmentos relevantes y los das
+  como contexto. Chunking (partir docs en trozos de 300-500 tokens) es clave
+  para no pagar tokens innecesarios.

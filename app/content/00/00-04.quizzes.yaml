@@ -1,0 +1,126 @@
+- slug: vscode-features-match
+  kind: match
+  question: |
+    Empareja cada elemento de VS Code con su función.
+    Solo necesitas saber para qué sirve cada parte del editor — aún no escribes código.
+  explanation: |
+    VS Code tiene cuatro zonas principales: el Explorer muestra los archivos del
+    proyecto, la terminal integrada ejecuta comandos (la misma que 00-02),
+    la paleta de comandos (Ctrl+Shift+P) busca cualquier acción del editor,
+    y la barra de estado en la parte inferior muestra información del archivo activo.
+    El panel de edición central es donde se escribe el código.
+  pairs:
+    - left: "Explorer (panel izquierdo)"
+      right: "Muestra el árbol de archivos y carpetas del proyecto"
+    - left: "Terminal integrada (Ctrl+`)"
+      right: "Ejecuta comandos del sistema operativo desde dentro del editor"
+    - left: "Paleta de comandos (Ctrl+Shift+P)"
+      right: "Busca y ejecuta cualquier acción disponible en VS Code"
+    - left: "Barra de estado (parte inferior)"
+      right: "Muestra el lenguaje detectado, codificación y posición del cursor"
+
+- slug: editor-vs-executor
+  question: |
+    Escribes `print("hola ACME")` en VS Code, guardas con Ctrl+S, y no pasa nada
+    en la pantalla. ¿Qué debes hacer para ver el resultado?
+  explanation: |
+    VS Code es un editor: guarda el archivo en disco pero no lo ejecuta.
+    Para ejecutar código Python, hay que ir a la terminal y correr
+    `python3 hola.py`. El editor y el ejecutor son herramientas separadas.
+  options:
+    - text: "Presionar Ctrl+Enter para ejecutar la línea, igual que en Excel."
+      correct: false
+      feedback: |
+        VS Code no tiene un atajo estándar que ejecute el archivo como lo
+        hace Excel con las fórmulas. El editor escribe; la terminal ejecuta.
+        La Python Extension de VS Code añade un botón «Run», pero el curso
+        enseña a usar la terminal directamente para entender el proceso.
+    - text: "Ir a la terminal y escribir `python3 hola.py`."
+      correct: true
+      feedback: |
+        Correcto. Guardar con Ctrl+S escribe el archivo en disco.
+        Para ejecutarlo, vas a la terminal (la integrada en VS Code con Ctrl+`
+        o la externa) y corres `python3 hola.py`. El resultado aparece en la terminal.
+    - text: "Cerrar y volver a abrir VS Code para que detecte el cambio."
+      correct: false
+      feedback: |
+        Reabrir VS Code no ejecuta el código. El editor ya tiene el archivo
+        guardado. El problema no es el editor — es que nadie le ha pedido a
+        Python que ejecute ese archivo.
+    - text: "Hacer clic derecho en el archivo en el Explorer y seleccionar «Run Python»."
+      correct: false
+      feedback: |
+        Esa opción aparece si tienes la extensión de Python instalada y
+        configurada, pero no es la forma canónica del curso. El curso usa
+        la terminal directamente para que el proceso sea transparente.
+
+- slug: syntax-highlighting-purpose
+  question: |
+    VS Code colorea `print` de azul y `"hola ACME"` de verde en tu archivo.
+    ¿Qué significa que el código esté correctamente coloreado?
+  explanation: |
+    El syntax highlighting solo indica que VS Code reconoce la estructura
+    sintáctica del lenguaje. No valida que la lógica sea correcta, ni que
+    el código vaya a ejecutarse sin errores en tiempo de ejecución.
+    Un código con lógica incorrecta puede estar perfectamente coloreado.
+  options:
+    - text: "El código no tiene errores y se ejecutará correctamente."
+      correct: false
+      feedback: |
+        El coloreado no garantiza ausencia de errores. El editor colorea
+        la estructura sintáctica, no la lógica. Un código con un bug lógico
+        (por ejemplo, dividir por cero en algún caso) se colorea perfectamente.
+    - text: "VS Code reconoce la estructura sintáctica del archivo, pero no garantiza que el código sea correcto."
+      correct: true
+      feedback: |
+        Correcto. El syntax highlighting es información visual sobre la estructura:
+        qué son palabras clave, qué son strings, qué son comentarios.
+        Los errores lógicos solo se detectan al ejecutar el código.
+    - text: "El coloreado indica que Python está instalado correctamente en el sistema."
+      correct: false
+      feedback: |
+        El syntax highlighting funciona aunque Python no esté instalado —
+        VS Code colorea el texto según la extensión `.py` y sus reglas de
+        gramática, independientemente de si hay un intérprete instalado.
+    - text: "El código está guardado en disco y listo para compartir."
+      correct: false
+      feedback: |
+        El coloreado no tiene relación con si el archivo está guardado.
+        VS Code colorea el texto en tiempo real mientras escribes, incluso
+        antes de guardar. Guardar es una acción separada (Ctrl+S).
+
+- slug: editor-vs-ide
+  question: |
+    ¿Cuál es la diferencia principal entre un editor como VS Code y un IDE como PyCharm?
+  explanation: |
+    Un editor es ligero y propósito general: edita texto con asistencia.
+    Un IDE integra más herramientas: debugger avanzado, profiler, gestión
+    de proyectos, refactoring profundo. VS Code puede acercarse a un IDE
+    con extensiones, pero por defecto es más ligero. Para este curso, VS Code
+    es suficiente.
+  options:
+    - text: "VS Code solo puede editar Python; PyCharm soporta múltiples lenguajes."
+      correct: false
+      feedback: |
+        Al revés: VS Code es multi-lenguaje (Python, JS, Rust, Go, etc.) con
+        extensiones. PyCharm es el IDE de JetBrains especializado en Python,
+        aunque también soporta otros lenguajes con plugins.
+    - text: "VS Code es gratuito; PyCharm es de pago."
+      correct: false
+      feedback: |
+        PyCharm Community Edition es gratuita. La distinción editor/IDE no
+        es de precio — es de funcionalidades integradas. PyCharm Professional
+        tiene funcionalidades de pago, pero la Community cubre la mayoría de usos.
+    - text: "Un IDE como PyCharm integra más herramientas (debugger, profiler, refactoring) que un editor como VS Code."
+      correct: true
+      feedback: |
+        Correcto. Un IDE integra por defecto herramientas que un editor como
+        VS Code tiene como extensiones opcionales. La frontera es borrosa —
+        VS Code con extensiones se parece a un IDE — pero el punto de partida
+        es diferente. Para este curso, VS Code sin extensiones avanzadas es suficiente.
+    - text: "VS Code ejecuta el código directamente; PyCharm requiere la terminal."
+      correct: false
+      feedback: |
+        Ambos pueden ejecutar código (con configuración). Pero el curso enseña
+        a usar la terminal explícitamente, porque entender el proceso de ejecución
+        es parte del aprendizaje. El botón «Run» de cualquier IDE oculta ese proceso.

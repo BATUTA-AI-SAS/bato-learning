@@ -1,0 +1,139 @@
+- slug: coroutine-without-await
+  question: |
+    ¿Qué hace este código?
+
+    ```python
+    import asyncio
+
+    async def send_alert(msg: str) -> None:
+        await asyncio.sleep(0)
+        print(f"ALERTA: {msg}")
+
+    send_alert("vendor duplicado")
+    ```
+  explanation: |
+    Llamar `send_alert("vendor duplicado")` crea un objeto coroutine pero no
+    lo ejecuta. La función nunca corre. Python emite
+    `RuntimeWarning: coroutine 'send_alert' was never awaited`. Para ejecutarla,
+    necesitas `await send_alert(...)` dentro de una función async, o
+    `asyncio.run(send_alert(...))` en el nivel de módulo.
+  options:
+    - text: "Imprime `ALERTA: vendor duplicado`."
+      correct: false
+      feedback: |
+        No imprime nada. Llamar una función `async def` devuelve un objeto
+        coroutine sin ejecutar el cuerpo. Se necesita `await` o `asyncio.run`.
+    - text: "Lanza `RuntimeError: event loop is not running`."
+      correct: false
+      feedback: |
+        No lanza un error inmediato. El warning es `RuntimeWarning: coroutine
+        was never awaited` — solo una advertencia, no una excepción. El
+        silencio es el problema.
+    - text: "Crea un objeto coroutine sin ejecutar el cuerpo; Python emite `RuntimeWarning`."
+      correct: true
+      feedback: |
+        Correcto. El objeto coroutine existe pero queda sin ejecutar. Python
+        detecta esto al destruir el objeto y emite el warning. Sin `await` o
+        `asyncio.run`, la alerta nunca llega.
+    - text: "Ejecuta la función de forma síncrona porque no hay event loop activo."
+      correct: false
+      feedback: |
+        Python no convierte una `async def` en síncrona automáticamente. La
+        semántica es siempre: llamar devuelve coroutine, `await` ejecuta.
+
+- slug: gather-vs-sequential
+  question: |
+    Tienes tres coroutinas que tardan 300 ms, 200 ms y 400 ms respectivamente.
+    ¿Cuánto tarda cada opción?
+
+    ```python
+    # Opción A
+    r1 = await fetch_a()
+    r2 = await fetch_b()
+    r3 = await fetch_c()
+
+    # Opción B
+    r1, r2, r3 = await asyncio.gather(fetch_a(), fetch_b(), fetch_c())
+    ```
+  explanation: |
+    La opción A es secuencial: cada `await` espera que la coroutina termine
+    antes de iniciar la siguiente. Total: 300 + 200 + 400 = 900 ms.
+    La opción B con `gather` lanza las tres a la vez y espera a la más lenta.
+    El event loop las intercala en sus puntos `await asyncio.sleep`. Total: ~400 ms.
+  options:
+    - text: "Opción A: 900 ms. Opción B: ~400 ms."
+      correct: true
+      feedback: |
+        Correcto. `gather` concurrente tarda lo que la coroutina más lenta.
+        La secuencial suma todos los tiempos. Con I/O real, la diferencia es
+        proporcional al número de llamadas en paralelo.
+    - text: "Opción A: 900 ms. Opción B: 900/3 = 300 ms."
+      correct: false
+      feedback: |
+        No se divide el tiempo entre las coroutinas: cada una sigue tardando
+        lo que tarda. Lo que `gather` hace es *superponer* las esperas de I/O.
+        El total es el máximo, no el promedio.
+    - text: "Ambas tardan 900 ms porque Python tiene GIL y no hay paralelismo real."
+      correct: false
+      feedback: |
+        El GIL afecta a los threads para código Python puro. Las coroutinas
+        async no son threads: el loop las intercala en `await`. Mientras
+        `fetch_a` espera I/O, el loop avanza `fetch_b` y `fetch_c`.
+    - text: "Opción B lanza `RuntimeError` porque `gather` no soporta más de 2 coroutinas."
+      correct: false
+      feedback: |
+        `asyncio.gather` acepta cualquier número de awaitables. No hay límite
+        de 2. El límite práctico lo pone el sistema operativo y las conexiones
+        disponibles.
+
+- slug: blocking-in-async
+  question: |
+    ¿Cuál de estos fragmentos **no** bloquea el event loop?
+  explanation: |
+    `requests.get` y `time.sleep` son síncronos: ocupan el hilo completo
+    durante su ejecución. `asyncio.sleep` cede el control al loop. Para código
+    síncrono irremediablemente bloqueante, `asyncio.to_thread` lo ejecuta en
+    un hilo de fondo y devuelve una coroutine que el loop puede intercalar.
+  options:
+    - text: |
+        ```python
+        async def get_rate():
+            import requests
+            return requests.get("https://api.example.com/rate").json()
+        ```
+      correct: false
+      feedback: |
+        `requests.get` es bloqueante. El hilo principal (donde corre el event
+        loop) queda ocupado hasta que la llamada HTTP termina. Todas las demás
+        coroutinas esperan. Usa `httpx` con `await client.get(...)`.
+    - text: |
+        ```python
+        async def wait_seconds(n: int):
+            import time
+            time.sleep(n)
+        ```
+      correct: false
+      feedback: |
+        `time.sleep(n)` bloquea el hilo. El event loop no puede avanzar
+        ninguna otra coroutina durante `n` segundos. Usa `await asyncio.sleep(n)`.
+    - text: |
+        ```python
+        async def compute(data: list) -> dict:
+            return await asyncio.to_thread(_heavy_computation, data)
+        ```
+      correct: true
+      feedback: |
+        Correcto. `asyncio.to_thread` ejecuta `_heavy_computation` en un hilo
+        del pool de threads. El event loop puede continuar con otras coroutinas
+        mientras espera el resultado.
+    - text: |
+        ```python
+        async def process():
+            result = sum(range(10_000_000))
+            return result
+        ```
+      correct: false
+      feedback: |
+        `sum(range(10_000_000))` es CPU-bound puro. No hay `await` donde el
+        loop pueda ceder control. La coroutina bloquea el hilo hasta terminar.
+        Para cálculo pesado, usa `asyncio.to_thread` o `ProcessPoolExecutor`.

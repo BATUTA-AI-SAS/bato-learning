@@ -1,0 +1,268 @@
+- slug: pydantic-model-validation
+  title: "Modelo Pydantic con validador de período"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Escribe el modelo Pydantic v2 `InvoiceFilter` con estos campos:
+
+    - `tenant` (str): obligatorio, no puede ser vacío.
+    - `period` (str): obligatorio, formato `"YYYY-MM"` (7 chars, posición 4 es `-`).
+    - `min_amount` (float): opcional, default `0.0`, debe ser ≥ 0.
+    - `max_amount` (float | None): opcional, default `None`.
+
+    Requisitos:
+    1. Usa `@field_validator("period")` para validar el formato. Si no cumple, lanza `ValueError("period must be YYYY-MM")`.
+    2. Usa `@field_validator("tenant")` para rechazar strings vacías. Si no cumple, lanza `ValueError("tenant cannot be empty")`.
+    3. Si `max_amount` no es None y es menor que `min_amount`, lanza `ValueError("max_amount must be >= min_amount")` — usa `@model_validator(mode="after")` para este check cruzado.
+
+    Al final imprime la representación del modelo válido y el error del inválido:
+    ```python
+    valid = InvoiceFilter(tenant="acme", period="2026-04", min_amount=100.0)
+    print(valid.model_dump())
+
+    from pydantic import ValidationError
+    try:
+        InvoiceFilter(tenant="acme", period="26-04")
+    except ValidationError as e:
+        print(e.errors()[0]["msg"])
+    ```
+  hint: |
+    `@field_validator("campo")` debe ser `@classmethod`. El método recibe `cls` y `v` (el valor).
+    Para `@model_validator(mode="after")`, el método recibe `self` (ya es la instancia construida).
+  starter: |
+    from pydantic import BaseModel, field_validator, model_validator
+
+    class InvoiceFilter(BaseModel):
+        tenant: str
+        period: str
+        min_amount: float = 0.0
+        max_amount: float | None = None
+
+        @field_validator("period")
+        @classmethod
+        def validate_period(cls, v: str) -> str:
+            # valida formato YYYY-MM
+            ...
+
+        @field_validator("tenant")
+        @classmethod
+        def validate_tenant(cls, v: str) -> str:
+            # rechaza string vacía
+            ...
+
+        @model_validator(mode="after")
+        def validate_amounts(self) -> "InvoiceFilter":
+            # valida max >= min cuando max no es None
+            ...
+
+    from pydantic import ValidationError
+    valid = InvoiceFilter(tenant="acme", period="2026-04", min_amount=100.0)
+    print(valid.model_dump())
+    try:
+        InvoiceFilter(tenant="acme", period="26-04")
+    except ValidationError as e:
+        print(e.errors()[0]["msg"])
+  test: |
+    from pydantic import BaseModel, ValidationError, field_validator, model_validator
+
+    class InvoiceFilter(BaseModel):
+        tenant: str
+        period: str
+        min_amount: float = 0.0
+        max_amount: float | None = None
+
+        @field_validator("period")
+        @classmethod
+        def validate_period(cls, v: str) -> str:
+            if len(v) != 7 or v[4] != "-":
+                raise ValueError("period must be YYYY-MM")
+            return v
+
+        @field_validator("tenant")
+        @classmethod
+        def validate_tenant(cls, v: str) -> str:
+            if not v:
+                raise ValueError("tenant cannot be empty")
+            return v
+
+        @model_validator(mode="after")
+        def validate_amounts(self) -> "InvoiceFilter":
+            if self.max_amount is not None and self.max_amount < self.min_amount:
+                raise ValueError("max_amount must be >= min_amount")
+            return self
+
+    # caso válido
+    f = InvoiceFilter(tenant="acme", period="2026-04", min_amount=100.0)
+    assert f.tenant == "acme"
+    assert f.period == "2026-04"
+    assert f.min_amount == 100.0
+    assert f.max_amount is None
+
+    # período inválido
+    try:
+        InvoiceFilter(tenant="acme", period="26-04")
+        assert False, "debió lanzar ValidationError"
+    except ValidationError as e:
+        msgs = [err["msg"] for err in e.errors()]
+        assert any("YYYY-MM" in m for m in msgs), f"mensaje incorrecto: {msgs}"
+
+    # tenant vacío
+    try:
+        InvoiceFilter(tenant="", period="2026-04")
+        assert False, "debió lanzar ValidationError"
+    except ValidationError as e:
+        msgs = [err["msg"] for err in e.errors()]
+        assert any("empty" in m for m in msgs), f"mensaje incorrecto: {msgs}"
+
+    # max < min
+    try:
+        InvoiceFilter(tenant="acme", period="2026-04", min_amount=500.0, max_amount=100.0)
+        assert False, "debió lanzar ValidationError"
+    except ValidationError as e:
+        msgs = [err["msg"] for err in e.errors()]
+        assert any("max_amount" in m for m in msgs), f"mensaje incorrecto: {msgs}"
+
+    print("ok")
+  solution: |
+    from pydantic import BaseModel, ValidationError, field_validator, model_validator
+
+    class InvoiceFilter(BaseModel):
+        tenant: str
+        period: str
+        min_amount: float = 0.0
+        max_amount: float | None = None
+
+        @field_validator("period")
+        @classmethod
+        def validate_period(cls, v: str) -> str:
+            if len(v) != 7 or v[4] != "-":
+                raise ValueError("period must be YYYY-MM")
+            return v
+
+        @field_validator("tenant")
+        @classmethod
+        def validate_tenant(cls, v: str) -> str:
+            if not v:
+                raise ValueError("tenant cannot be empty")
+            return v
+
+        @model_validator(mode="after")
+        def validate_amounts(self) -> "InvoiceFilter":
+            if self.max_amount is not None and self.max_amount < self.min_amount:
+                raise ValueError("max_amount must be >= min_amount")
+            return self
+
+    valid = InvoiceFilter(tenant="acme", period="2026-04", min_amount=100.0)
+    print(valid.model_dump())
+    try:
+        InvoiceFilter(tenant="acme", period="26-04")
+    except ValidationError as e:
+        print(e.errors()[0]["msg"])
+
+- slug: depends-injection-pattern
+  title: "Simula el patrón Depends con una función generadora"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El patrón `Depends` de FastAPI se basa en funciones generadoras que usan `yield`
+    para gestionar el ciclo de vida de un recurso (abrir/cerrar).
+
+    Implementa `get_db_connection(db_url: str)` como función generadora que:
+    1. Abre una «conexión» (en este ejercicio, un dict `{"url": db_url, "open": True}`).
+    2. Hace `yield` de la conexión.
+    3. En el bloque `finally`, marca `connection["open"] = False` (simulación de cierre).
+
+    Luego escribe `run_with_connection(db_url: str, query: str) -> str` que:
+    1. Usa el generador para obtener la conexión.
+    2. Verifica que está abierta; si no, lanza `RuntimeError("connection is closed")`.
+    3. Devuelve `f"executed '{query}' on {connection['url']}"`.
+    4. Garantiza que la conexión se cierra aunque ocurra un error.
+
+    Al final comprueba:
+    ```python
+    result = run_with_connection("sqlite:///acme.db", "SELECT * FROM invoice")
+    print(result)
+    ```
+  hint: |
+    Para iterar manualmente un generador, usa `gen = get_db_connection(url)`,
+    luego `conn = next(gen)`, y al final `try: next(gen) except StopIteration: pass`.
+    O bien usa `contextlib.contextmanager` sobre la función generadora.
+  starter: |
+    from contextlib import contextmanager
+
+    @contextmanager
+    def get_db_connection(db_url: str):
+        # abre conexión
+        connection = {"url": db_url, "open": True}
+        try:
+            yield connection
+        finally:
+            # cierra siempre
+            ...
+
+    def run_with_connection(db_url: str, query: str) -> str:
+        with get_db_connection(db_url) as connection:
+            if not connection["open"]:
+                raise RuntimeError("connection is closed")
+            return f"executed '{query}' on {connection['url']}"
+
+    result = run_with_connection("sqlite:///acme.db", "SELECT * FROM invoice")
+    print(result)
+  test: |
+    from contextlib import contextmanager
+
+    @contextmanager
+    def get_db_connection(db_url: str):
+        connection = {"url": db_url, "open": True}
+        try:
+            yield connection
+        finally:
+            connection["open"] = False
+
+    def run_with_connection(db_url: str, query: str) -> str:
+        with get_db_connection(db_url) as connection:
+            if not connection["open"]:
+                raise RuntimeError("connection is closed")
+            return f"executed '{query}' on {connection['url']}"
+
+    # caso normal
+    result = run_with_connection("sqlite:///acme.db", "SELECT * FROM invoice")
+    assert result == "executed 'SELECT * FROM invoice' on sqlite:///acme.db", \
+        f"resultado incorrecto: {result}"
+
+    # verificar que la conexión se cierra aunque ocurra excepción interna
+    closed_after_error = False
+    try:
+        with get_db_connection("sqlite:///acme.db") as conn:
+            assert conn["open"] is True
+            raise ValueError("error simulado")
+    except ValueError:
+        closed_after_error = conn["open"] is False
+
+    assert closed_after_error, "la conexión debe cerrarse aunque el bloque lance excepción"
+
+    # verificar que el recurso se cierra en el flujo normal
+    with get_db_connection("sqlite:///acme.db") as conn:
+        pass
+    assert conn["open"] is False, "la conexión debe cerrarse al salir del with"
+
+    print("ok")
+  solution: |
+    from contextlib import contextmanager
+
+    @contextmanager
+    def get_db_connection(db_url: str):
+        connection = {"url": db_url, "open": True}
+        try:
+            yield connection
+        finally:
+            connection["open"] = False
+
+    def run_with_connection(db_url: str, query: str) -> str:
+        with get_db_connection(db_url) as connection:
+            if not connection["open"]:
+                raise RuntimeError("connection is closed")
+            return f"executed '{query}' on {connection['url']}"
+
+    result = run_with_connection("sqlite:///acme.db", "SELECT * FROM invoice")
+    print(result)

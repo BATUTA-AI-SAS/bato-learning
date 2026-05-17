@@ -1,0 +1,58 @@
+- slug: fallback-trigger
+  question: |
+    Anthropic devuelve un HTTP 401 en la llamada del agente de auditoría de ACME. ¿Qué debe hacer el sistema?
+  explanation: |
+    Un 401 es un error de autenticación: la API key no es válida o expiró. No es una falla transitoria
+    del proveedor; reintentar no ayuda. El fallback tampoco ayuda si el problema es la key de Anthropic,
+    pero si el fallback usa una key diferente (OpenAI), puede tener sentido. Sin embargo, la respuesta
+    correcta operacionalmente es alertar inmediatamente al equipo porque el 401 indica un problema
+    de configuración, no de disponibilidad del proveedor.
+  options:
+    - text: "Reintentar la misma llamada a Anthropic 3 veces con backoff exponencial."
+      correct: false
+      feedback: "Un 401 no es transitorio. Reintentar no cambia el resultado: la key sigue siendo inválida. Solo genera latencia y costo innecesario."
+    - text: "Alertar inmediatamente; el 401 indica problema de configuración, no de disponibilidad."
+      correct: true
+      feedback: "Correcto. Un 401 exige acción humana: verificar que la API key es válida, no expiró, y tiene los permisos correctos. No es un caso de retry ni de fallback automático."
+    - text: "Activar el fallback a OpenAI porque Anthropic claramente está fallando."
+      correct: false
+      feedback: "El 401 puede indicar que tu key de Anthropic expiró, no que Anthropic esté caído. Activar el fallback a OpenAI sin investigar puede enmascarar el problema real y generar costos en el secundario."
+
+- slug: litellm-vs-openrouter
+  question: |
+    Eres un equipo de 1 persona en Etapa 1 (CX22, 3 clientes). ¿Cuál eliges para añadir failover?
+  explanation: |
+    OpenRouter es un SaaS que no requiere operar ningún contenedor adicional. Para un equipo de 1 persona
+    en Etapa 1, el overhead operativo de LiteLLM (un contenedor más, configuración YAML, logs adicionales)
+    no se justifica. OpenRouter acepta una sola API key y enruta a múltiples proveedores.
+    El markup del 10-20% es el precio de no tener que operarlo.
+  options:
+    - text: "LiteLLM auto-hospedado en el mismo CX22."
+      correct: false
+      feedback: "LiteLLM en el mismo CX22 consume RAM y CPU adicional, y requiere mantener la configuración. Para 3 clientes y 1 persona, el overhead no se justifica."
+    - text: "OpenRouter como SaaS, sin contenedores adicionales que operar."
+      correct: true
+      feedback: "Correcto. OpenRouter en Etapa 1 es la opción de menor overhead operativo. Cuando el equipo crezca y el markup no sea aceptable, migra a LiteLLM en Etapa 2-3."
+    - text: "Ninguno; el failover solo se justifica en Etapa 4 con K8s."
+      correct: false
+      feedback: "El failover se justifica desde el primer cliente. Una API key de OpenRouter con fallback automático es trivial de configurar y puede salvar una auditoría nocturna."
+
+- slug: bedrock-use-case
+  question: |
+    Un cliente en Brasil necesita que los datos de sus facturas no salgan de AWS sa-east-1 (São Paulo).
+    ¿Cuál es la solución correcta?
+  explanation: |
+    AWS Bedrock expone Claude en regiones AWS específicas. Al usar AnthropicBedrock con region=sa-east-1,
+    las llamadas al LLM se procesan en Brasil. LiteLLM puede apuntar a Bedrock como proveedor,
+    manteniendo el mismo código del agente sin cambios. Esta configuración cumple LGPD
+    (Ley General de Protección de Datos de Brasil) para el procesamiento de datos personales.
+  options:
+    - text: "Usar la API directa de Anthropic con región sa-east-1."
+      correct: false
+      feedback: "La API directa de Anthropic no tiene regiones seleccionables por el usuario. Los datos se procesan en la infraestructura de Anthropic (EEUU). Para control de región, usar Bedrock."
+    - text: "Configurar LiteLLM o AnthropicBedrock con region=sa-east-1 en AWS Bedrock."
+      correct: true
+      feedback: "Correcto. Bedrock en sa-east-1 garantiza que las inferencias se realizan en Brasil. Cumple LGPD para este caso. LiteLLM lo abstrae con un cambio de configuración, sin cambiar el código del agente."
+    - text: "Implementar el LLM localmente en un servidor en Brasil para total control."
+      correct: false
+      feedback: "Ejecutar Claude localmente no es posible (es un modelo propietario). Los modelos open source (Llama, Mistral) serían la alternativa si Bedrock no fuera opción, pero implican pérdida significativa de calidad para tareas complejas."

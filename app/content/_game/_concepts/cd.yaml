@@ -1,0 +1,11 @@
+slug: cd
+title: "¿Qué es CD (Entrega Continua)?"
+analogy_md: |
+  Si CI verifica que el código está bien, CD lo despliega automáticamente al servidor.
+  Es como un proceso de aprobación y envío automático de facturas cuando pasan la revisión.
+example_md: |
+  ```yaml
+  - name: Deploy
+    run: fly deploy --remote-only
+    if: github.ref == 'refs/heads/main'
+  ```

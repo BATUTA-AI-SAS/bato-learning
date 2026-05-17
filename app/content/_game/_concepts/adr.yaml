@@ -1,0 +1,12 @@
+slug: adr
+title: "¿Qué es un ADR?"
+analogy_md: |
+  ADR (Architecture Decision Record) es un documento corto que registra una decisión
+  técnica importante, por qué se tomó y qué alternativas se descartaron. Es la minuta de reunión
+  del equipo de ingeniería de ACME sobre decisiones que afectan el sistema.
+example_md: |
+  ```
+  ADR-003: Usar SQLite en desarrollo
+  Estado: Aceptado
+  Contexto: Simplicidad didáctica. Producción usará Postgres.
+  ```

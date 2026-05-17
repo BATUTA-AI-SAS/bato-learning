@@ -1,0 +1,57 @@
+slug: first-test
+title: "Asegúrate de que nada se rompe al cambiar código"
+kind: code
+phase: PH02
+ord: 30
+trains_skill: pytest-basics
+xp: 20
+est_seconds: 180
+scenario_md: |
+  Alguien cambió la función `calculate_total` de ACME y ahora el IVA
+  se aplica dos veces. Escribe los tests que habrían atrapado el bug
+  antes de llegar a producción.
+payload:
+  starter: |
+    # Código que se está testeando (no modificar)
+    def calculate_total(amount: float, iva_rate: float = 0.19) -> float:
+        """Calcula el total con IVA sobre el monto base."""
+        return round(amount * (1 + iva_rate), 2)
+
+    def is_high_value(amount: float, threshold: float = 10_000.0) -> bool:
+        """Retorna True si el monto supera el umbral."""
+        return amount > threshold
+
+    # Escribe las funciones de test abajo.
+    # Cada función debe llamarse test_* y usar assert.
+
+    def test_calculate_total_basic():
+        # Con amount=1000 e iva_rate=0.19, el total debe ser 1190.00
+        ...
+
+    def test_calculate_total_zero_iva():
+        # Con iva_rate=0.0 el total debe ser igual al amount
+        ...
+
+    def test_is_high_value_above():
+        # 15000 debe ser high value
+        ...
+
+    def test_is_high_value_at_threshold():
+        # Exactamente 10000 NO debe ser high value (es >, no >=)
+        ...
+  tests: |
+    # Corre los tests del jugador
+    test_calculate_total_basic()
+    test_calculate_total_zero_iva()
+    test_is_high_value_above()
+    test_is_high_value_at_threshold()
+    # Si llegaste aquí sin AssertionError, todos pasaron
+    passed = True
+    assert passed is True
+hint_md: |
+  Cada `def test_*` debe tener al menos un `assert`.
+  `assert calculate_total(1000) == 1190.00` — ojo con el redondeo.
+solution_md: |
+  Los tests documentan el comportamiento esperado. Cuando el código cambia,
+  los tests gritan. Sin tests, el bug en IVA llega al CFO de ACME, no a tu
+  terminal. Los fixtures (pytest) permiten compartir setup entre múltiples tests.

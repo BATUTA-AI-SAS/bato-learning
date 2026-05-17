@@ -1,0 +1,54 @@
+{% extends "_layout.html" %}
+
+{% block title %}Crear cuenta · bato-learning{% endblock %}
+
+{% block main %}
+<div class="auth-page">
+  <div class="auth-card">
+    <h1>Crear cuenta</h1>
+
+    {% if error %}
+    <div class="auth-error" role="alert">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/register" class="auth-form">
+      <label for="display_name">Nombre (como quieres que te llamemos)</label>
+      <input
+        type="text"
+        id="display_name"
+        name="display_name"
+        autocomplete="name"
+        placeholder="Tu nombre"
+        maxlength="64"
+      />
+
+      <label for="email">Correo electrónico</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        required
+        autocomplete="email"
+        placeholder="tu@correo.com"
+      />
+
+      <label for="password">Contraseña</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+        autocomplete="new-password"
+        placeholder="••••••••"
+        minlength="8"
+      />
+
+      <button type="submit" class="btn-primary">Crear cuenta</button>
+    </form>
+
+    <p class="auth-switch">
+      ¿Ya tienes cuenta? <a href="/login">Inicia sesión</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

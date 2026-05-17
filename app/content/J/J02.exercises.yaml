@@ -1,0 +1,180 @@
+- slug: lgpd_basis_selector
+  title: "Selección de base legal LGPD para un flujo de agente"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `select_lgpd_basis(purpose: str, data_type: str, has_contract: bool) -> str`
+    que retorna la base legal LGPD más apropiada según las reglas:
+
+    1. Si `has_contract` es True y el propósito incluye palabras clave de
+       ejecución contractual ("auditoria", "conciliacao", "faturamento",
+       "cobrança", "pagamento") → retorna "contract_art7_v"
+    2. Si el propósito incluye "fiscal", "receita", "tributario" → retorna
+       "legal_obligation_art7_ii"
+    3. Si `data_type` es "saude" o "biometrico" → retorna
+       "explicit_consent_art11_i" (datos sensibles requieren consentimiento)
+    4. Si ninguna de las anteriores → retorna "evaluate_manually" (no asumas base)
+
+    Las comparaciones deben ser case-insensitive.
+  hint: |
+    Usa `.lower()` en los strings antes de comparar y `any(k in purpose.lower() for k in keywords)`.
+  starter: |
+    def select_lgpd_basis(purpose: str, data_type: str, has_contract: bool) -> str:
+        p = purpose.lower()
+        dt = data_type.lower()
+
+        # Datos sensibles siempre primero
+        if dt in ("saude", "biometrico"):
+            return "explicit_consent_art11_i"
+
+        # Completa las demás reglas...
+        return "evaluate_manually"
+  test: |
+    # Auditoria con contrato → contrato
+    r1 = select_lgpd_basis("Auditoria financeira do período", "invoice", True)
+    assert r1 == "contract_art7_v", f"got {r1}"
+
+    # Sin contrato, auditoria no aplica base contrato
+    r2 = select_lgpd_basis("Auditoria financeira do período", "invoice", False)
+    assert r2 == "evaluate_manually", f"got {r2}"
+
+    # Fiscal con o sin contrato → obligación legal
+    r3 = select_lgpd_basis("Retenção para fins fiscais e tributarios", "cpf", True)
+    assert r3 == "legal_obligation_art7_ii", f"got {r3}"
+
+    # Datos de salud → consentimiento explícito (gana sobre todo)
+    r4 = select_lgpd_basis("Auditoria de beneficios", "saude", True)
+    assert r4 == "explicit_consent_art11_i", f"got {r4}"
+
+    # Propósito desconocido → evaluar manualmente
+    r5 = select_lgpd_basis("Análise preditiva de comportamento", "behavior", False)
+    assert r5 == "evaluate_manually", f"got {r5}"
+
+    print("ok")
+  solution: |
+    def select_lgpd_basis(purpose: str, data_type: str, has_contract: bool) -> str:
+        p = purpose.lower()
+        dt = data_type.lower()
+
+        # Datos sensibles siempre tienen precedencia
+        if dt in ("saude", "biometrico"):
+            return "explicit_consent_art11_i"
+
+        # Obligación legal fiscal
+        fiscal_keywords = ("fiscal", "receita", "tributario", "tributário")
+        if any(k in p for k in fiscal_keywords):
+            return "legal_obligation_art7_ii"
+
+        # Contrato
+        contract_keywords = ("auditoria", "conciliacao", "conciliação", "faturamento",
+                              "cobrança", "cobranca", "pagamento")
+        if has_contract and any(k in p for k in contract_keywords):
+            return "contract_art7_v"
+
+        return "evaluate_manually"
+
+- slug: lgpd_vs_ley1581_comparison
+  title: "Comparación estructurada LGPD Brasil vs Ley 1581 Colombia para un mismo flujo"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Tienes un agente de conciliación bancaria para dos tenants:
+    - `acme` (manufactura, Colombia) — cubre Ley 1581
+    - `cafetera` (agro/exportación, Brasil) — cubre LGPD
+
+    El flujo procesa: fecha, cpf_cnpj_contraparte, nombre_contraparte,
+    valor, descripcion, banco_cuenta.
+
+    Implementa `compliance_delta(tenant: str) -> dict` que retorna un
+    diccionario con las diferencias de cumplimiento entre los dos tenants:
+
+    ```python
+    {
+        "authority": str,             # nombre de la autoridad supervisora
+        "max_fine_usd": int,          # multa máxima aprox en USD (CO: 870_000, BR: 10_000_000)
+        "dpo_mandatory": bool,        # DPO/encarregado explícitamente obligatorio
+        "breach_hours": int,          # plazo max para notificar brecha (horas)
+        "intl_transfer_mechanism": str, # mecanismo de transferencia internacional
+        "main_legal_basis": str,      # base legal para tratamiento contractual
+    }
+    ```
+
+    Valores esperados para "CO": authority="SIC", max_fine_usd=870_000,
+    dpo_mandatory=False, breach_hours=360, intl_transfer_mechanism="lista_sic_o_clausulas_dpa",
+    main_legal_basis="Ley_1581_Art3_lit_e_contrato"
+
+    Valores esperados para "BR": authority="ANPD", max_fine_usd=10_000_000,
+    dpo_mandatory=True, breach_hours=72, intl_transfer_mechanism="SCCs_ANPD_Res19_2024",
+    main_legal_basis="LGPD_Art7_inc_V_contrato"
+  hint: |
+    Crea un dict con las configuraciones de cada país y retorna el que
+    corresponde al tenant.
+  starter: |
+    TENANT_COUNTRY = {
+        "acme": "CO",
+        "cafetera": "BR",
+    }
+
+    COMPLIANCE_CONFIG = {
+        "CO": {
+            # Completa con los valores correctos
+        },
+        "BR": {
+            # Completa con los valores correctos
+        },
+    }
+
+    def compliance_delta(tenant: str) -> dict:
+        country = TENANT_COUNTRY.get(tenant)
+        return COMPLIANCE_CONFIG.get(country, {})
+  test: |
+    co = compliance_delta("acme")
+    assert co["authority"] == "SIC", f"CO authority: {co['authority']}"
+    assert co["max_fine_usd"] == 870_000
+    assert co["dpo_mandatory"] is False
+    assert co["breach_hours"] == 360
+    assert "sic" in co["intl_transfer_mechanism"].lower()
+    assert "1581" in co["main_legal_basis"]
+
+    br = compliance_delta("cafetera")
+    assert br["authority"] == "ANPD", f"BR authority: {br['authority']}"
+    assert br["max_fine_usd"] == 10_000_000
+    assert br["dpo_mandatory"] is True
+    assert br["breach_hours"] == 72
+    assert "anpd" in br["intl_transfer_mechanism"].lower() or "res19" in br["intl_transfer_mechanism"].lower()
+    assert "lgpd" in br["main_legal_basis"].lower() or "LGPD" in br["main_legal_basis"]
+
+    # Multa BR debe ser mayor que CO
+    assert br["max_fine_usd"] > co["max_fine_usd"]
+    # Plazo BR debe ser menor que CO
+    assert br["breach_hours"] < co["breach_hours"]
+
+    print("ok")
+  solution: |
+    TENANT_COUNTRY = {
+        "acme": "CO",
+        "cafetera": "BR",
+    }
+
+    COMPLIANCE_CONFIG = {
+        "CO": {
+            "authority": "SIC",
+            "max_fine_usd": 870_000,
+            "dpo_mandatory": False,
+            "breach_hours": 360,
+            "intl_transfer_mechanism": "lista_sic_o_clausulas_dpa",
+            "main_legal_basis": "Ley_1581_Art3_lit_e_contrato",
+        },
+        "BR": {
+            "authority": "ANPD",
+            "max_fine_usd": 10_000_000,
+            "dpo_mandatory": True,
+            "breach_hours": 72,
+            "intl_transfer_mechanism": "SCCs_ANPD_Res19_2024",
+            "main_legal_basis": "LGPD_Art7_inc_V_contrato",
+        },
+    }
+
+    def compliance_delta(tenant: str) -> dict:
+        country = TENANT_COUNTRY.get(tenant)
+        return COMPLIANCE_CONFIG.get(country, {})

@@ -1,0 +1,132 @@
+- slug: invoice-dict
+  title: "Diccionario de factura"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Crea una variable `invoice` como diccionario con estos campos:
+    - `"id"`: `"INV-042"`
+    - `"vendor"`: `"andina_co"`
+    - `"amount"`: `2750.0`
+    - `"paid"`: `False`
+
+    Luego marca la factura como pagada (cambia `"paid"` a `True`)
+    e imprime el valor de `invoice["paid"]`.
+  hint: |
+    Un dict se crea con `{clave: valor, ...}`. Para modificar un campo
+    existente: `invoice["paid"] = True`.
+  starter: |
+    invoice = {
+        # completa los cuatro campos
+    }
+
+    # marca como pagada
+
+    print(invoice["paid"])
+  test: |
+    assert isinstance(invoice, dict), "invoice debe ser un dict"
+    assert invoice.get("id") == "INV-042", f"id esperado INV-042, obtuve {invoice.get('id')!r}"
+    assert invoice.get("vendor") == "andina_co", "vendor debe ser 'andina_co'"
+    assert invoice.get("amount") == 2750.0, "amount debe ser 2750.0"
+    assert invoice.get("paid") is True, "paid debe ser True tras marcarlo"
+    print("ok")
+  solution: |
+    invoice = {
+        "id": "INV-042",
+        "vendor": "andina_co",
+        "amount": 2750.0,
+        "paid": False,
+    }
+
+    invoice["paid"] = True
+
+    print(invoice["paid"])
+
+- slug: list-of-amounts
+  title: "Lista de montos y operaciones básicas"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes esta lista de montos de facturas de ACME:
+    `[4820.0, 1500.0, 3100.0, 0.0]`
+
+    Realiza estas tres operaciones y luego imprime los resultados:
+    1. Asigna la lista a `amounts`.
+    2. Añade el monto `2200.0` al final de la lista.
+    3. Asigna a `first` el primer elemento, a `last` el último, y a `count` la longitud total.
+
+    Imprime `first`, `last` y `count` en líneas separadas.
+  hint: |
+    El primer elemento es índice `[0]`, el último es `[-1]`.
+    Para añadir: `.append(valor)`. Para contar: `len(lista)`.
+  starter: |
+    amounts = [4820.0, 1500.0, 3100.0, 0.0]
+
+    # añade 2200.0
+
+    first = ...
+    last = ...
+    count = ...
+
+    print(first)
+    print(last)
+    print(count)
+  test: |
+    assert amounts == [4820.0, 1500.0, 3100.0, 0.0, 2200.0], (
+        f"amounts incorrecta: {amounts}"
+    )
+    assert first == 4820.0, f"first debe ser 4820.0, obtuve {first}"
+    assert last == 2200.0, f"last debe ser 2200.0, obtuve {last}"
+    assert count == 5, f"count debe ser 5, obtuve {count}"
+    print("ok")
+  solution: |
+    amounts = [4820.0, 1500.0, 3100.0, 0.0]
+
+    amounts.append(2200.0)
+
+    first = amounts[0]
+    last = amounts[-1]
+    count = len(amounts)
+
+    print(first)
+    print(last)
+    print(count)
+
+- slug: safe-access
+  title: "Acceso seguro con get()"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado el siguiente dict de factura (sin campo `"discount"`):
+
+    ```python
+    invoice = {"id": "INV-003", "vendor": "globex_log", "amount": 3100.0}
+    ```
+
+    1. Asigna a `discount` el valor del campo `"discount"` usando `.get()` con
+       valor por defecto `0.0`.
+    2. Asigna a `has_period` el resultado de comprobar si `"period"` está en `invoice`
+       (debe ser `True` o `False`).
+    3. Imprime `discount` y `has_period`.
+  hint: |
+    `dict.get("clave", default)` devuelve `default` si la clave no existe.
+    Para comprobar existencia: `"clave" in dict` devuelve `True` o `False`.
+  starter: |
+    invoice = {"id": "INV-003", "vendor": "globex_log", "amount": 3100.0}
+
+    discount = ...
+    has_period = ...
+
+    print(discount)
+    print(has_period)
+  test: |
+    assert discount == 0.0, f"discount debe ser 0.0, obtuve {discount}"
+    assert has_period is False, f"has_period debe ser False, obtuve {has_period}"
+    print("ok")
+  solution: |
+    invoice = {"id": "INV-003", "vendor": "globex_log", "amount": 3100.0}
+
+    discount = invoice.get("discount", 0.0)
+    has_period = "period" in invoice
+
+    print(discount)
+    print(has_period)

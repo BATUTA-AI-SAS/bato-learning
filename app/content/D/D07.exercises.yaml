@@ -1,0 +1,189 @@
+- slug: expand-contract-migration
+  title: "Diseña una migración expand-contract"
+  runner: backend
+  kind: design
+  prompt: |
+    ACME Manufacturing tiene la tabla `invoices` con esta columna:
+
+    ```sql
+    invoice_date VARCHAR(255)  -- formato "YYYY-MM-DD" como string
+    ```
+
+    El nuevo agente de auditoría necesita hacer `WHERE invoice_date_ts > '2026-01-01'::TIMESTAMP`
+    para consultas de rango eficientes. Hay que migrar a `TIMESTAMP`.
+
+    El sistema tiene SLA: no puede haber downtime. Hay ~2 millones de filas.
+    El equipo hace deploys cada semana.
+
+    Diseña los **3 releases** usando el patrón expand-contract:
+    - Para cada release: qué hace la migración SQL y qué hace el código de la app.
+    - Indica si la migración es safe to run con la versión vieja del código corriendo en paralelo.
+    - Indica cuánto tiempo puede tardar el backfill y si necesita precaución especial.
+  hint: |
+    Fase 1 (expand): la nueva columna no puede ser NOT NULL todavía — la versión vieja del código no la llena.
+    Fase 2 (migrate): el backfill de 2 millones de filas puede tardar minutos. ¿Lo haces en una transacción o en batches?
+    Fase 3 (contract): solo cuando el código ya no referencia la columna vieja.
+  solution: |
+    Release 1 — EXPAND (deploy 1):
+    Migración SQL:
+      ALTER TABLE invoices ADD COLUMN invoice_date_ts TIMESTAMP;
+      -- nullable: la versión vieja del código no la llena
+      -- se puede correr con el código viejo corriendo en paralelo: SÍ
+    Código:
+      La nueva versión empieza a escribir `invoice_date_ts` además de `invoice_date`.
+      Las queries de lectura siguen usando `invoice_date` (compatibilidad hacia atrás).
+
+    Release 2 — BACKFILL (deploy 2 o script fuera del deploy):
+    Migración SQL (en batches para no lockear la tabla):
+      UPDATE invoices
+      SET invoice_date_ts = invoice_date::TIMESTAMP
+      WHERE invoice_date_ts IS NULL
+        AND id BETWEEN :start AND :end;
+      -- ejecutar en batches de 10 000 filas para evitar lock de tabla larga
+      -- 2 M filas en batches de 10k = 200 iteraciones; a 50ms/batch = ~10 segundos total
+    Código:
+      Las queries de lectura migran a usar `invoice_date_ts` cuando existe,
+      con fallback a `invoice_date` si aún es NULL.
+      Añadir `NOT NULL DEFAULT` constraint después del backfill:
+      ALTER TABLE invoices ALTER COLUMN invoice_date_ts SET NOT NULL;
+
+    Release 3 — CONTRACT (deploy 3, mínimo 1 semana después):
+    Migración SQL:
+      ALTER TABLE invoices DROP COLUMN invoice_date;
+    Código:
+      Toda referencia a `invoice_date` eliminada del código.
+      Solo existe `invoice_date_ts`.
+    Requisito para hacer este release: verificar que invoice_date_ts es NOT NULL
+    en todas las filas y que el código nuevo no referencia la columna vieja.
+
+    Precaución especial en el backfill: si hay strings con formato no estándar
+    (ej. "01/15/2026"), el cast `::TIMESTAMP` fallará. Validar el formato antes
+    del backfill con:
+    SELECT COUNT(*) FROM invoices WHERE invoice_date !~ '^\d{4}-\d{2}-\d{2}$';
+
+- slug: choose-deploy-strategy
+  title: "Elige la estrategia correcta para 3 escenarios"
+  runner: backend
+  kind: design
+  prompt: |
+    Elige la estrategia de despliegue más apropiada para cada escenario y justifica.
+    Opciones: big-bang, rolling, blue-green, canary, feature flag.
+    Un escenario puede tener más de una estrategia válida; elige la que mejor aplica
+    y explica por qué las otras no son las primeras elecciones.
+
+    **Escenario 1:**
+    Globex Logistics tiene una API con 200 tenants activos. El endpoint `/routes/optimize`
+    usa un algoritmo nuevo que no fue posible probar con todos los casos de uso.
+    El equipo quiere lanzarlo solo para 10 tenants piloto que conocen bien, monitorear
+    por 2 semanas, y luego activarlo para todos.
+
+    **Escenario 2:**
+    ACME Manufacturing tiene un worker de procesamiento de facturas. El worker procesa
+    ~500 facturas/hora. Hay un bug fix urgente que debe estar en producción en la próxima
+    hora. El worker no tiene estado en memoria. El downtime de 10-20 segundos es aceptable.
+
+    **Escenario 3:**
+    Initech Audit tiene una API crítica de reporting con un SLA de 99.5 % mensual.
+    Un release tiene un cambio significativo en el motor de generación de reportes.
+    El equipo necesita poder hacer rollback en < 1 minuto si hay problemas.
+  hint: |
+    Escenario 1: ¿necesitas deploy diferente o solo código diferente?
+    Escenario 2: si el downtime es aceptable y la urgencia es alta, ¿cuál es la opción más simple?
+    Escenario 3: ¿qué estrategia tiene el rollback más rápido sin complejidad de weights?
+  solution: |
+    Escenario 1: Feature flag por tenant.
+    El nuevo algoritmo llega a todos en el mismo deploy (activado=false por defecto).
+    Se activa solo para los 10 tenants piloto en la tabla `feature_flags`.
+    Después de 2 semanas sin incidentes, se activa el wildcard (*) para todos.
+    Por qué no canary: 200 tenants es un número manejable para selección manual,
+    y la segmentación por tenant es más controlada que por porcentaje aleatorio.
+    Por qué no blue-green: no hay que desplegar nada nuevo; el flag está en código.
+
+    Escenario 2: Big-bang.
+    El worker no tiene estado en memoria; 10-20 seg de downtime es aceptable.
+    `docker compose restart worker` es suficiente.
+    No vale la pena la complejidad de blue-green o rolling para un fix urgente
+    con margen de downtime declarado. Prioridad: velocidad de deploy.
+    Asegurarse de que el worker retoma el procesamiento desde donde lo dejó
+    (Temporal garantiza esto si las tareas están en la cola).
+
+    Escenario 3: Blue-green.
+    El SLA del 99.5 % (≈ 3.6 horas de downtime aceptable por mes) no perdona
+    un big-bang que falle y requiera 30 minutos de debug.
+    Blue-green permite: levantar green con la nueva versión, verificar en staging
+    que funciona correctamente, hacer el swap de tráfico, y tener a blue listo
+    para un rollback instantáneo.
+    Por qué no canary: Initech tiene pocos tenants (servicios profesionales).
+    El tamaño de muestra de un canary al 10% serían 0-1 tenants en producción,
+    no lo suficientemente representativo para detectar problemas.
+
+- slug: feature-flag-implementation
+  title: "Implementa is_feature_enabled en Python"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa la función `is_feature_enabled` que consulta un dict de flags
+    y devuelve si una feature está activa para un tenant dado.
+
+    Las reglas:
+    1. Si el flag no existe en `flags`, retorna `False`.
+    2. Si el flag tiene `tenant="*"` y `enabled=True`, retorna `True` para cualquier tenant.
+    3. Si el flag tiene el `tenant` específico y `enabled=True`, retorna `True`.
+    4. En cualquier otro caso, retorna `False`.
+
+    ```python
+    # flags es una lista de dicts (simula la tabla de DB)
+    FEATURE_FLAGS = [
+        {"name": "new_detector", "tenant": "acme",  "enabled": True},
+        {"name": "new_detector", "tenant": "globex", "enabled": False},
+        {"name": "beta_export",  "tenant": "*",     "enabled": True},
+    ]
+
+    def is_feature_enabled(flags: list[dict], flag_name: str, tenant: str) -> bool:
+        # tu implementación aquí
+        pass
+    ```
+  starter: |
+    FEATURE_FLAGS = [
+        {"name": "new_detector", "tenant": "acme",  "enabled": True},
+        {"name": "new_detector", "tenant": "globex", "enabled": False},
+        {"name": "beta_export",  "tenant": "*",     "enabled": True},
+    ]
+
+    def is_feature_enabled(flags: list[dict], flag_name: str, tenant: str) -> bool:
+        # busca el flag específico para el tenant primero,
+        # luego el wildcard "*", y retorna False si no encuentra nada
+        pass
+
+    # tests manuales
+    print(is_feature_enabled(FEATURE_FLAGS, "new_detector", "acme"))    # True
+    print(is_feature_enabled(FEATURE_FLAGS, "new_detector", "globex"))  # False
+    print(is_feature_enabled(FEATURE_FLAGS, "new_detector", "initech")) # False (no existe para initech)
+    print(is_feature_enabled(FEATURE_FLAGS, "beta_export", "initech"))  # True (wildcard)
+    print(is_feature_enabled(FEATURE_FLAGS, "unknown_flag", "acme"))    # False
+  test: |
+    assert is_feature_enabled(FEATURE_FLAGS, "new_detector", "acme") is True
+    assert is_feature_enabled(FEATURE_FLAGS, "new_detector", "globex") is False
+    assert is_feature_enabled(FEATURE_FLAGS, "new_detector", "initech") is False
+    assert is_feature_enabled(FEATURE_FLAGS, "beta_export", "initech") is True
+    assert is_feature_enabled(FEATURE_FLAGS, "beta_export", "acme") is True
+    assert is_feature_enabled(FEATURE_FLAGS, "unknown_flag", "acme") is False
+    print("ok")
+  solution: |
+    FEATURE_FLAGS = [
+        {"name": "new_detector", "tenant": "acme",  "enabled": True},
+        {"name": "new_detector", "tenant": "globex", "enabled": False},
+        {"name": "beta_export",  "tenant": "*",     "enabled": True},
+    ]
+
+    def is_feature_enabled(flags: list[dict], flag_name: str, tenant: str) -> bool:
+        # busca el flag específico para el tenant
+        for flag in flags:
+            if flag["name"] == flag_name and flag["tenant"] == tenant:
+                return flag["enabled"]
+        # si no hay entrada específica, busca wildcard
+        for flag in flags:
+            if flag["name"] == flag_name and flag["tenant"] == "*":
+                return flag["enabled"]
+        # flag no existe
+        return False

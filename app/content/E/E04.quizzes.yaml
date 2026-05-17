@@ -1,0 +1,96 @@
+- slug: three-memory-layers
+  question: |
+    Un agente de auditoría lleva 3 sesiones abiertas. El CFO de ACME pregunta
+    por el historial de auditorías del año pasado. ¿En qué capa de memoria
+    debería vivir ese historial?
+  explanation: |
+    El historial de auditorías anteriores trasciende una sesión concreta — no
+    está ligado a un `thread_id` específico. Eso lo convierte en memoria de
+    largo plazo, que vive en el store (o en la base de datos de la app), no en
+    el checkpointer. El checkpointer solo guarda el historial de la sesión
+    actual (memoria de sesión).
+  options:
+    - text: "Memoria de turno — se pasa como contexto en el mensaje actual."
+      correct: false
+      feedback: "La memoria de turno es efímera: solo existe durante el mensaje actual. Los datos del año pasado no cabrían ni serían coherentes ahí."
+    - text: "Memoria de sesión (checkpointer) — se guarda con el `thread_id` actual."
+      correct: false
+      feedback: "La memoria de sesión está atada al `thread_id` de la conversación actual. Al abrir una nueva sesión, ese historial desaparece. No es la capa correcta para datos permanentes."
+    - text: "Memoria de largo plazo (store o DB) — persiste entre sesiones."
+      correct: true
+      feedback: "Correcto. El historial de auditorías anteriores es un hecho permanente del tenant que trasciende sesiones individuales. Va en el store (indexado por `(tenant_id, ...)`) o en la DB de la app."
+    - text: "El system prompt — se cachea con `cache_control`."
+      correct: false
+      feedback: "El system prompt es estático dentro de una sesión. No es el lugar para datos históricos variables por tenant — cambiarían en cada tenant y son demasiado grandes para el prompt."
+
+- slug: thread-id-multitenant
+  question: |
+    Tienes dos usuarios de ACME: `user_a` y `user_b`. Cada uno abre una conversación
+    de auditoría `"audit-2026-04"`. ¿Cuál de estos `thread_id` garantiza aislamiento
+    entre usuarios **y** entre tenants?
+  explanation: |
+    El `thread_id` debe incluir el `tenant_id` para el aislamiento entre tenants,
+    y el `user_id` (o `conversation_id` único por usuario) para el aislamiento entre
+    usuarios del mismo tenant. Un `thread_id` que combina `tenant_id + user_id +
+    conversation_id` cubre todos los casos.
+  options:
+    - text: '`"audit-2026-04"` para ambos usuarios de ACME.'
+      correct: false
+      feedback: "Sin `tenant_id` ni `user_id`, los dos usuarios comparten el mismo checkpoint. El segundo usuario ve y modifica el historial del primero."
+    - text: '`"acme:audit-2026-04"` para ambos usuarios de ACME.'
+      correct: false
+      feedback: "El tenant está incluido, pero los dos usuarios comparten la misma clave. El historial de `user_a` y `user_b` se mezcla."
+    - text: '`f"acme:{user_id}:audit-2026-04"` para cada usuario.'
+      correct: true
+      feedback: "Correcto. El `tenant_id` aísla entre tenants; el `user_id` aísla entre usuarios del mismo tenant. Cada uno tiene su propio checkpoint."
+    - text: '`f"{user_id}:audit-2026-04"` para cada usuario.'
+      correct: false
+      feedback: "El `user_id` aísla entre usuarios, pero sin `tenant_id` como prefijo, dos usuarios de tenants distintos con el mismo `user_id` (posible en sistemas distintos) compartirían el checkpoint."
+
+- slug: checkpointer-vs-store
+  question: |
+    El agente de auditoría necesita «recordar» que ACME prefiere reportes en
+    formato PDF con tono ejecutivo. Esto debe aplicarse en todas las sesiones
+    futuras de ACME, no solo en la actual. ¿Dónde guarda el harness esta preferencia?
+  explanation: |
+    Las preferencias del tenant son memoria de largo plazo: persisten entre sesiones
+    y son independientes del `thread_id` de la conversación. Van en el store (indexado
+    por `(tenant_id, "preferences")`) o directamente en la DB del tenant. El checkpointer
+    solo guarda el historial de la sesión activa — al terminar la sesión y abrir una
+    nueva, esas preferencias desaparecerían.
+  options:
+    - text: "En el checkpointer, con el `thread_id` del tenant."
+      correct: false
+      feedback: "El checkpointer está atado al `thread_id` de una sesión específica. Al abrir una nueva sesión con distinto `thread_id`, la preferencia no existe."
+    - text: "En el store de largo plazo, con namespace `(tenant_id, 'preferences')`."
+      correct: true
+      feedback: "Correcto. El store se indexa por `(namespace, key)`, independiente del `thread_id`. La preferencia persiste entre sesiones y solo es accesible bajo el namespace del tenant."
+    - text: "En el system prompt hardcodeado del agente."
+      correct: false
+      feedback: "Un system prompt hardcodeado no puede variar por tenant. Si ACME quiere PDF y Globex quiere Markdown, no pueden coexistir en el mismo prompt hardcodeado."
+    - text: "En la memoria de turno, pasándola como contexto en cada mensaje."
+      correct: false
+      feedback: "La memoria de turno es efímera y manual — alguien tendría que inyectar la preferencia en cada mensaje. No es persistencia real."
+
+- slug: compaction-trigger
+  question: |
+    ¿Cuál de estos eventos debería disparar la compactación del historial de
+    una sesión de auditoría?
+  explanation: |
+    La compactación se dispara cuando el historial supera un umbral de tokens que
+    amenaza la coherencia del modelo (cercano al context window) o que hace cada
+    turno innecesariamente caro. Es una decisión determinística basada en un conteo
+    numérico — no es algo que el modelo decida.
+  options:
+    - text: "Cuando el modelo emite `stop_reason: end_turn` por tercera vez."
+      correct: false
+      feedback: "`stop_reason` indica que el modelo terminó su respuesta — no tiene relación con el tamaño del historial ni con la necesidad de compactar."
+    - text: "Cuando el historial supera un umbral configurado de tokens estimados."
+      correct: true
+      feedback: "Correcto. La compactación es una decisión determinística: si los tokens del historial superan el umbral, el harness activa el resumen. El modelo no participa en la decisión de cuándo compactar."
+    - text: "Cuando el usuario abre una nueva pestaña en el navegador."
+      correct: false
+      feedback: "Abrir una nueva pestaña puede crear una nueva sesión (nuevo `thread_id`), pero no dispara compactación de la sesión existente."
+    - text: "Cada vez que el agente ejecuta una tool."
+      correct: false
+      feedback: "La ejecución de tools añade mensajes al historial pero no necesariamente supera el umbral. La compactación se basa en el tamaño acumulado, no en el número de tools ejecutadas."

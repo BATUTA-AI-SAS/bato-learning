@@ -1,0 +1,157 @@
+- slug: classify-severity
+  title: "Clasifica la severidad correcta"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `classify_severity(affected_tenants: int, service_down: bool, outside_hours: bool) -> str`
+    que devuelva `"SEV1"`, `"SEV2"` o `"SEV3"` según estas reglas:
+    - SEV1: servicio completamente caído (`service_down=True`) para ≥1 tenant.
+    - SEV2: servicio degradado (no caído) pero `affected_tenants >= 1`; o caído fuera de horario (`outside_hours`).
+    - SEV3: cualquier otro caso con `affected_tenants >= 1`.
+    - Si `affected_tenants == 0`: devolver `"NO_INCIDENT"`.
+  hint: |
+    Empieza por el caso más grave (SEV1) y baja en orden. Usa condicionales anidados.
+  starter: |
+    def classify_severity(
+        affected_tenants: int,
+        service_down: bool,
+        outside_hours: bool,
+    ) -> str:
+        if affected_tenants == 0:
+            return "NO_INCIDENT"
+        # completa la lógica
+        ...
+  test: |
+    assert classify_severity(0, False, False) == "NO_INCIDENT"
+    assert classify_severity(1, True, False) == "SEV1"
+    assert classify_severity(3, True, True) == "SEV1"
+    assert classify_severity(2, False, False) == "SEV2"
+    assert classify_severity(1, False, True) == "SEV2"
+    assert classify_severity(1, False, False) == "SEV3"
+    print("ok")
+  solution: |
+    def classify_severity(
+        affected_tenants: int,
+        service_down: bool,
+        outside_hours: bool,
+    ) -> str:
+        if affected_tenants == 0:
+            return "NO_INCIDENT"
+        if service_down:
+            return "SEV1"
+        if affected_tenants >= 1:
+            return "SEV2"
+        return "SEV3"
+
+- slug: write-runbook
+  title: "Diseña un runbook ejecutable"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Dado el síntoma: «El tenant `acme` reporta que el chat del agente responde pero siempre devuelve
+    el mismo mensaje: "Lo siento, no puedo procesar tu solicitud" sin importar la pregunta.»
+
+    Escribe un runbook con los 6 bloques canónicos:
+    1. SÍNTOMA (1 línea)
+    2. HIPÓTESIS (≥ 3, ordenadas por probabilidad)
+    3. DIAGNÓSTICO (≥ 2 comandos docker/curl copiables con output esperado)
+    4. ACCIÓN (≥ 1 acción con rollback)
+    5. VERIFICACIÓN (1 comando que confirme la resolución)
+    6. ESCALACIÓN (criterio medible: cuándo y a quién)
+
+    Implementa `validate_runbook(rb: dict) -> list[str]` que recibe un dict con claves
+    `sintoma`, `hipotesis` (list), `diagnostico` (list), `accion` (list), `verificacion`, `escalacion`
+    y devuelve una lista de errores de validación (vacía si el runbook es válido).
+
+    Reglas de validación:
+    - `sintoma` no vacío
+    - `hipotesis` tiene ≥ 3 elementos
+    - `diagnostico` tiene ≥ 2 elementos
+    - `accion` tiene ≥ 1 elemento
+    - `verificacion` no vacío
+    - `escalacion` no vacío
+  hint: |
+    Itera sobre cada regla y acumula los errores en una lista.
+    Un runbook válido devuelve lista vacía.
+  starter: |
+    def validate_runbook(rb: dict) -> list[str]:
+        errors = []
+        # valida cada campo según las reglas
+        return errors
+  test: |
+    rb_ok = {
+        "sintoma": "Chat devuelve respuesta genérica para acme",
+        "hipotesis": ["Prompt del sistema corrompido", "Cache de sesión rota", "Anthropic 529 silencioso"],
+        "diagnostico": [
+            "docker logs api --since 5m | grep -i 'cache\\|session\\|acme'",
+            "curl -sf http://localhost:8000/api/session/acme | python3 -m json.tool",
+        ],
+        "accion": ["docker compose restart api  # rollback: docker compose down && docker compose up -d"],
+        "verificacion": "curl -sf https://domain/api/health",
+        "escalacion": "Si ≥ 20 min sin resolución: escalar a {backup} con últimas 50 líneas de logs",
+    }
+    rb_bad = {
+        "sintoma": "",
+        "hipotesis": ["solo una"],
+        "diagnostico": [],
+        "accion": [],
+        "verificacion": "ok",
+        "escalacion": "",
+    }
+    assert validate_runbook(rb_ok) == [], f"runbook válido no debe tener errores: {validate_runbook(rb_ok)}"
+    errors = validate_runbook(rb_bad)
+    assert len(errors) >= 4, f"runbook inválido debe tener ≥4 errores, tiene {len(errors)}"
+    print("ok")
+  solution: |
+    def validate_runbook(rb: dict) -> list[str]:
+        errors = []
+        if not rb.get("sintoma"):
+            errors.append("sintoma vacío")
+        if len(rb.get("hipotesis", [])) < 3:
+            errors.append("hipotesis debe tener ≥3 elementos")
+        if len(rb.get("diagnostico", [])) < 2:
+            errors.append("diagnostico debe tener ≥2 comandos")
+        if len(rb.get("accion", [])) < 1:
+            errors.append("accion debe tener ≥1 elemento")
+        if not rb.get("verificacion"):
+            errors.append("verificacion vacía")
+        if not rb.get("escalacion"):
+            errors.append("escalacion vacía")
+        return errors
+
+- slug: oncall-tool-selection
+  title: "Elige herramienta de on-call para cada escenario"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Implementa `recommend_oncall_tool(team_size: int, has_sla_contract: bool, monthly_budget_usd: float) -> str`
+    que devuelva `"betterstack"`, `"grafana_oncall"` o `"pagerduty"` según:
+    - Si `monthly_budget_usd < 50` o `team_size <= 2`: `"betterstack"` (plan gratuito/low-cost).
+    - Si `has_sla_contract` y `team_size >= 5`: `"pagerduty"`.
+    - En cualquier otro caso: `"grafana_oncall"`.
+  hint: |
+    Evalúa primero el presupuesto/tamaño, luego el contrato. El orden importa.
+  starter: |
+    def recommend_oncall_tool(
+        team_size: int,
+        has_sla_contract: bool,
+        monthly_budget_usd: float,
+    ) -> str:
+        ...
+  test: |
+    assert recommend_oncall_tool(1, False, 0) == "betterstack"
+    assert recommend_oncall_tool(2, True, 200) == "betterstack"
+    assert recommend_oncall_tool(5, True, 500) == "pagerduty"
+    assert recommend_oncall_tool(3, False, 100) == "grafana_oncall"
+    print("ok")
+  solution: |
+    def recommend_oncall_tool(
+        team_size: int,
+        has_sla_contract: bool,
+        monthly_budget_usd: float,
+    ) -> str:
+        if monthly_budget_usd < 50 or team_size <= 2:
+            return "betterstack"
+        if has_sla_contract and team_size >= 5:
+            return "pagerduty"
+        return "grafana_oncall"

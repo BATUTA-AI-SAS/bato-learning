@@ -1,0 +1,11 @@
+slug: multitenancy
+title: "¿Qué es multitenancy?"
+analogy_md: |
+  Imagina un edificio de oficinas donde ACME, Constructora Andina y Clínica San Rafael
+  cada una tiene su piso con llave propia. Una sola aplicación sirve a todos, pero los datos de cada
+  empresa son completamente invisibles para las demás.
+example_md: |
+  ```python
+  # Cada query filtra por tenant automáticamente
+  facturas = await repo.list(tenant_id=current_user.tenant_id)
+  ```

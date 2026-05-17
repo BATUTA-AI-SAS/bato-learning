@@ -1,0 +1,26 @@
+slug: iva-calculation
+title: "Calcula el IVA de la factura"
+kind: code
+trains_skill: aritmetica
+concepts_introduced: [aritmetica, float, operadores]
+concepts_reinforced: [variable]
+scenario_md: |
+  El Director de TI de ACME necesita que el script calcule el IVA (19 %) de
+  una factura con base gravable de 1 250 000 pesos. Escribe la función y
+  devuelve el valor redondeado a dos decimales.
+payload:
+  starter: |
+    def calcular_iva(base: float) -> float:
+        # Tu código aquí
+        ...
+  tests: |
+    assert calcular_iva(1_250_000) == 237_500.0
+    assert calcular_iva(100) == 19.0
+    assert calcular_iva(0) == 0.0
+hint_md: "El IVA es la base multiplicada por 0.19. round() te ayuda con los decimales."
+solution_md: |
+  def calcular_iva(base: float) -> float:
+      return round(base * 0.19, 2)
+  Multiplicar por la tasa y redondear es todo lo que necesitas.
+xp: 20
+est_seconds: 90

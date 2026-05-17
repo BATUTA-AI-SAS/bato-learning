@@ -1,0 +1,17 @@
+slug: agente-durable
+title: "Receta: Agente durable con Temporal"
+chapter_ref: phase3
+ingredients: [temporal, agente, hitl, multi-agente]
+body_md: |
+  Temporal garantiza que el workflow complete aunque el servidor se reinicie. Define activities
+  para las operaciones con efectos externos (llamadas a API, DB) y el workflow como orquestador.
+yields_md: |
+  ```python
+  @workflow.defn
+  class AgenteFacturacionWorkflow:
+      @workflow.run
+      async def run(self, datos: FacturaDatos) -> str:
+          extraido = await workflow.execute_activity(extraer_datos, datos)
+          validado = await workflow.execute_activity(validar_datos, extraido)
+          return await workflow.execute_activity(emitir_factura, validado)
+  ```

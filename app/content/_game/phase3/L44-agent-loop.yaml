@@ -1,0 +1,44 @@
+slug: agent-loop
+title: "El agente decide solo cuándo consultar la DB"
+kind: code
+phase: PH03
+ord: 44
+trains_skill: agent-loop
+concepts_introduced: [agent-loop, observe-think-act, stopping-condition]
+concepts_reinforced: [tool-calling, llm-api, async]
+xp: 20
+est_seconds: 200
+scenario_md: |
+  Un agente real no hace una sola llamada: ejecuta un bucle hasta que
+  tiene suficiente información para responder. Implementa el loop completo
+  con condición de parada para el agente financiero de ACME.
+payload:
+  starter: |
+    from anthropic import AsyncAnthropic
+    from typing import Any
+
+    client = AsyncAnthropic()
+    tools = [...]  # tus herramientas aquí
+
+    async def agent_loop(user_message: str, max_iterations: int = 5) -> str:
+        """Bucle agente: llama hasta que stop_reason == 'end_turn'."""
+        messages = [{"role": "user", "content": user_message}]
+        for _ in range(max_iterations):
+            response = ...  # llamada a la API
+            # si end_turn: retorna el texto
+            # si tool_use: ejecuta y añade tool_result a messages
+            ...
+        return "max_iterations alcanzado"
+  tests: |
+    import asyncio
+    result = asyncio.run(agent_loop("¿Cuál fue la factura más alta del Q1?"))
+    assert isinstance(result, str)
+    assert "max_iterations" not in result
+hint_md: |
+  El bucle termina cuando `response.stop_reason == "end_turn"`.
+  Acumula `messages` añadiendo el mensaje del asistente y el `tool_result`
+  en cada iteración. Sin `max_iterations` el agente puede colgar.
+solution_md: |
+  El loop observe→think→act es el núcleo de todo agente. La diferencia con
+  una llamada simple: el agente puede hacer múltiples tool calls en secuencia
+  antes de responder. La condición de parada evita bucles infinitos.

@@ -1,0 +1,71 @@
+- slug: when_caching_beats_rag
+  question: |
+    Initech Audit tiene un manual de revisión de contratos de **8 páginas** (~5000 tokens).
+    El manual se actualiza **una vez al año**. El agente lo consulta **100 veces al día**.
+    ¿Qué estrategia es más apropiada?
+  explanation: |
+    5000 tokens cabe cómodamente en el context window (200K). Se actualiza menos de 1 vez al día.
+    La estrategia óptima es **long-context + prompt caching**: el primer request de cada hora
+    paga el cache write; los siguientes 99 pagan cache hit (10% del precio). RAG añadiría
+    complejidad (chunking, embeddings, retrieval) sin beneficio — el corpus es trivialmente pequeño.
+  options:
+    - text: "Long-context + prompt caching: el corpus es pequeño, estable, y se consulta frecuentemente."
+      correct: true
+      feedback: "Correcto. 5000 tokens + 100 queries/día = caso perfecto para caching. Con 95% de hit rate, el costo es ~10% del equivalente sin caché."
+    - text: "RAG: siempre es mejor porque recupera solo lo relevante."
+      correct: false
+      feedback: "Con 5000 tokens de corpus, el 'chunk relevante' y el 'corpus completo' son casi lo mismo. RAG añadiría latencia y complejidad sin ventaja."
+    - text: "Fine-tuning: el manual se consulta tanto que conviene quemarlo en el modelo."
+      correct: false
+      feedback: "Fine-tuning no preserva la capacidad de citar el texto exacto del manual. Además, con 1 documento de 8 páginas no hay suficientes ejemplos de entrenamiento."
+    - text: "Búsqueda léxica: los contratos tienen términos exactos que BM25 maneja mejor."
+      correct: false
+      feedback: "Los contratos tienen términos exactos, pero las preguntas sobre el manual son semánticas ('¿qué dice el manual sobre cláusulas de confidencialidad?'). Además, con un corpus de 5000 tokens, long-context+caching sigue siendo más simple."
+
+- slug: fine_tuning_limitation
+  question: |
+    ACME entrena un modelo fine-tuned para clasificar facturas en categorías contables.
+    Un proveedor nuevo, Repsol SA, comienza a facturar en 2026-05. El contador lo clasifica
+    manualmente 3 veces y luego pregunta al agente. ¿Qué hace el modelo fine-tuned?
+  explanation: |
+    El fine-tuning quema el conocimiento en los pesos en el momento del entrenamiento.
+    Un proveedor nuevo no está en los datos de entrenamiento — el modelo no puede inferir
+    correctamente su categoría sin haberla visto. RAG resolvería esto mejor: los 3 ejemplos
+    manuales se indexan como chunks y el agente los recupera por similitud.
+  options:
+    - text: "Clasifica según el proveedor más similar en el training set — puede equivocarse porque Repsol SA no estaba en los datos de entrenamiento."
+      correct: true
+      feedback: "Correcto. El fine-tuning no puede aprender de 3 ejemplos nuevos sin re-entrenar. Para datos que cambian frecuentemente, RAG o few-shot prompting son mejores."
+    - text: "Aprende automáticamente de los 3 ejemplos manuales sin re-entrenar."
+      correct: false
+      feedback: "Los modelos fine-tuned no aprenden en tiempo de inferencia. Para incorporar los 3 ejemplos, habría que re-entrenar — lo que tarda horas/días y cuesta dinero."
+    - text: "Rechaza la query porque Repsol SA no está en el vocabulario del modelo."
+      correct: false
+      feedback: "El modelo no tiene un vocabulario cerrado de proveedores. Procesará la query pero puede clasificar incorrectamente."
+    - text: "Usa RAG internamente para encontrar los 3 ejemplos nuevos."
+      correct: false
+      feedback: "Un modelo fine-tuned no tiene RAG integrado automáticamente. Son arquitecturas separadas que se combinan explícitamente si se desea."
+
+- slug: lexical_vs_semantic_search
+  question: |
+    Un usuario busca exactamente `"artículo 423"` en la base de la normativa tributaria
+    colombiana. ¿Qué tipo de búsqueda da mejores resultados?
+  explanation: |
+    **Búsqueda léxica (BM25)** busca exactamente las palabras `artículo` y `423` y las
+    rankea por frecuencia. La búsqueda semántica embedea `"artículo 423"` y busca documentos
+    semánticamente similares — que podrían incluir artículos 422, 424, y otros sobre el mismo
+    tema, pero no necesariamente el 423 exacto. Para números de artículo, la exactitud léxica
+    supera a la similitud semántica.
+  options:
+    - text: "Búsqueda léxica (BM25 / full-text search) — busca las palabras exactas y rankea por frecuencia."
+      correct: true
+      feedback: "Correcto. Términos exactos como números de artículo, códigos SAP, NIFs y referencias legales son el caso ideal para búsqueda léxica."
+    - text: "Búsqueda semántica (embeddings) — entiende el significado del artículo 423."
+      correct: false
+      feedback: "Los embeddings normalizan el significado: 'artículo 423' y 'artículo 424' producen vectores muy similares. Para el número exacto, la léxica es más precisa."
+    - text: "Hybrid search — siempre es mejor que cualquiera de las dos por separado."
+      correct: false
+      feedback: "Hybrid search es la mejor opción cuando la query tiene AMBOS términos exactos Y componente semántica. Para búsqueda puramente por número exacto, léxica sola es suficiente y más simple."
+    - text: "Fine-tuning — el modelo aprende a buscar artículos legales con entrenamiento específico."
+      correct: false
+      feedback: "Fine-tuning no mejora la búsqueda de términos exactos — ese es un problema de indexación, no de comprensión del modelo."

@@ -1,0 +1,79 @@
+- slug: fastapi-request-cycle
+  question: |
+    Un handler FastAPI recibe `body: InvoiceFilter` con el campo `period: str`.
+    El cliente envía `"period": "2026-13"` (mes 13, inválido).
+    ¿Qué devuelve FastAPI **antes** de que el código del handler se ejecute?
+  explanation: |
+    FastAPI valida el body con Pydantic antes de llamar al handler. Si el
+    `@field_validator` de `period` lanza `ValueError`, Pydantic convierte eso en
+    un error de validación y FastAPI devuelve `422 Unprocessable Entity` con el
+    detalle del campo. El handler nunca se ejecuta — ni siquiera llega a la
+    primera línea.
+  options:
+    - text: "`422 Unprocessable Entity` con el detalle del campo inválido."
+      correct: true
+      feedback: "Correcto. FastAPI valida con Pydantic antes de llamar al handler; 422 es la respuesta estándar."
+    - text: "`400 Bad Request` genérico."
+      correct: false
+      feedback: "FastAPI usa 422 (no 400) para errores de validación de body. 400 es para errores semánticos que tú lanzas con HTTPException."
+    - text: "El handler recibe `period=None` porque el valor es inválido."
+      correct: false
+      feedback: "Pydantic no pasa `None` silenciosamente; lanza ValidationError que FastAPI convierte en 422."
+    - text: "`500 Internal Server Error` porque el validator lanzó una excepción."
+      correct: false
+      feedback: "Las excepciones de Pydantic son esperadas y manejadas por FastAPI. Solo las excepciones no capturadas dan 500."
+
+- slug: depends-scope
+  question: |
+    En bato-learning, `get_session` usa `yield` dentro de un `async with SessionFactory()`.
+    ¿Qué pasa con la sesión cuando el handler termina de ejecutarse (con o sin error)?
+  explanation: |
+    FastAPI llama al generador de la dependencia antes del handler. Cuando el handler
+    termina (normal o con excepción), FastAPI hace que el generador continúe para
+    ejecutar el código post-`yield`. El `async with SessionFactory()` cierra la sesión
+    en ese momento. Esto garantiza que la sesión siempre se cierra sin que el handler
+    tenga que hacerlo explícitamente.
+  options:
+    - text: "FastAPI ejecuta el código post-`yield` del generador, cerrando la sesión."
+      correct: true
+      feedback: "Exacto. FastAPI gestiona el ciclo de vida de las dependencias generadoras."
+    - text: "La sesión queda abierta hasta que el garbage collector la limpie."
+      correct: false
+      feedback: "FastAPI garantiza que el código post-yield se ejecuta al terminar el request, sin esperar al GC."
+    - text: "La sesión se cierra solo si el handler termina sin error."
+      correct: false
+      feedback: "FastAPI ejecuta el post-yield incluso si el handler lanza una excepción (el `finally` implícito del `async with`)."
+    - text: "La sesión se reutiliza en la siguiente request del mismo cliente."
+      correct: false
+      feedback: "Cada request obtiene su propia sesión. No hay reutilización entre requests distintos."
+
+- slug: async-blocking-bug
+  question: |
+    Un desarrollador escribe este handler en FastAPI:
+    ```python
+    @router.get("/invoices")
+    async def list_invoices() -> list[dict]:
+        response = requests.get("https://api.siigo.com/invoices")
+        return response.json()
+    ```
+    ¿Cuál es el problema y por qué se manifiesta solo bajo carga?
+  explanation: |
+    `requests.get` es una operación bloqueante (no-async). Cuando se llama dentro de
+    `async def`, bloquea el único thread del event loop de uvicorn durante toda la
+    duración del request HTTP a Siigo. Con un solo usuario, no hay problema visible.
+    Bajo carga, todos los requests posteriores esperan a que el thread del event loop
+    se libere, causando timeouts en cascada. La solución es usar `httpx.AsyncClient`
+    (o `asyncio.to_thread(requests.get, url)` como workaround).
+  options:
+    - text: "`requests.get` bloquea el event loop; bajo carga, todos los requests se encolan detrás."
+      correct: true
+      feedback: "Correcto. El event loop es single-threaded; una llamada bloqueante paraliza toda la app."
+    - text: "`requests` no soporta HTTPS; hay que usar `urllib`."
+      correct: false
+      feedback: "`requests` soporta HTTPS. El problema es que es síncrono, no el protocolo."
+    - text: "El handler devuelve `list[dict]` sin un `response_model`, lo que causa problemas de serialización."
+      correct: false
+      feedback: "FastAPI puede serializar `list[dict]` sin `response_model`. El problema es el bloqueo async."
+    - text: "El problema solo aparece si `uvicorn` corre con `--workers 1`."
+      correct: false
+      feedback: "El problema es el event loop, no el número de workers. Cada worker tiene su propio event loop bloqueado."

@@ -1,0 +1,11 @@
+slug: arquitectura
+title: "¿Qué es la arquitectura de software?"
+analogy_md: |
+  Es el plano del edificio antes de construirlo: decide qué piezas existen, cómo se conectan
+  y cuáles pueden cambiar sin demoler el resto. Una mala arquitectura en ACME significa que agregar
+  una empresa nueva rompe todo.
+example_md: |
+  ```
+  router → service → repository → model
+  (HTTP)   (lógica)  (datos)     (tabla)
+  ```

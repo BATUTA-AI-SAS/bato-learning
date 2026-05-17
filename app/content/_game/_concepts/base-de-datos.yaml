@@ -1,0 +1,10 @@
+slug: base-de-datos
+title: "¿Qué es una base de datos?"
+analogy_md: |
+  Como un libro de Excel con muchas hojas relacionadas entre sí, pero diseñado para
+  miles de usuarios simultáneos, consultas rápidas y que los datos no se corrompan si se va la luz.
+example_md: |
+  ```sql
+  SELECT cliente, SUM(monto) FROM facturas
+  WHERE estado = 'pendiente' GROUP BY cliente;
+  ```

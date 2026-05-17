@@ -1,0 +1,18 @@
+slug: llamada-llm
+title: "Receta: Llamada a LLM con streaming"
+chapter_ref: phase3
+ingredients: [llm, streaming, prompt-caching, async]
+body_md: |
+  La llamada básica al SDK de Anthropic con streaming. El system prompt lleva cache_control
+  para no pagar por reprocesarlo en cada mensaje. El contexto dinámico va en el user message.
+yields_md: |
+  ```python
+  async with client.messages.stream(
+      model="claude-sonnet-4-5",
+      system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
+      messages=[{"role": "user", "content": user_input}],
+      max_tokens=1024,
+  ) as stream:
+      async for text in stream.text_stream:
+          yield text
+  ```

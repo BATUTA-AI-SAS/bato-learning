@@ -1,0 +1,313 @@
+- slug: msa-clause-review
+  title: "Identifica las cláusulas problemáticas del MSA"
+  runner: pyodide
+  kind: design
+  prompt: |
+    El abogado de Constructora Andina envió un MSA con las siguientes 5
+    cláusulas. Clasifica cada una como ACCEPTABLE (puedes firmar tal como está),
+    NEGOTIABLE (aceptas con modificación), o REJECT (no firmas bajo ningún
+    concepto sin cambiarla).
+
+    Además, para las NEGOTIABLE y REJECT, escribe una contraoferta concreta.
+  hint: |
+    Las cláusulas de indemnización ilimitada y transferencia de IP completa
+    son siempre REJECT para un proveedor de SaaS — son existencialmente
+    peligrosas para el negocio.
+  starter: |
+    clauses = [
+        {
+            "id": 1,
+            "text": "El proveedor indemnizará al cliente por cualquier pérdida, daño, costo o gasto derivado del servicio, sin límite de responsabilidad.",
+            "classification": "",  # ACCEPTABLE | NEGOTIABLE | REJECT
+            "counteroffer": ""     # vacío si ACCEPTABLE
+        },
+        {
+            "id": 2,
+            "text": "El cliente puede terminar el contrato con 15 días de aviso por escrito, sin penalidad.",
+            "classification": "",
+            "counteroffer": ""
+        },
+        {
+            "id": 3,
+            "text": "Todo el software, código, modelos y metodología desarrollados o utilizados en la prestación del servicio serán propiedad exclusiva del cliente.",
+            "classification": "",
+            "counteroffer": ""
+        },
+        {
+            "id": 4,
+            "text": "Las disputas se resolverán exclusivamente en los tribunales civiles del Distrito Judicial de Bogotá D.C.",
+            "classification": "",
+            "counteroffer": ""
+        },
+        {
+            "id": 5,
+            "text": "El proveedor no podrá prestar servicios similares a ninguna empresa del sector de la construcción en Colombia por 3 años después de terminado el contrato.",
+            "classification": "",
+            "counteroffer": ""
+        }
+    ]
+  test: |
+    assert isinstance(clauses, list) and len(clauses) == 5
+    valid_classifications = {"ACCEPTABLE", "NEGOTIABLE", "REJECT"}
+    for c in clauses:
+        assert c["classification"] in valid_classifications, \
+            f"Cláusula {c['id']}: classification debe ser ACCEPTABLE, NEGOTIABLE o REJECT"
+        if c["classification"] in ("NEGOTIABLE", "REJECT"):
+            assert c["counteroffer"] != "", \
+                f"Cláusula {c['id']}: si es {c['classification']} debes escribir una contraoferta"
+
+    # Cláusula 1: indemnización ilimitada = REJECT
+    c1 = next(c for c in clauses if c["id"] == 1)
+    assert c1["classification"] == "REJECT", \
+        "Cláusula 1 (indemnización ilimitada): REJECT. Un solo incidente puede cerrar tu negocio."
+
+    # Cláusula 2: terminación con 15 días: es poco para ti (30 días es razonable)
+    c2 = next(c for c in clauses if c["id"] == 2)
+    assert c2["classification"] in ("NEGOTIABLE", "ACCEPTABLE"), \
+        "Cláusula 2: 15 días es poco pero no es existencial. NEGOTIABLE para pedir 30 días es razonable."
+
+    # Cláusula 3: IP completa del cliente = REJECT
+    c3 = next(c for c in clauses if c["id"] == 3)
+    assert c3["classification"] == "REJECT", \
+        "Cláusula 3 (IP completa al cliente): REJECT. Le darías la propiedad de tu plataforma."
+
+    # Cláusula 4: jurisdicción Bogotá: si el proveedor es colombiano, es ACCEPTABLE
+    c4 = next(c for c in clauses if c["id"] == 4)
+    assert c4["classification"] in ("ACCEPTABLE", "NEGOTIABLE"), \
+        "Cláusula 4: tribunales de Bogotá son aceptables para un proveedor colombiano. ACCEPTABLE o NEGOTIABLE (proponer arbitraje)."
+
+    # Cláusula 5: no-competencia de 3 años en todo el sector = REJECT o fuerte NEGOTIABLE
+    c5 = next(c for c in clauses if c["id"] == 5)
+    assert c5["classification"] in ("REJECT", "NEGOTIABLE"), \
+        "Cláusula 5: no-competencia de 3 años en todo el sector construcción CO = REJECT o NEGOTIABLE con compensación económica."
+    assert c5["counteroffer"] != "", \
+        "Cláusula 5: propón una contraoferta (plazo menor, región acotada, o compensación económica)"
+    print("ok")
+  solution: |
+    clauses = [
+        {
+            "id": 1,
+            "text": "El proveedor indemnizará al cliente por cualquier pérdida...",
+            "classification": "REJECT",
+            "counteroffer": "La responsabilidad del proveedor se limita a los montos efectivamente pagados por el cliente en los 12 meses anteriores al evento que origina la reclamación."
+        },
+        {
+            "id": 2,
+            "text": "El cliente puede terminar el contrato con 15 días de aviso...",
+            "classification": "NEGOTIABLE",
+            "counteroffer": "El aviso de terminación será de 30 días calendario por cualquiera de las partes. Durante ese período el servicio continúa y la facturación es proporcional."
+        },
+        {
+            "id": 3,
+            "text": "Todo el software... será propiedad exclusiva del cliente.",
+            "classification": "REJECT",
+            "counteroffer": "La plataforma, el código del agente y la metodología son y seguirán siendo propiedad del proveedor. El cliente recibe una licencia perpetua, no exclusiva e intransferible para usar el servicio durante la vigencia del contrato."
+        },
+        {
+            "id": 4,
+            "text": "Las disputas se resolverán en los tribunales civiles del Distrito Judicial de Bogotá D.C.",
+            "classification": "NEGOTIABLE",
+            "counteroffer": "Las disputas se resolverán mediante arbitraje ante el Centro de Arbitraje y Conciliación de la Cámara de Comercio de Bogotá, bajo sus reglas vigentes. Esto es más rápido y predecible que la justicia ordinaria."
+        },
+        {
+            "id": 5,
+            "text": "El proveedor no podrá prestar servicios similares a ninguna empresa del sector de la construcción en Colombia por 3 años...",
+            "classification": "REJECT",
+            "counteroffer": "El proveedor se compromete a no revelar información confidencial del cliente ni a usar los datos del cliente para prestar servicios directamente competitivos a proyectos específicos del cliente. No se acepta restricción general de competencia sin compensación económica específica."
+        }
+    ]
+  hints:
+    - "Indemnización ilimitada = 1 incidente del agente puede generar una demanda por el total de las pérdidas del cliente. Eso puede ser millones."
+    - "IP completa al cliente = le estás dando tu producto. No tiene sentido como SaaS."
+
+- slug: dpa-minimum-clauses
+  title: "Valida el clausulado mínimo del DPA"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Tu DPA tiene las siguientes cláusulas. Verifica que cubre el clausulado
+    mínimo de la Ley 1581 de Colombia. Añade `True` o `False` a cada
+    verificación y escribe qué falta o qué está bien.
+  hint: |
+    El DPA debe declarar explícitamente: finalidad de tratamiento, tipos
+    de datos, prohibición de uso para otra finalidad, medidas de seguridad,
+    subprocesadores, derechos ARCO, notificación de brechas, y eliminación
+    al terminar.
+  starter: |
+    dpa_verification = {
+        "finalidad_declarada": {
+            "present": None,  # True o False
+            "note": ""
+        },
+        "tipos_datos_especificados": {
+            "present": None,
+            "note": ""
+        },
+        "prohibicion_uso_otra_finalidad": {
+            "present": None,
+            "note": ""
+        },
+        "medidas_seguridad_declaradas": {
+            "present": None,
+            "note": ""
+        },
+        "subprocesadores_listados": {
+            "present": None,
+            "note": ""
+        },
+        "derechos_arco_procedimiento": {
+            "present": None,
+            "note": ""
+        },
+        "notificacion_brechas_plazo": {
+            "present": None,
+            "note": ""
+        },
+        "eliminacion_datos_al_terminar": {
+            "present": None,
+            "note": ""
+        }
+    }
+
+    # Supón que tu DPA tiene todo excepto:
+    # - No lista los subprocesadores (Anthropic, Hetzner)
+    # - No especifica el plazo de notificación de brechas
+    # Completa dpa_verification con True/False para cada campo
+  test: |
+    assert isinstance(dpa_verification, dict)
+    for key, val in dpa_verification.items():
+        assert val["present"] is not None, f"{key}: present no puede ser None"
+        assert val["note"] != "", f"{key}: note no puede estar vacía"
+
+    # Los dos campos que faltan según el enunciado
+    assert dpa_verification["subprocesadores_listados"]["present"] is False, \
+        "subprocesadores_listados debe ser False según el enunciado del ejercicio"
+    assert dpa_verification["notificacion_brechas_plazo"]["present"] is False, \
+        "notificacion_brechas_plazo debe ser False según el enunciado del ejercicio"
+
+    # Los demás deben ser True
+    otros = [k for k in dpa_verification
+             if k not in ("subprocesadores_listados", "notificacion_brechas_plazo")]
+    for k in otros:
+        assert dpa_verification[k]["present"] is True, \
+            f"{k} debe ser True según el enunciado (solo faltan subprocesadores y plazo de brechas)"
+    print("ok")
+  solution: |
+    dpa_verification = {
+        "finalidad_declarada": {
+            "present": True,
+            "note": "El DPA declara que los datos se procesan únicamente para la conciliación bancaria mensual del cliente."
+        },
+        "tipos_datos_especificados": {
+            "present": True,
+            "note": "El DPA especifica: extractos bancarios (transacciones, fechas, montos, referencias) y libro contable Siigo (comprobantes, cuentas)."
+        },
+        "prohibicion_uso_otra_finalidad": {
+            "present": True,
+            "note": "Cláusula 3 del DPA: 'El encargado no utilizará los datos para ninguna finalidad distinta a la establecida en este acuerdo.'"
+        },
+        "medidas_seguridad_declaradas": {
+            "present": True,
+            "note": "El DPA declara: AES-256 en reposo, TLS 1.3 en tránsito, acceso por tenant aislado, logs 12 meses."
+        },
+        "subprocesadores_listados": {
+            "present": False,
+            "note": "FALTA: el DPA no lista a Anthropic Inc. (modelo de IA) ni a Hetzner Online GmbH (infra) como subprocesadores. Añadir cláusula con lista explícita."
+        },
+        "derechos_arco_procedimiento": {
+            "present": True,
+            "note": "El DPA especifica el email de contacto para ejercer derechos ARCO y el plazo de respuesta (15 días hábiles según Ley 1581)."
+        },
+        "notificacion_brechas_plazo": {
+            "present": False,
+            "note": "FALTA: el DPA dice 'notificará oportunamente' pero no especifica el plazo. Añadir: 'dentro de las 72 horas hábiles siguientes a detectar la brecha'."
+        },
+        "eliminacion_datos_al_terminar": {
+            "present": True,
+            "note": "El DPA establece que los datos se eliminan en 30 días calendario tras la terminación del contrato o se devuelven en CSV si el cliente lo solicita."
+        }
+    }
+  hints:
+    - "Los subprocesadores son terceros que procesan datos bajo tu instrucción. Anthropic procesa los datos cuando el agente llama al modelo."
+    - "La Ley 1581 no especifica '72 horas' para brechas (eso es LGPD/GDPR). Pero 72h es la mejor práctica y es lo que el estándar internacional exige."
+
+- slug: sla-credit-calculator
+  title: "Calcula el crédito de SLA por incidente"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El servicio de Andina cayó durante 4.5 horas un martes a las 2pm.
+    El SLA garantiza 99.5 % de uptime mensual (720 horas/mes permitidas
+    de caída: 3.6 horas). Supera el límite en 0.9 horas.
+
+    Escribe la función `compute_sla_credit(incident_hours, monthly_hours,
+    sla_pct, monthly_fee_usd)` que devuelve el crédito en USD.
+
+    Reglas del SLA:
+    - Solo se acredita el tiempo que supera el límite garantizado.
+    - El crédito es proporcional: (horas_sobre_límite / monthly_hours) × tarifa.
+    - Techo: 10 % de la tarifa mensual (nunca más).
+    - El crédito es hacia factura futura, no efectivo.
+  hint: |
+    allowed_down = monthly_hours × (1 - sla_pct/100)
+    Ejemplo: 720 × (1 - 0.995) = 3.6 horas permitidas de caída.
+  starter: |
+    def compute_sla_credit(
+        incident_hours: float,
+        monthly_hours: float,
+        sla_pct: float,
+        monthly_fee_usd: float
+    ) -> dict:
+        """
+        Devuelve dict con: allowed_down_hours, excess_hours, credit_usd,
+        capped (True si se aplicó el techo del 10%)
+        """
+        pass
+
+    result = compute_sla_credit(4.5, 720, 99.5, 650.0)
+    print(result)
+  test: |
+    assert callable(compute_sla_credit)
+    r = compute_sla_credit(4.5, 720, 99.5, 650.0)
+    assert isinstance(r, dict)
+    assert "allowed_down_hours" in r
+    assert "excess_hours" in r
+    assert "credit_usd" in r
+    assert "capped" in r
+
+    assert abs(r["allowed_down_hours"] - 3.6) < 0.05, \
+        f"allowed_down_hours esperado 3.6, obtenido {r['allowed_down_hours']}"
+    assert abs(r["excess_hours"] - 0.9) < 0.05, \
+        f"excess_hours esperado 0.9, obtenido {r['excess_hours']}"
+    # credit sin cap: (0.9 / 720) × 650 = 0.8125 USD — bien bajo el techo
+    assert abs(r["credit_usd"] - 0.81) < 0.05, \
+        f"credit_usd esperado ~0.81, obtenido {r['credit_usd']}"
+    assert r["capped"] is False, "Con 0.81 USD no se aplica el techo del 10% (65 USD)"
+
+    # Test con incidente mayor (12 horas)
+    r2 = compute_sla_credit(12.0, 720, 99.5, 650.0)
+    raw = (12.0 - 3.6) / 720 * 650  # ~7.58 USD
+    assert r2["credit_usd"] <= 65.0, "El crédito nunca supera el 10% de la tarifa mensual"
+    assert r2["capped"] is False or r2["credit_usd"] == 65.0
+    print("ok")
+  solution: |
+    def compute_sla_credit(
+        incident_hours: float,
+        monthly_hours: float,
+        sla_pct: float,
+        monthly_fee_usd: float
+    ) -> dict:
+        allowed_down = monthly_hours * (1 - sla_pct / 100)
+        excess = max(0.0, incident_hours - allowed_down)
+        raw_credit = (excess / monthly_hours) * monthly_fee_usd
+        cap = monthly_fee_usd * 0.10
+        credit = min(raw_credit, cap)
+        return {
+            "allowed_down_hours": round(allowed_down, 2),
+            "excess_hours": round(excess, 2),
+            "credit_usd": round(credit, 2),
+            "capped": raw_credit > cap
+        }
+  hints:
+    - "El techo del 10% es 650 × 0.10 = 65 USD. Compara el crédito calculado con ese techo."
+    - "Si incident_hours < allowed_down_hours, excess = 0 y credit = 0."

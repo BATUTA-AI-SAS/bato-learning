@@ -1,0 +1,10 @@
+slug: condicion
+title: "¿Qué es una condición (if)?"
+analogy_md: |
+  En Excel usas =SI(B3>0, "Pagar", "Ignorar") para tomar decisiones.
+  En Python el if hace lo mismo: evalúa una expresión y ejecuta código distinto según el resultado.
+example_md: |
+  ```python
+  if monto > 10000:
+      aplicar_descuento(factura)
+  ```

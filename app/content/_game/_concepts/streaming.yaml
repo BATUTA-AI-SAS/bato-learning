@@ -1,0 +1,10 @@
+slug: streaming
+title: "¿Qué es streaming de respuestas?"
+analogy_md: |
+  En lugar de esperar que el servidor procese todo y luego entregar la respuesta completa,
+  el streaming envía cada trozo de texto en cuanto está listo, como ver una serie mientras se descarga.
+example_md: |
+  ```python
+  async for chunk in stream:
+      yield f"data: {chunk.text}\n\n"
+  ```

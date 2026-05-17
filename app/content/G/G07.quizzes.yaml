@@ -1,0 +1,60 @@
+- slug: capstone-go-nogo
+  question: |
+    Completaste el discovery, la demo y el POC de Andina. El POC alcanzó
+    91.3 % de match automático (criterio acordado: ≥ 85 %). Carlos dijo
+    «muy bien, pensemos». Han pasado 10 días sin respuesta. ¿Qué haces?
+  explanation: |
+    «Pensemos» después del POC exitoso es una señal de que algo no está claro
+    o hay una objeción no expresada. No esperas en silencio: el siguiente paso
+    es una llamada de seguimiento en 5 días para entender el bloqueo.
+  options:
+    - text: "Esperar — el cliente tomará su tiempo y si tiene dudas preguntará."
+      correct: false
+      feedback: "La espera pasiva deja el deal en un limbo indefinido. El POC exitoso es tu mejor momento de cierre — cada día que pasa enfría el entusiasmo."
+    - text: "Llamar a Carlos en 5 días: preguntar abiertamente qué necesita para avanzar."
+      correct: true
+      feedback: "Correcto. La llamada: 'Carlos, el POC cumplió el criterio de ≥ 85 % con 91.3 %. ¿Hay algo específico que necesitas para avanzar con los contratos?' Escucha la respuesta — ahí está la objeción real."
+    - text: "Mandar la propuesta final sin llamar — si les interesa, la firmarán."
+      correct: false
+      feedback: "Mandar la propuesta sin hablar es el movimiento de menor probabilidad de cierre. Sin saber el bloqueo, mandas la respuesta incorrecta al problema incorrecto."
+
+- slug: capstone-which-contract-first
+  question: |
+    Carlos confirmó que quiere avanzar. «Mándame los contratos», dice.
+    ¿En qué orden mandas los documentos y por qué?
+  explanation: |
+    El orden correcto: MSA primero (marco general, más fácil de firmar,
+    aplica a toda la relación), luego SOW (específico del proyecto), luego
+    DPA (tratamiento de datos, a veces necesita revisión del área legal del
+    cliente). Los tres se pueden mandar juntos pero con este orden de firma
+    sugerido.
+  options:
+    - text: "SOW primero — es el que define lo que vas a hacer y el precio."
+      correct: false
+      feedback: "El SOW cuelga del MSA. Si firmas el SOW sin el MSA, no tienes el marco de responsabilidad, IP y terminación. En caso de disputa, solo tienes el scope del proyecto pero sin las condiciones generales."
+    - text: "MSA → SOW → DPA, con sugerencia de que el abogado del cliente los revise juntos."
+      correct: true
+      feedback: "Correcto. El MSA es el marco: una vez firmado, el SOW y el DPA son más rápidos de revisar porque el cliente ya conoce las condiciones generales. La revisión conjunta acelera el proceso."
+    - text: "DPA primero — sin él no puedes procesar datos del cliente."
+      correct: false
+      feedback: "El DPA es crítico, pero necesitas el MSA primero como marco. Si el cliente firma el DPA pero rechaza el MSA, no tienes acuerdo comercial."
+
+- slug: capstone-hero-definition
+  question: |
+    Al terminar el Capstone G07, ¿qué diferencia a este entregable de
+    haber «completado el curso»?
+  explanation: |
+    El Capstone G07 produce artefactos usables en un deal real: un discovery
+    validado, una propuesta firmable, contratos con campos completos, un plan
+    de onboarding ejecutable, y KPIs acordados. «Completar el curso» significa
+    haber leído los módulos. El Capstone prueba que puedes aplicarlos.
+  options:
+    - text: "No hay diferencia — el Capstone es solo un ejercicio más del curso."
+      correct: false
+      feedback: "El Capstone G07 es diferente en naturaleza: produce documentos que puedes llevar a una reunión real mañana. No es un ejercicio teórico: es el primer cierre simulado con criterios duros."
+    - text: "El Capstone produce artefactos firmables — discovery, propuesta, contratos, onboarding, KPIs — que puedes usar con un cliente real."
+      correct: true
+      feedback: "Correcto. La diferencia entre 'sé la teoría' y 'puedo vender esto' es exactamente lo que el Capstone G07 cierra. Los documentos del Capstone son los que llevas a tu primer cliente real."
+    - text: "El Capstone demuestra que sabes construir el agente técnico — eso es lo que importa al cliente."
+      correct: false
+      feedback: "El agente técnico lo demuestras en el Capstone E06. El Capstone G07 demuestra que sabes venderlo, firmarlo, y operarlo. El cliente compra el servicio completo, no el código."

@@ -1,0 +1,83 @@
+- slug: repl-cycle
+  question: |
+    ¿Qué hace Python exactamente cuando escribes `4820.5 * 0.21` en la REPL y pulsas Enter?
+  explanation: |
+    La REPL (Read-Eval-Print-Loop) lee la expresión, la evalúa para obtener un valor,
+    imprime ese valor, y vuelve a mostrar el prompt. En un archivo `.py`, la evaluación
+    ocurre pero el resultado no se imprime automáticamente: necesitarías `print(...)`.
+  options:
+    - text: "Guarda el resultado en una celda del sistema, como Excel."
+      correct: false
+      feedback: |
+        Python no tiene «celdas». La REPL imprime el resultado y lo descarta;
+        no hay almacenamiento automático. Si quieres guardar el valor, necesitas
+        asignarlo a una variable con `resultado = 4820.5 * 0.21`.
+    - text: "Evalúa la expresión, imprime el resultado (`1012.305`), y vuelve a `>>>`."
+      correct: true
+      feedback: |
+        Correcto. Ese es el ciclo Read-Eval-Print-Loop: leer → evaluar → imprimir
+        → repetir. El resultado aparece en pantalla pero no queda guardado.
+    - text: "Lanza un error porque las expresiones se escriben con `=` al principio."
+      correct: false
+      feedback: |
+        El `=` al principio es la convención de Excel, no de Python. En Python,
+        `=` se usa para asignación (`precio = 4820.5`), no para evaluar expresiones.
+        En la REPL escribes la expresión directamente sin `=`.
+    - text: "Muestra el resultado solo si lo asignas primero a una variable."
+      correct: false
+      feedback: |
+        En la REPL, una expresión sola (sin asignación) imprime su valor
+        automáticamente. Solo en archivos `.py` necesitas `print()` explícito.
+
+- slug: type-identification
+  question: |
+    ¿Cuál de estas expresiones devuelve un `bool`?
+  explanation: |
+    Las comparaciones (`>`, `<`, `==`, `!=`, `>=`, `<=`) y las funciones que preguntan
+    por una propiedad (`isinstance`, `in`) devuelven `True` o `False`, que son los dos
+    únicos valores de tipo `bool`. Las operaciones aritméticas devuelven `int` o `float`.
+    Un literal de texto entre comillas es siempre `str`.
+  options:
+    - text: "`4820 + 0`"
+      correct: false
+      feedback: |
+        `4820 + 0` devuelve `4820`, que es `int`. Sumar dos enteros siempre da `int`.
+    - text: "`\"INV-001\"`"
+      correct: false
+      feedback: |
+        Un texto entre comillas es `str`, nunca `bool`, independientemente de su contenido.
+    - text: "`4820 > 1000`"
+      correct: true
+      feedback: |
+        Una comparación con `>` devuelve `True` o `False`, que son los dos valores
+        posibles de tipo `bool`. Aquí `4820 > 1000` devuelve `True`.
+    - text: "`len(\"ACME\")`"
+      correct: false
+      feedback: |
+        `len()` devuelve el número de elementos, que es un `int`. En este caso `4`.
+
+- slug: repl-vs-file
+  question: |
+    En un archivo `audit.py` escribes la línea `4820.0 * 0.21` (sin `print`).
+    Ejecutas `python3 audit.py`. ¿Qué pasa?
+  explanation: |
+    En un archivo `.py`, Python evalúa todas las expresiones pero solo imprime lo que
+    tú pides explícitamente con `print()`. El resultado de `4820.0 * 0.21` se calcula
+    y se descarta. La REPL es la excepción: ahí sí imprime automáticamente el valor
+    de la última expresión.
+  options:
+    - text: "Imprime `1012.305` en la terminal, igual que en la REPL."
+      correct: false
+      feedback: |
+        La impresión automática es exclusiva de la REPL. En un archivo, necesitas
+        `print(4820.0 * 0.21)` para ver el resultado en pantalla.
+    - text: "No imprime nada. La expresión se evalúa pero el resultado se descarta."
+      correct: true
+      feedback: |
+        Correcto. En un archivo `.py`, `print()` es obligatorio para mostrar valores.
+        `4820.0 * 0.21` sola no produce output visible.
+    - text: "Lanza `SyntaxError` porque las expresiones sin asignación no son válidas."
+      correct: false
+      feedback: |
+        Una expresión sola es sintaxis válida en Python. No lanza error. Simplemente
+        evalúa y descarta el resultado sin imprimirlo.

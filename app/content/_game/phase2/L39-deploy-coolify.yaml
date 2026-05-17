@@ -1,0 +1,30 @@
+slug: deploy-coolify
+title: "Despliega con dominio real + HTTPS"
+kind: order_steps
+phase: PH02
+ord: 39
+trains_skill: deploy-coolify
+xp: 20
+est_seconds: 120
+scenario_md: |
+  El servicio de ACME funciona en local pero el CFO quiere accederlo desde
+  `app.acme-audit.com`. Hay que configurar DNS, TLS y volúmenes persistentes.
+  Ordena los pasos para el primer deploy en Coolify.
+payload:
+  steps:
+    - "Verificar que el contenedor responde en `https://app.acme-audit.com/health` con HTTP 200"
+    - "En Coolify: conectar el repositorio GitHub y configurar el Dockerfile"
+    - "En el VPS: instalar Coolify (`curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash`)"
+    - "En el registrador DNS: crear un registro A apuntando `app.acme-audit.com` al IP del VPS"
+    - "En Coolify: añadir las variables de entorno (`SESSION_SECRET_KEY`, `DEEPSEEK_API_KEY`) en la sección Secrets"
+    - "En Coolify: configurar el volumen persistente que monta `data/` para la SQLite"
+  correct_order: [2, 1, 4, 5, 3, 0]
+hint_md: |
+  Primero instalar Coolify. Luego conectar el repo y configurar el proyecto.
+  Secrets antes de montar volúmenes. DNS después (tarda minutos en propagar).
+  Verificar al final cuando todo esté en su lugar.
+solution_md: |
+  Coolify gestiona Traefik como reverse proxy y solicita el certificado TLS
+  via Let's Encrypt automáticamente cuando el DNS apunta al VPS. El volumen
+  persistente es crítico: sin él, la SQLite vive en el contenedor y se borra
+  en cada redeploy. Las variables de entorno nunca van en el repo — van en Secrets.

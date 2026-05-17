@@ -1,0 +1,66 @@
+- slug: authn-vs-authz
+  question: |
+    El agente de ACME envía un JWT válido a `POST /api/audits`. El JWT tiene
+    `tenant: "acme"` y `scopes: ["read:invoices"]`. El endpoint requiere el scope
+    `"write:audits"`. ¿Qué status code debe devolver el endpoint?
+  explanation: |
+    Autenticación (quien eres) pasó — el JWT es válido. Autorización (qué puedes hacer)
+    falló — el scope `write:audits` no está en el token. Eso es un 403, no un 401.
+  options:
+    - text: "401 Unauthorized"
+      correct: false
+      feedback: "401 significa que la autenticación falló — no se sabe quién es el caller, o el token no es válido. Aquí el token es válido y el tenant es conocido: la autenticación pasó."
+    - text: "403 Forbidden"
+      correct: true
+      feedback: "Correcto. El server sabe quién es (autenticación OK), pero el scope `write:audits` no está en el token (autorización falla). 403 = autenticado pero sin permiso."
+    - text: "422 Unprocessable Entity"
+      correct: false
+      feedback: "422 es un error de validación del body o de los parámetros de la request — campos faltantes o con el tipo incorrecto. No es un error de autorización."
+    - text: "404 Not Found"
+      correct: false
+      feedback: "404 se usa cuando el recurso solicitado no existe, no cuando el caller no tiene permiso."
+
+- slug: jwt-payload-security
+  question: |
+    ¿Por qué **no** debes poner el nombre completo y el número de cédula del usuario en el payload de un JWT?
+  explanation: |
+    El payload del JWT está encodado en base64, no cifrado. Cualquier persona con el token
+    puede decodificarlo y leer el payload. Los datos sensibles (PII) no deben viajar en el token.
+  options:
+    - text: "Porque el payload de un JWT tiene un límite de 256 bytes"
+      correct: false
+      feedback: "No hay un límite de bytes estricto en el estándar JWT. El problema no es el tamaño sino la confidencialidad: el payload es legible por cualquiera que tenga el token."
+    - text: "Porque el payload del JWT está encodado en base64, no cifrado — cualquiera puede leerlo"
+      correct: true
+      feedback: "Correcto. Base64 es encoding, no cifrado. Basta `base64.b64decode(payload_part)` para leer todo el contenido. Nunca pongas PII en el payload del JWT."
+    - text: "Porque FastAPI no soporta campos de texto largo en los claims JWT"
+      correct: false
+      feedback: "FastAPI no impone restricciones sobre el contenido de los claims JWT. El problema es de seguridad y privacidad, no de soporte técnico."
+    - text: "Porque los claims solo pueden ser integers o booleans"
+      correct: false
+      feedback: "Los claims JWT pueden ser cualquier tipo JSON válido: string, number, boolean, array, object. La restricción no es de tipo sino de confidencialidad."
+
+- slug: api-key-storage
+  question: |
+    El desarrollador de ACME guarda la API key de Anthropic así:
+    ```python
+    ANTHROPIC_KEY = "sk-ant-api03-XXXX"
+    client = Anthropic(api_key=ANTHROPIC_KEY)
+    ```
+    ¿Cuál es el problema y cómo se arregla?
+  explanation: |
+    Las secrets en código fuente son accesibles para cualquiera que vea el repositorio,
+    incluso si está privado. Se deben cargar desde variables de entorno.
+  options:
+    - text: "El nombre de la variable debería ser `anthropic_key` (snake_case)"
+      correct: false
+      feedback: "La convención de nombres es una buena práctica pero no es el problema principal. La key hardcodeada en el código es el riesgo de seguridad — aparece en el historial de git para siempre."
+    - text: "La API key está hardcodeada en el código — debe venir de `os.environ` o de una variable de entorno a través de Pydantic Settings"
+      correct: true
+      feedback: "Correcto. Hardcodear secrets en código los expone a cualquiera que acceda al repositorio (incluso privado) y los guarda en el historial de git permanentemente. La solución: `os.environ.get('ANTHROPIC_API_KEY')` o `settings.anthropic_api_key` cargado desde `.env`."
+    - text: "El cliente de Anthropic debería inicializarse dentro de una función, no en el módulo"
+      correct: false
+      feedback: "Donde se inicializa el cliente no cambia el problema — la key sigue estando hardcodeada en el código. El problema es la confidencialidad de la key, no el scope de la inicialización."
+    - text: "La API key de Anthropic debería estar en un JWT, no en una variable"
+      correct: false
+      feedback: "Las API keys van en variables de entorno, nunca en JWTs. Un JWT es para autenticar usuarios o servicios en tu propia API; no es el lugar para almacenar credentials de terceros."

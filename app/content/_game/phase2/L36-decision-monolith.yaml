@@ -1,0 +1,41 @@
+slug: decision-monolith
+title: "¿Monolito, modular o microservicios?"
+kind: decision
+phase: PH02
+ord: 36
+trains_skill: architecture-tradeoffs
+xp: 10
+est_seconds: 90
+scenario_md: |
+  ACME crece: hay equipo de facturación, equipo de autenticación y equipo
+  de reportes. ¿Cómo organizas el código? La decisión afecta cuánto
+  tardan en desplegar y cuánto se bloquean entre equipos.
+payload:
+  prompt_md: |
+    ACME tiene 3 equipos de 2 devs cada uno. El servicio actual es un monolito
+    FastAPI de 8 000 líneas. Los deploys tardan 15 minutos y un bug en reportes
+    bloquea el deploy de facturación. ¿Qué arquitectura eliges?
+  options:
+    - label: "Monolito modular: misma base de código, módulos con interfaces claras"
+      tradeoff_md: |
+        + Un solo deploy. + Transacciones ACID entre módulos.
+        + Refactoring simple (todo está en el mismo proceso).
+        − Los equipos comparten el mismo pipeline de deploy.
+        − Un bug de un módulo puede romper el inicio de toda la app.
+        Ideal para equipos pequeños (< 10 devs) que valoran velocidad.
+      consequence_skill: modular-monolith
+    - label: "Microservicios: un servicio por dominio, cada uno con su DB"
+      tradeoff_md: |
+        + Deploys independientes por equipo. + Escala por servicio.
+        − Latencia de red entre servicios. − Transacciones distribuidas difíciles.
+        − Infra compleja: service discovery, observabilidad, contratos.
+        Ideal cuando los equipos (> 20 devs) tienen dominios claramente aislados.
+      consequence_skill: microservices
+hint_md: |
+  Conway's Law: la arquitectura del sistema tiende a copiar la estructura de
+  comunicación del equipo. 3 equipos de 2 devs probablemente no necesitan microservicios todavía.
+solution_md: |
+  La escalera es: monolito → monolito modular → microservicios. Saltar directo
+  a microservicios con un equipo de 6 personas es prematura optimización.
+  El monolito modular da independencia lógica sin el costo operacional de
+  la infraestructura distribuida.

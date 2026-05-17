@@ -1,0 +1,353 @@
+- slug: explain_query_plan
+  title: "Lee el EXPLAIN QUERY PLAN de SQLite"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Usa `sqlite3` para crear la tabla `invoice` (100 filas de datos ficticios)
+    y analizar si una query usa índice o hace seq scan.
+
+    1. Crea la tabla `invoice` con columnas `id`, `tenant_id`, `vendor_name`, `total_eur`, `period`.
+    2. Inserta 10 filas de prueba para `tenant_id = 'acme'` y `period = '2026-04'`.
+    3. Ejecuta `EXPLAIN QUERY PLAN` para la query:
+       `SELECT vendor_name FROM invoice WHERE tenant_id = 'acme' AND period = '2026-04'`
+       y guarda el output en `plan_without_index` (lista de tuplas).
+    4. Crea el índice `CREATE INDEX idx_inv_tenant_period ON invoice (tenant_id, period)`.
+    5. Ejecuta el mismo `EXPLAIN QUERY PLAN` y guarda en `plan_with_index`.
+    6. Guarda en `uses_scan_before` el booleano: ¿el plan sin índice contiene la palabra `'SCAN'`?
+    7. Guarda en `uses_index_after` el booleano: ¿el plan con índice contiene la palabra `'SEARCH'`?
+  hint: |
+    `cur.execute("EXPLAIN QUERY PLAN ...")` + `cur.fetchall()`.
+    Para revisar si contiene una palabra: `any('SCAN' in str(row) for row in plan_without_index)`.
+  starter: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+
+    # 1. crear tabla
+    cur.execute("""
+        CREATE TABLE invoice (
+            id INTEGER PRIMARY KEY,
+            tenant_id TEXT, vendor_name TEXT,
+            total_eur REAL, period TEXT
+        )
+    """)
+
+    # 2. insertar 10 filas
+    cur.executemany(
+        "INSERT INTO invoice VALUES (?,?,?,?,?)",
+        [(i, 'acme', f'Vendor {i}', 1000.0 * i, '2026-04') for i in range(1, 11)]
+    )
+
+    # 3. EXPLAIN QUERY PLAN sin índice
+    cur.execute("""
+        EXPLAIN QUERY PLAN
+        SELECT vendor_name FROM invoice WHERE tenant_id = 'acme' AND period = '2026-04'
+    """)
+    plan_without_index = cur.fetchall()
+
+    # 4. crear índice
+    # (escribe aquí el CREATE INDEX)
+
+    # 5. EXPLAIN QUERY PLAN con índice
+    cur.execute("""
+        EXPLAIN QUERY PLAN
+        SELECT vendor_name FROM invoice WHERE tenant_id = 'acme' AND period = '2026-04'
+    """)
+    plan_with_index = cur.fetchall()
+
+    # 6. ¿el plan sin índice hace SCAN?
+    uses_scan_before = False  # actualiza
+
+    # 7. ¿el plan con índice hace SEARCH (usa índice)?
+    uses_index_after = False  # actualiza
+
+    print("Sin índice:", plan_without_index)
+    print("Con índice:", plan_with_index)
+    print("SCAN antes:", uses_scan_before, "| INDEX después:", uses_index_after)
+  test: |
+    assert uses_scan_before is True, (
+        "sin índice, SQLite debería hacer SCAN (seq scan). "
+        f"Plan: {plan_without_index}"
+    )
+    assert uses_index_after is True, (
+        "con índice, SQLite debería hacer SEARCH USING INDEX. "
+        f"Plan: {plan_with_index}"
+    )
+    # verificar que el índice fue creado
+    assert any("SEARCH" in str(row) or "idx_inv" in str(row) for row in plan_with_index), (
+        f"el plan con índice debería mencionar SEARCH o el nombre del índice: {plan_with_index}"
+    )
+    print("ok")
+  solution: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+
+    cur.execute("""
+        CREATE TABLE invoice (
+            id INTEGER PRIMARY KEY, tenant_id TEXT,
+            vendor_name TEXT, total_eur REAL, period TEXT
+        )
+    """)
+    cur.executemany(
+        "INSERT INTO invoice VALUES (?,?,?,?,?)",
+        [(i, 'acme', f'Vendor {i}', 1000.0 * i, '2026-04') for i in range(1, 11)]
+    )
+
+    cur.execute("""
+        EXPLAIN QUERY PLAN
+        SELECT vendor_name FROM invoice WHERE tenant_id = 'acme' AND period = '2026-04'
+    """)
+    plan_without_index = cur.fetchall()
+
+    cur.execute("CREATE INDEX idx_inv_tenant_period ON invoice (tenant_id, period)")
+
+    cur.execute("""
+        EXPLAIN QUERY PLAN
+        SELECT vendor_name FROM invoice WHERE tenant_id = 'acme' AND period = '2026-04'
+    """)
+    plan_with_index = cur.fetchall()
+
+    uses_scan_before = any("SCAN" in str(row) for row in plan_without_index)
+    uses_index_after = any("SEARCH" in str(row) for row in plan_with_index)
+
+- slug: detect_n_plus_one
+  title: "Detecta y cuenta el problema N+1"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes una tabla `module` y una tabla `exercise` relacionadas.
+    El código siguiente tiene el problema N+1: carga los módulos y luego
+    hace una query adicional por cada módulo para obtener sus ejercicios.
+
+    Tu tarea:
+    1. Completar la función `count_queries_n_plus_one(modules_count)` que:
+       - Inserta `modules_count` módulos (con 2 ejercicios cada uno).
+       - Simula el N+1: una query para todos los módulos + una query por módulo para ejercicios.
+       - Retorna el número total de queries ejecutadas.
+    2. Completar la función `count_queries_optimized(modules_count)` que:
+       - Usa la misma BD.
+       - Carga módulos en 1 query y luego carga TODOS los ejercicios en 1 query adicional.
+       - Retorna el número total de queries (debería ser 2).
+
+    Guarda en `queries_n1` el resultado de `count_queries_n_plus_one(5)`.
+    Guarda en `queries_opt` el resultado de `count_queries_optimized(5)`.
+  hint: |
+    Para N+1: 1 (módulos) + 5 (una por módulo) = 6 queries.
+    Para optimizado: 1 (módulos) + 1 (todos los ejercicios con WHERE module_id IN (...)) = 2 queries.
+    Usa un contador `query_count` y auméntalo cada vez que llamas a `cur.execute()`.
+  starter: |
+    import sqlite3
+
+    def setup_db(modules_count: int):
+        con = sqlite3.connect(":memory:")
+        cur = con.cursor()
+        cur.executescript("""
+            CREATE TABLE module (id INTEGER PRIMARY KEY, title TEXT);
+            CREATE TABLE exercise (id INTEGER PRIMARY KEY, module_id INTEGER, title TEXT);
+        """)
+        for m in range(1, modules_count + 1):
+            cur.execute("INSERT INTO module VALUES (?,?)", (m, f"Module {m}"))
+            for e in range(1, 3):
+                cur.execute("INSERT INTO exercise VALUES (?,?,?)",
+                            (m * 10 + e, m, f"Exercise {m}.{e}"))
+        con.commit()
+        return con, cur
+
+    def count_queries_n_plus_one(modules_count: int) -> int:
+        con, cur = setup_db(modules_count)
+        query_count = 0
+
+        cur.execute("SELECT id, title FROM module")
+        query_count += 1
+        modules = cur.fetchall()
+
+        for module_id, title in modules:
+            # N+1: una query por módulo
+            cur.execute("SELECT title FROM exercise WHERE module_id = ?", (module_id,))
+            query_count += 1
+            _ = cur.fetchall()
+
+        return query_count
+
+    def count_queries_optimized(modules_count: int) -> int:
+        con, cur = setup_db(modules_count)
+        query_count = 0
+
+        cur.execute("SELECT id, title FROM module")
+        query_count += 1
+        modules = cur.fetchall()
+        module_ids = [m[0] for m in modules]
+
+        # carga TODOS los ejercicios de una vez
+        placeholders = ",".join("?" * len(module_ids))
+        cur.execute(
+            f"SELECT module_id, title FROM exercise WHERE module_id IN ({placeholders})",
+            module_ids,
+        )
+        query_count += 1
+        exercises = cur.fetchall()
+
+        return query_count
+
+    queries_n1  = count_queries_n_plus_one(5)
+    queries_opt = count_queries_optimized(5)
+    print(f"N+1: {queries_n1} queries | Optimizado: {queries_opt} queries")
+  test: |
+    assert queries_n1 == 6, (
+        f"N+1 con 5 módulos debería ser 1 + 5 = 6 queries, obtuve {queries_n1}"
+    )
+    assert queries_opt == 2, (
+        f"Optimizado con 5 módulos debería ser 2 queries, obtuve {queries_opt}"
+    )
+    # verificar que escala
+    from types import SimpleNamespace
+    # llamar las funciones con 20 módulos para verificar que N+1 escala
+    n1_20 = count_queries_n_plus_one(20)
+    opt_20 = count_queries_optimized(20)
+    assert n1_20 == 21, f"N+1 con 20 módulos debería ser 21, obtuve {n1_20}"
+    assert opt_20 == 2, f"Optimizado con 20 módulos sigue siendo 2, obtuve {opt_20}"
+    print("ok")
+  solution: |
+    # (el starter ya es la solución — el ejercicio pide completar las funciones)
+    queries_n1  = count_queries_n_plus_one(5)
+    queries_opt = count_queries_optimized(5)
+
+- slug: index_design
+  title: "Diseña los índices correctos para un schema"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Dado el siguiente schema de ACME con estas queries frecuentes:
+
+    ```sql
+    -- Query A (muy frecuente)
+    SELECT vendor_name, total_eur FROM invoice
+    WHERE tenant_id = 'acme' AND period = '2026-04' AND paid = 0
+    ORDER BY total_eur DESC;
+
+    -- Query B (frecuente)
+    SELECT * FROM invoice WHERE client_id = 42;
+
+    -- Query C (poco frecuente, solo analítica)
+    SELECT period, SUM(total_eur) FROM invoice
+    WHERE tenant_id = 'acme'
+    GROUP BY period;
+    ```
+
+    Escribe en Python la lista `index_decisions` donde cada elemento es un dict con:
+    - `index_sql`: el `CREATE INDEX` a ejecutar (string SQL)
+    - `query`: la query que optimiza (`"A"`, `"B"` o `"C"`)
+    - `reason`: explicación de por qué (string, ≥ 1 frase)
+
+    Incluye índices para las queries A y B. Para la query C, añade un elemento con
+    `index_sql: None` y una razón de por qué NO crear un índice para ella.
+
+    Crea también los índices en la BD y guarda en `index_names` la lista de nombres
+    de índice creados (los que no son None).
+  hint: |
+    Query A: índice compuesto en `(tenant_id, period, paid)` o `(tenant_id, period)` con índice parcial `WHERE paid = 0`.
+    Query B: índice en `client_id` (foreign key sin índice automático).
+    Query C: GROUP BY sin filtro selectivo — el motor puede preferir seq scan; además es poco frecuente.
+  starter: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.execute("""
+        CREATE TABLE invoice (
+            id INTEGER PRIMARY KEY, tenant_id TEXT,
+            client_id INTEGER, vendor_name TEXT,
+            total_eur REAL, period TEXT, paid INTEGER DEFAULT 0
+        )
+    """)
+
+    index_decisions = [
+        {
+            "index_sql": "",  # completa para Query A
+            "query": "A",
+            "reason": "",
+        },
+        {
+            "index_sql": "",  # completa para Query B
+            "query": "B",
+            "reason": "",
+        },
+        {
+            "index_sql": None,  # no crear índice para Query C
+            "query": "C",
+            "reason": "",  # explica por qué no
+        },
+    ]
+
+    # crear los índices que tienen index_sql no-None
+    index_names = []
+    for decision in index_decisions:
+        if decision["index_sql"]:
+            cur.execute(decision["index_sql"])
+            # extrae el nombre del índice del SQL
+            # ej: "CREATE INDEX idx_foo ON ..." → "idx_foo"
+            parts = decision["index_sql"].split()
+            idx_pos = parts.index("INDEX") + 1
+            index_names.append(parts[idx_pos])
+
+    print("Índices creados:", index_names)
+  test: |
+    assert len(index_decisions) == 3, "debe haber 3 decisiones"
+    # Q_A y Q_B deben tener SQL
+    a = next(d for d in index_decisions if d["query"] == "A")
+    b = next(d for d in index_decisions if d["query"] == "B")
+    c = next(d for d in index_decisions if d["query"] == "C")
+    assert a["index_sql"] and len(a["index_sql"]) > 10, "Query A debe tener un CREATE INDEX"
+    assert "tenant_id" in a["index_sql"].lower() or "period" in a["index_sql"].lower(), (
+        "el índice para Query A debe incluir tenant_id o period"
+    )
+    assert b["index_sql"] and "client_id" in b["index_sql"].lower(), (
+        "el índice para Query B debe ser en client_id"
+    )
+    assert c["index_sql"] is None, "Query C no debe tener índice"
+    assert c["reason"] and len(c["reason"]) > 10, "debe haber una razón para no indexar C"
+    assert len(index_names) == 2, f"deben crearse 2 índices (A y B), obtuve {len(index_names)}"
+    assert a["reason"] and len(a["reason"]) > 10, "debe haber razón para el índice de A"
+    assert b["reason"] and len(b["reason"]) > 10, "debe haber razón para el índice de B"
+    print("ok")
+  solution: |
+    import sqlite3
+
+    con = sqlite3.connect(":memory:")
+    cur = con.cursor()
+    cur.execute("""
+        CREATE TABLE invoice (
+            id INTEGER PRIMARY KEY, tenant_id TEXT,
+            client_id INTEGER, vendor_name TEXT,
+            total_eur REAL, period TEXT, paid INTEGER DEFAULT 0
+        )
+    """)
+
+    index_decisions = [
+        {
+            "index_sql": "CREATE INDEX idx_inv_tenant_period_paid ON invoice (tenant_id, period, paid)",
+            "query": "A",
+            "reason": "La query filtra por tenant_id y period (prefijo) y paid. El índice compuesto cubre los tres filtros y evita seq scan en tablas grandes.",
+        },
+        {
+            "index_sql": "CREATE INDEX idx_inv_client ON invoice (client_id)",
+            "query": "B",
+            "reason": "Las foreign keys no tienen índice automático. Sin este índice, el JOIN y el WHERE por client_id hacen seq scan.",
+        },
+        {
+            "index_sql": None,
+            "query": "C",
+            "reason": "Es una query analítica poco frecuente que lee todas las filas de un tenant. Un índice solo en tenant_id tiene baja selectividad; el seq scan puede ser más rápido. Considerar columnar (DuckDB) si el volumen crece.",
+        },
+    ]
+
+    index_names = []
+    for decision in index_decisions:
+        if decision["index_sql"]:
+            cur.execute(decision["index_sql"])
+            parts = decision["index_sql"].split()
+            idx_pos = parts.index("INDEX") + 1
+            index_names.append(parts[idx_pos])

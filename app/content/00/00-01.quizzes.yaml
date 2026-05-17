@@ -1,0 +1,114 @@
+- slug: formula-vs-code
+  question: |
+    En Excel escribes `=SUMA(A1:A10)` y ves el resultado en la misma celda.
+    ¿Cuál de estas afirmaciones describe mejor qué pasa en Python cuando escribes
+    `total = sum([4820.0, 1500.0])`?
+  explanation: |
+    En Python, el resultado de `sum(...)` se asigna al nombre `total` y queda en
+    memoria. No aparece automáticamente en ningún lado — para verlo, hay que escribir
+    `print(total)` explícitamente. Esta es la diferencia operativa central entre
+    Excel y Python.
+  options:
+    - text: "El resultado aparece automáticamente en la siguiente línea del editor, igual que en una celda."
+      correct: false
+      feedback: |
+        No. Python no muestra nada automáticamente al ejecutar una asignación.
+        El resultado vive en memoria con el nombre `total` hasta que tú lo uses
+        o lo imprimas con `print(total)`.
+    - text: "El resultado se guarda en memoria con el nombre `total`. Para verlo, hay que escribir `print(total)`."
+      correct: true
+      feedback: |
+        Correcto. `total` es un nombre que apunta al valor `6320.0` en memoria.
+        Python no lo muestra sin que le pidas explícitamente que lo haga.
+    - text: "Python calcula el resultado pero lo descarta porque no hay celda donde guardarlo."
+      correct: false
+      feedback: |
+        Python sí guarda el resultado — en memoria, con el nombre `total`.
+        No necesita celda: los nombres son más flexibles que las coordenadas de cuadrícula.
+    - text: "El resultado aparece solo si el archivo se llama `suma.py`; de lo contrario, se ignora."
+      correct: false
+      feedback: |
+        El nombre del archivo no afecta el comportamiento de las instrucciones.
+        El resultado siempre se guarda en `total`, independientemente de cómo
+        se llame el archivo.
+
+- slug: three-limits-of-excel
+  question: |
+    ¿Cuál de los siguientes problemas NO está entre los tres límites de Excel
+    que Python resuelve en este módulo?
+  explanation: |
+    Los tres límites son: volumen (millones de filas), reproducibilidad (rastrear
+    cambios) e integración (APIs, bases de datos). La velocidad de cálculo para
+    datos que sí caben en Excel no es uno de esos límites — Excel es perfectamente
+    rápido para hojas de tamaño normal.
+  options:
+    - text: "Volumen de datos que no cabe en una hoja de cálculo."
+      correct: false
+      feedback: |
+        Sí, el volumen es uno de los tres límites nombrados. Excel se atasca
+        con más de ~500 000 filas; Python procesa millones sin problema.
+    - text: "Velocidad de cálculo de fórmulas en hojas con 500 filas."
+      correct: true
+      feedback: |
+        Correcto: esto no es un límite real de Excel. Para datos que caben en
+        una hoja, Excel calcula rápido. Los tres límites son volumen, reproducibilidad
+        e integración — no velocidad en datos pequeños.
+    - text: "Reproducibilidad: saber quién cambió qué y cuándo."
+      correct: false
+      feedback: |
+        Sí, la reproducibilidad es uno de los tres límites. En Excel es
+        casi imposible rastrear cambios de fórmulas. En Python el código vive
+        en archivos versionables.
+    - text: "Integración con APIs externas y bases de datos."
+      correct: false
+      feedback: |
+        Sí, la integración es uno de los tres límites. Excel no puede hacer
+        peticiones HTTP, leer una base de datos de 40 tablas o enviar correos
+        desde el mismo análisis.
+
+- slug: coordinate-vs-name
+  question: |
+    En Excel usas `B11` para referenciar el resultado de una suma. En Python usas
+    el nombre `total`. ¿Cuál es la ventaja práctica del nombre sobre la coordenada?
+  explanation: |
+    Los nombres en Python no dependen de la posición en el archivo. Si reorganizas
+    el código, `total` sigue siendo `total`. En Excel, si mueves la celda con el
+    resultado, todas las referencias a `B11` se rompen o hay que actualizarlas.
+    Además, `total` describe qué contiene; `B11` no dice nada.
+  options:
+    - text: "Los nombres son más cortos que las coordenadas y ahorran tiempo al escribir."
+      correct: false
+      feedback: |
+        `B11` es más corto que `invoice_total`. La ventaja no es la longitud;
+        es que el nombre es independiente de la posición y describe el contenido.
+    - text: "El nombre es independiente de la posición en el archivo y describe el contenido de la variable."
+      correct: true
+      feedback: |
+        Exacto. `invoice_total` dice qué hay ahí y no se rompe si reorganizas
+        el código. `B11` no dice nada y depende de que la celda esté en esa
+        posición específica de la hoja.
+    - text: "Los nombres permiten guardar más de un valor en el mismo sitio."
+      correct: false
+      feedback: |
+        Un nombre apunta a exactamente un valor (el último que se le asignó).
+        La ventaja del nombre no es la cantidad de valores que guarda, sino
+        su independencia de posición y su legibilidad.
+
+- slug: excel-to-python-match
+  kind: match
+  question: |
+    Empareja cada concepto de Excel con su equivalente en Python.
+    El objetivo es solo *reconocer* la correspondencia — todavía no vas a escribir código.
+  explanation: |
+    Estas equivalencias son la "tabla de traducción" mental que vas a usar todo el
+    curso. No tienes que memorizarlas: el resto de Track 0 las va a anclar con
+    ejemplos. Por ahora basta con verlas juntas.
+  pairs:
+    - left: "=SUMA(A1:A10)"
+      right: "sum([4820.0, 1500.0])"
+    - left: "Celda B11 con resultado"
+      right: "Variable: total = 6320.0"
+    - left: "=SI(A1>0, \"sí\", \"no\")"
+      right: "if a > 0: ... else: ..."
+    - left: "Libro con varias hojas"
+      right: "Carpeta con varios archivos .py"

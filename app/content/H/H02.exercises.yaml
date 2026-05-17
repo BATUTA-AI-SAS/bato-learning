@@ -1,0 +1,189 @@
+- slug: five-whys-chain
+  title: "Cadena de 5 whys para causa raíz"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Implementa `validate_five_whys(chain: list[str]) -> list[str]` que valida una cadena de 5 whys.
+
+    Reglas:
+    - La cadena debe tener entre 3 y 7 elementos.
+    - Ningún elemento debe contener el nombre de una persona específica
+      (detecta tokens como "Juan", "María", "el ingeniero Pedro" — considera que
+      el texto contiene nombre propio si tiene dos o más palabras capitalizadas consecutivas
+      O si contiene la palabra "culpa" o "error de").
+    - El último elemento (causa raíz) debe empezar con "ausencia" o "falta" o "no existe" o "el sistema".
+    - Devuelve lista de errores; lista vacía si la cadena es válida.
+  hint: |
+    Para detectar nombres propios, puedes usar una heurística simple:
+    busca palabras que empiecen con mayúscula que no sean la primera de la frase.
+    Para el último elemento, usa `startswith` con una tupla.
+  starter: |
+    import re
+
+    def validate_five_whys(chain: list[str]) -> list[str]:
+        errors = []
+        # longitud
+        # nombres propios (heurística)
+        # causa raíz sistémica
+        return errors
+  test: |
+    import re
+
+    def validate_five_whys(chain):
+        errors = []
+        if not (3 <= len(chain) <= 7):
+            errors.append(f"longitud {len(chain)} fuera de rango 3-7")
+        for i, item in enumerate(chain):
+            words = item.split()
+            # palabras con mayúscula que no son inicio de frase
+            caps = [w for w in words[1:] if w and w[0].isupper() and w.isalpha()]
+            if len(caps) >= 2:
+                errors.append(f"elemento {i} puede contener nombre propio: {item!r}")
+            if "culpa" in item.lower() or "error de" in item.lower():
+                errors.append(f"elemento {i} asigna culpa: {item!r}")
+        if chain:
+            last = chain[-1].lower()
+            if not any(last.startswith(p) for p in ["ausencia", "falta", "no existe", "el sistema"]):
+                errors.append("causa raíz debe empezar con 'ausencia', 'falta', 'no existe' o 'el sistema'")
+        return errors
+
+    ok_chain = [
+        "El contenedor api fue reiniciado.",
+        "El proceso superó el límite de 512 MB de RAM.",
+        "La sesión cargó 200 turnos de historial completo.",
+        "No hay límite de turnos en get_session_history.",
+        "ausencia de política de truncación de historial.",
+    ]
+    bad_chain_short = ["Solo una causa"]
+    bad_chain_blame = [
+        "Juan olvidó configurar el límite.",
+        "El proceso usó demasiada RAM.",
+        "No hay límite de RAM.",
+    ]
+    bad_chain_root = [
+        "El contenedor se reinició.",
+        "La RAM se agotó.",
+        "falta de tests de carga.",
+        "Nadie lo configuró correctamente.",
+    ]
+
+    assert validate_five_whys(ok_chain) == [], f"cadena válida: {validate_five_whys(ok_chain)}"
+    assert len(validate_five_whys(bad_chain_short)) >= 1
+    assert len(validate_five_whys(bad_chain_blame)) >= 1
+    assert len(validate_five_whys(bad_chain_root)) >= 1
+    print("ok")
+  solution: |
+    import re
+
+    def validate_five_whys(chain: list[str]) -> list[str]:
+        errors = []
+        if not (3 <= len(chain) <= 7):
+            errors.append(f"longitud {len(chain)} fuera de rango 3-7")
+        for i, item in enumerate(chain):
+            words = item.split()
+            caps = [w for w in words[1:] if w and w[0].isupper() and w.isalpha()]
+            if len(caps) >= 2:
+                errors.append(f"elemento {i} puede contener nombre propio: {item!r}")
+            if "culpa" in item.lower() or "error de" in item.lower():
+                errors.append(f"elemento {i} asigna culpa: {item!r}")
+        if chain:
+            last = chain[-1].lower()
+            if not any(last.startswith(p) for p in ["ausencia", "falta", "no existe", "el sistema"]):
+                errors.append("causa raíz debe empezar con 'ausencia', 'falta', 'no existe' o 'el sistema'")
+        return errors
+
+- slug: action-item-quality
+  title: "Valida la calidad de un action item"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `score_action_item(item: dict) -> int` que devuelve un puntaje de 0-4
+    según cuántos criterios cumple el action item:
+    - +1 si tiene `owner` (string no vacío)
+    - +1 si tiene `due_date` en formato YYYY-MM-DD
+    - +1 si tiene `metric` (string no vacío con una forma de verificar)
+    - +1 si `description` es específica (> 30 caracteres y no contiene "revisar", "mejorar", "evaluar")
+
+    Devuelve el puntaje (0-4). Un action item de calidad tiene puntaje 4.
+  hint: |
+    Para la fecha, puedes usar un split("-") y verificar longitud. Para la descripción,
+    verifica el largo y que no contenga palabras vagas.
+  starter: |
+    import re
+
+    def score_action_item(item: dict) -> int:
+        score = 0
+        # owner
+        # due_date formato YYYY-MM-DD
+        # metric
+        # description específica
+        return score
+  test: |
+    perfect = {
+        "owner": "Ana",
+        "due_date": "2026-05-30",
+        "metric": "alerta dispara cuando RAM > 400 MB en Grafana",
+        "description": "Añadir límite de 50 turnos en get_session_history() en app/repos/chat.py",
+    }
+    no_owner = {**perfect, "owner": ""}
+    vague_desc = {**perfect, "description": "revisar la gestión de sesiones"}
+    no_date = {**perfect, "due_date": "pronto"}
+
+    assert score_action_item(perfect) == 4, f"perfecto debe ser 4, got {score_action_item(perfect)}"
+    assert score_action_item(no_owner) == 3, f"sin owner debe ser 3"
+    assert score_action_item(vague_desc) <= 3, "descripción vaga debe reducir puntaje"
+    assert score_action_item(no_date) <= 3, "sin fecha válida debe reducir puntaje"
+    print("ok")
+  solution: |
+    import re
+
+    def score_action_item(item: dict) -> int:
+        score = 0
+        if item.get("owner", "").strip():
+            score += 1
+        date = item.get("due_date", "")
+        parts = date.split("-")
+        if len(parts) == 3 and all(p.isdigit() for p in parts) and len(parts[0]) == 4:
+            score += 1
+        if item.get("metric", "").strip():
+            score += 1
+        desc = item.get("description", "")
+        vague = any(w in desc.lower() for w in ["revisar", "mejorar", "evaluar"])
+        if len(desc) > 30 and not vague:
+            score += 1
+        return score
+
+- slug: postmortem-trigger
+  title: "Decide si el incidente necesita postmortem"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `requires_postmortem(severity: str, mttr_minutes: int, repeated_in_30d: bool) -> bool`
+    según las reglas del módulo:
+    - SEV1 siempre requiere postmortem.
+    - SEV2 con MTTR > 60 min siempre requiere postmortem.
+    - SEV2 con MTTR ≤ 60 min requiere postmortem si `repeated_in_30d`.
+    - SEV3 no requiere postmortem (devuelve False).
+  hint: |
+    Evalúa los casos en orden: SEV1, SEV2 con MTTR alto, SEV2 repetido.
+  starter: |
+    def requires_postmortem(severity: str, mttr_minutes: int, repeated_in_30d: bool) -> bool:
+        ...
+  test: |
+    assert requires_postmortem("SEV1", 10, False) is True
+    assert requires_postmortem("SEV1", 120, True) is True
+    assert requires_postmortem("SEV2", 90, False) is True
+    assert requires_postmortem("SEV2", 30, False) is False
+    assert requires_postmortem("SEV2", 30, True) is True
+    assert requires_postmortem("SEV3", 5, True) is False
+    print("ok")
+  solution: |
+    def requires_postmortem(severity: str, mttr_minutes: int, repeated_in_30d: bool) -> bool:
+        if severity == "SEV1":
+            return True
+        if severity == "SEV2":
+            if mttr_minutes > 60:
+                return True
+            if repeated_in_30d:
+                return True
+        return False

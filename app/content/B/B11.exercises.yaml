@@ -1,0 +1,320 @@
+- slug: idempotency-key-generator
+  title: "Genera idempotency keys correctas para operaciones de ACME"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `make_idempotency_key(tenant: str, resource: str, resource_id: str) -> str`
+    que genere una idempotency key canónica para las operaciones del agente de ACME.
+
+    La key debe tener el formato: `"{tenant}:{resource}:{resource_id}"`
+
+    Luego implementa `is_valid_idempotency_key(key: str) -> bool` que valide:
+    - La key tiene exactamente 3 partes separadas por `:`
+    - Ninguna parte está vacía
+    - El tenant es uno de: `"acme"`, `"globex"`, `"initech"`
+
+    Prueba con:
+    ```python
+    keys_to_test = [
+        make_idempotency_key("acme", "invoice", "2026-04-0042"),
+        make_idempotency_key("globex", "audit", "2026-04"),
+        "acme:invoice:",          # resource_id vacío
+        "acme:invoice",           # solo 2 partes
+        "unknown:invoice:001",    # tenant desconocido
+    ]
+    ```
+  hint: |
+    Para validar: `key.split(":")` da la lista de partes. Verifica `len == 3`,
+    que ninguna sea vacía, y que la primera sea un tenant válido.
+  starter: |
+    VALID_TENANTS = {"acme", "globex", "initech"}
+
+    def make_idempotency_key(tenant: str, resource: str, resource_id: str) -> str:
+        return f"{tenant}:{resource}:{resource_id}"
+
+    def is_valid_idempotency_key(key: str) -> bool:
+        # valida el formato y el tenant
+        ...
+
+    keys_to_test = [
+        make_idempotency_key("acme", "invoice", "2026-04-0042"),
+        make_idempotency_key("globex", "audit", "2026-04"),
+        "acme:invoice:",
+        "acme:invoice",
+        "unknown:invoice:001",
+    ]
+    for k in keys_to_test:
+        print(f"{k!r:40s} → {is_valid_idempotency_key(k)}")
+  test: |
+    VALID_TENANTS = {"acme", "globex", "initech"}
+
+    def make_idempotency_key(tenant: str, resource: str, resource_id: str) -> str:
+        return f"{tenant}:{resource}:{resource_id}"
+
+    def is_valid_idempotency_key(key: str) -> bool:
+        parts = key.split(":")
+        if len(parts) != 3:
+            return False
+        if any(p == "" for p in parts):
+            return False
+        if parts[0] not in VALID_TENANTS:
+            return False
+        return True
+
+    assert make_idempotency_key("acme", "invoice", "2026-04-0042") == "acme:invoice:2026-04-0042"
+    assert make_idempotency_key("globex", "audit", "2026-04") == "globex:audit:2026-04"
+
+    assert is_valid_idempotency_key("acme:invoice:2026-04-0042") is True
+    assert is_valid_idempotency_key("globex:audit:2026-04") is True
+    assert is_valid_idempotency_key("initech:finding:f-001") is True
+
+    assert is_valid_idempotency_key("acme:invoice:") is False, "resource_id vacío debe ser inválido"
+    assert is_valid_idempotency_key("acme:invoice") is False, "solo 2 partes debe ser inválido"
+    assert is_valid_idempotency_key("unknown:invoice:001") is False, "tenant desconocido debe ser inválido"
+    assert is_valid_idempotency_key(":invoice:001") is False, "tenant vacío debe ser inválido"
+    assert is_valid_idempotency_key("acme:invoice:001:extra") is False, "4 partes debe ser inválido"
+    print("ok")
+  solution: |
+    VALID_TENANTS = {"acme", "globex", "initech"}
+
+    def make_idempotency_key(tenant: str, resource: str, resource_id: str) -> str:
+        return f"{tenant}:{resource}:{resource_id}"
+
+    def is_valid_idempotency_key(key: str) -> bool:
+        parts = key.split(":")
+        if len(parts) != 3:
+            return False
+        if any(p == "" for p in parts):
+            return False
+        if parts[0] not in VALID_TENANTS:
+            return False
+        return True
+
+    keys_to_test = [
+        make_idempotency_key("acme", "invoice", "2026-04-0042"),
+        make_idempotency_key("globex", "audit", "2026-04"),
+        "acme:invoice:",
+        "acme:invoice",
+        "unknown:invoice:001",
+    ]
+    for k in keys_to_test:
+        print(f"{k!r:40s} → {is_valid_idempotency_key(k)}")
+
+- slug: backoff-calculator
+  title: "Implementa backoff exponencial con jitter determinístico"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `compute_backoff_sequence(max_attempts: int, base: float, cap: float) -> list[float]`
+    que devuelva la lista de tiempos de espera (sin jitter, para que sea determinístico en tests)
+    para `max_attempts - 1` reintentos (el primer intento no tiene espera).
+
+    La fórmula es: `min(base * 2 ** attempt_index, cap)`
+    donde `attempt_index` va de 0 a `max_attempts - 2` (los reintentos, no el primer intento).
+
+    Ejemplo con `max_attempts=4, base=1.0, cap=30.0`:
+    - reintento 1 (attempt_index=0): `min(1.0 * 2**0, 30.0)` = 1.0
+    - reintento 2 (attempt_index=1): `min(1.0 * 2**1, 30.0)` = 2.0
+    - reintento 3 (attempt_index=2): `min(1.0 * 2**2, 30.0)` = 4.0
+
+    Luego implementa `should_retry(status_code: int, attempt: int, max_attempts: int) -> bool`
+    con las reglas de la tabla del módulo.
+  hint: |
+    `[min(base * 2**i, cap) for i in range(max_attempts - 1)]` es una comprensión de lista.
+    Para `should_retry`: 429 y 5xx sí, 4xx (excepto 429) no, y siempre False si
+    `attempt >= max_attempts`.
+  starter: |
+    def compute_backoff_sequence(
+        max_attempts: int, base: float = 1.0, cap: float = 30.0
+    ) -> list[float]:
+        return [min(base * 2**i, cap) for i in range(max_attempts - 1)]
+
+    def should_retry(status_code: int, attempt: int, max_attempts: int) -> bool:
+        if attempt >= max_attempts:
+            return False
+        # implementa las reglas de retry
+        ...
+
+    print(compute_backoff_sequence(4))
+    print(compute_backoff_sequence(6, base=2.0, cap=10.0))
+    print(should_retry(429, 0, 4))
+    print(should_retry(401, 0, 4))
+    print(should_retry(503, 3, 4))
+  test: |
+    def compute_backoff_sequence(
+        max_attempts: int, base: float = 1.0, cap: float = 30.0
+    ) -> list[float]:
+        return [min(base * 2**i, cap) for i in range(max_attempts - 1)]
+
+    def should_retry(status_code: int, attempt: int, max_attempts: int) -> bool:
+        if attempt >= max_attempts:
+            return False
+        return status_code == 429 or 500 <= status_code < 600
+
+    seq4 = compute_backoff_sequence(4)
+    assert seq4 == [1.0, 2.0, 4.0], f"4 intentos: esperaba [1,2,4], obtuve {seq4}"
+
+    seq6 = compute_backoff_sequence(6, base=2.0, cap=10.0)
+    assert seq6 == [2.0, 4.0, 8.0, 10.0, 10.0], f"6 intentos cap 10: {seq6}"
+
+    seq1 = compute_backoff_sequence(1)
+    assert seq1 == [], f"1 intento: sin reintentos, obtuve {seq1}"
+
+    assert should_retry(429, 0, 4) is True, "429 debe reintentarse"
+    assert should_retry(503, 1, 4) is True, "503 debe reintentarse"
+    assert should_retry(500, 2, 4) is True, "500 debe reintentarse"
+    assert should_retry(401, 0, 4) is False, "401 no debe reintentarse"
+    assert should_retry(403, 0, 4) is False, "403 no debe reintentarse"
+    assert should_retry(422, 0, 4) is False, "422 no debe reintentarse"
+    assert should_retry(404, 0, 4) is False, "404 no debe reintentarse"
+    assert should_retry(503, 3, 4) is False, "intento 3 de max 4 es el último — no hay más reintentos"
+    print("ok")
+  solution: |
+    def compute_backoff_sequence(
+        max_attempts: int, base: float = 1.0, cap: float = 30.0
+    ) -> list[float]:
+        return [min(base * 2**i, cap) for i in range(max_attempts - 1)]
+
+    def should_retry(status_code: int, attempt: int, max_attempts: int) -> bool:
+        if attempt >= max_attempts:
+            return False
+        return status_code == 429 or 500 <= status_code < 600
+
+    print(compute_backoff_sequence(4))
+    print(compute_backoff_sequence(6, base=2.0, cap=10.0))
+    print(should_retry(429, 0, 4))
+    print(should_retry(401, 0, 4))
+    print(should_retry(503, 3, 4))
+
+- slug: idempotency-store-simulation
+  title: "Simula un store de idempotency keys con deduplicación"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa un `IdempotencyStore` que simule la deduplicación de requests:
+
+    ```python
+    class IdempotencyStore:
+        def __init__(self): ...
+
+        def process(self, key: str, operation_fn) -> tuple[dict, bool]:
+            """
+            Ejecuta operation_fn() la primera vez que llega key.
+            Si key ya fue procesada, devuelve el resultado cacheado.
+
+            Retorna (result, was_cached) donde:
+            - was_cached=False: primera vez, operation_fn fue ejecutada
+            - was_cached=True: key ya existía, devuelve el resultado anterior
+            """
+            ...
+    ```
+
+    Prueba con un contador global que simula el número de facturas creadas:
+
+    ```python
+    store = IdempotencyStore()
+    invoice_count = [0]  # lista para poder mutarla en lambda
+
+    def create_invoice():
+        invoice_count[0] += 1
+        return {"id": f"inv-{invoice_count[0]:03d}", "status": "created"}
+
+    # Primera llamada — debe ejecutar create_invoice
+    r1, cached1 = store.process("acme:invoice:0042", create_invoice)
+    # Segunda llamada misma key — debe devolver el mismo resultado sin ejecutar
+    r2, cached2 = store.process("acme:invoice:0042", create_invoice)
+    # Key distinta — debe ejecutar de nuevo
+    r3, cached3 = store.process("acme:invoice:0043", create_invoice)
+    ```
+  hint: |
+    El store es un dict `{key: result}`. `process` comprueba si la key existe:
+    si no, ejecuta `operation_fn()`, guarda el resultado, y lo devuelve con `was_cached=False`.
+    Si sí existe, devuelve el resultado guardado con `was_cached=True`.
+  starter: |
+    class IdempotencyStore:
+        def __init__(self):
+            self._cache: dict = {}
+
+        def process(self, key: str, operation_fn) -> tuple[dict, bool]:
+            if key in self._cache:
+                return self._cache[key], True
+            # ejecuta y guarda
+            ...
+
+    store = IdempotencyStore()
+    invoice_count = [0]
+
+    def create_invoice():
+        invoice_count[0] += 1
+        return {"id": f"inv-{invoice_count[0]:03d}", "status": "created"}
+
+    r1, c1 = store.process("acme:invoice:0042", create_invoice)
+    r2, c2 = store.process("acme:invoice:0042", create_invoice)
+    r3, c3 = store.process("acme:invoice:0043", create_invoice)
+    print(r1, c1)
+    print(r2, c2)
+    print(r3, c3)
+    print(f"facturas creadas: {invoice_count[0]}")
+  test: |
+    class IdempotencyStore:
+        def __init__(self):
+            self._cache: dict = {}
+
+        def process(self, key: str, operation_fn) -> tuple[dict, bool]:
+            if key in self._cache:
+                return self._cache[key], True
+            result = operation_fn()
+            self._cache[key] = result
+            return result, False
+
+    store = IdempotencyStore()
+    invoice_count = [0]
+
+    def create_invoice():
+        invoice_count[0] += 1
+        return {"id": f"inv-{invoice_count[0]:03d}", "status": "created"}
+
+    r1, c1 = store.process("acme:invoice:0042", create_invoice)
+    assert not c1, "primera llamada no debe ser cached"
+    assert r1["id"] == "inv-001"
+
+    r2, c2 = store.process("acme:invoice:0042", create_invoice)
+    assert c2, "segunda llamada con misma key debe ser cached"
+    assert r2["id"] == "inv-001", "resultado cacheado debe ser el mismo"
+    assert invoice_count[0] == 1, "create_invoice debe haberse llamado solo una vez hasta aquí"
+
+    r3, c3 = store.process("acme:invoice:0043", create_invoice)
+    assert not c3, "key distinta no debe estar cached"
+    assert r3["id"] == "inv-002"
+    assert invoice_count[0] == 2, "ahora sí se llamó dos veces en total"
+
+    # reintento de la misma key nueva también debe ser cached
+    r4, c4 = store.process("acme:invoice:0043", create_invoice)
+    assert c4 and r4["id"] == "inv-002" and invoice_count[0] == 2
+    print("ok")
+  solution: |
+    class IdempotencyStore:
+        def __init__(self):
+            self._cache: dict = {}
+
+        def process(self, key: str, operation_fn) -> tuple[dict, bool]:
+            if key in self._cache:
+                return self._cache[key], True
+            result = operation_fn()
+            self._cache[key] = result
+            return result, False
+
+    store = IdempotencyStore()
+    invoice_count = [0]
+
+    def create_invoice():
+        invoice_count[0] += 1
+        return {"id": f"inv-{invoice_count[0]:03d}", "status": "created"}
+
+    r1, c1 = store.process("acme:invoice:0042", create_invoice)
+    r2, c2 = store.process("acme:invoice:0042", create_invoice)
+    r3, c3 = store.process("acme:invoice:0043", create_invoice)
+    print(r1, c1)
+    print(r2, c2)
+    print(r3, c3)
+    print(f"facturas creadas: {invoice_count[0]}")

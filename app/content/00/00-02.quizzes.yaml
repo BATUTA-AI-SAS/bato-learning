@@ -1,0 +1,126 @@
+- slug: terminal-commands-match
+  kind: match
+  question: |
+    Empareja cada comando de terminal con lo que hace al ejecutarlo.
+    No necesitas saber Python — estos son comandos del sistema operativo.
+  explanation: |
+    Estos seis comandos son los que usarás desde el primer día: `pwd` para
+    saber dónde estás, `ls` para ver qué hay, `cd` para moverte,
+    `cd ..` para subir un nivel, `mkdir` para crear carpetas y
+    `echo` para imprimir texto. Con ellos puedes navegar cualquier proyecto.
+  pairs:
+    - left: "pwd"
+      right: "Muestra la ruta completa de la carpeta actual"
+    - left: "ls"
+      right: "Lista los archivos y carpetas del directorio actual"
+    - left: "cd acme-audit"
+      right: "Entra a la carpeta llamada acme-audit"
+    - left: "cd .."
+      right: "Sube un nivel a la carpeta padre"
+    - left: "mkdir reportes"
+      right: "Crea una nueva carpeta llamada reportes"
+
+- slug: prompt-symbol
+  question: |
+    El prompt de tu terminal muestra: `maria@laptop:~/acme-audit$`
+
+    ¿Qué indica el segmento `~/acme-audit`?
+  explanation: |
+    El prompt tiene cuatro partes: usuario (`maria`), máquina (`laptop`),
+    directorio actual (`~/acme-audit`) y símbolo de prompt (`$`).
+    El directorio actual es la carpeta donde «está parada» la terminal ahora mismo.
+    El `~` es una abreviación de la carpeta personal del usuario.
+  options:
+    - text: "El nombre del archivo que se está ejecutando."
+      correct: false
+      feedback: |
+        El prompt no muestra el archivo que se ejecuta. Muestra el directorio
+        actual — la carpeta donde está parada la terminal. El archivo que se
+        ejecuta lo decides tú cuando escribes el comando.
+    - text: "La carpeta donde está parada la terminal ahora mismo."
+      correct: true
+      feedback: |
+        Correcto. `~/acme-audit` es el directorio de trabajo actual.
+        El `~` abrevia la carpeta personal del usuario (`/home/maria` en Linux).
+        Cuando ejecutes cualquier comando, el sistema buscará archivos
+        en esa carpeta por defecto.
+    - text: "El nombre del proyecto que está cargado en memoria."
+      correct: false
+      feedback: |
+        La terminal no tiene concepto de «proyecto cargado». Solo sabe en qué
+        carpeta está parada. La carpeta se llama `acme-audit`, pero eso no
+        significa que haya nada «cargado» — es solo una carpeta del disco.
+    - text: "La versión de Python que se usará al ejecutar código."
+      correct: false
+      feedback: |
+        La versión de Python no aparece en el prompt estándar. Lo que aparece
+        es el directorio actual. Para ver la versión de Python, se ejecuta
+        `python3 --version` como comando separado.
+
+- slug: argument-vs-flag
+  question: |
+    En el comando `ls -l facturas`, ¿cuál es el flag y cuál es el argumento?
+  explanation: |
+    Los flags empiezan con `-` y modifican el comportamiento del comando.
+    Los argumentos son información adicional sin guión: el objetivo del comando.
+    En `ls -l facturas`: `-l` es el flag (formato largo) y `facturas` es el
+    argumento (la carpeta que listar). Sin argumento, `ls` lista la carpeta actual;
+    con argumento, lista la carpeta indicada.
+  options:
+    - text: "`-l` es el argumento y `facturas` es el flag."
+      correct: false
+      feedback: |
+        Al revés. Los flags empiezan con `-`. `facturas` es el argumento
+        (le dice a `ls` qué carpeta listar). `-l` es el flag (le dice a `ls`
+        que use el formato largo con detalles).
+    - text: "`-l` es el flag y `facturas` es el argumento."
+      correct: true
+      feedback: |
+        Correcto. El flag `-l` modifica el comportamiento de `ls` (formato largo).
+        El argumento `facturas` es el objetivo: la carpeta a listar.
+        Sin el argumento, `ls -l` listaría la carpeta actual.
+    - text: "Ambos son flags porque modifican el comportamiento del comando."
+      correct: false
+      feedback: |
+        Solo los que empiezan con `-` son flags. `facturas` es un nombre de
+        carpeta — es el objetivo del comando, no una modificación del comportamiento.
+    - text: "Ambos son argumentos porque ninguno empieza con `--`."
+      correct: false
+      feedback: |
+        Los flags pueden empezar con `-` (un guión, formato corto) o `--`
+        (dos guiones, formato largo). `-l` es un flag de formato corto.
+        `facturas` es un argumento.
+
+- slug: pwd-use-case
+  question: |
+    Ejecutas `python audit.py` y obtienes: `python: can't open file 'audit.py': No such file or directory`.
+    ¿Cuál es el primer comando que debes ejecutar para diagnosticar el problema?
+  explanation: |
+    El error «no such file» casi siempre significa que la terminal está parada
+    en una carpeta distinta a donde vive `audit.py`. El primer paso es verificar
+    dónde está la terminal con `pwd`, y luego navegar a la carpeta correcta con `cd`.
+  options:
+    - text: "`ls audit.py` para ver si el archivo existe."
+      correct: false
+      feedback: |
+        Puede funcionar, pero antes de buscar el archivo debes saber dónde
+        está la terminal. Si `audit.py` está en otra carpeta, `ls audit.py`
+        también fallará. El primer paso es `pwd` para saber la posición actual.
+    - text: "`pwd` para verificar en qué carpeta está parada la terminal."
+      correct: true
+      feedback: |
+        Correcto. El error «no such file» casi siempre significa desalineación
+        entre donde está la terminal y donde vive el archivo. `pwd` te dice
+        el directorio actual; luego navegas con `cd` a donde está `audit.py`.
+    - text: "`mkdir audit` para crear la carpeta que falta."
+      correct: false
+      feedback: |
+        El problema no es que falte una carpeta, es que la terminal no está
+        en la carpeta correcta. Crear una carpeta nueva no resuelve la ubicación
+        del archivo existente. Primero diagnostica con `pwd`.
+    - text: "`echo audit.py` para verificar que el nombre está bien escrito."
+      correct: false
+      feedback: |
+        `echo audit.py` solo imprime el texto «audit.py» — no verifica nada
+        sobre el archivo. El diagnóstico útil es saber dónde está parada la
+        terminal (`pwd`) y luego si el archivo existe ahí (`ls`).

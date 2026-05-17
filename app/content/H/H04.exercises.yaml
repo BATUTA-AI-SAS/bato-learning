@@ -1,0 +1,187 @@
+- slug: budget-status
+  title: "Implementa el check de presupuesto por tenant"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `check_budget_status(cost_usd: float, budget_usd: float) -> dict` que devuelve:
+    - `ratio`: cost_usd / budget_usd, redondeado a 4 decimales. Si budget_usd == 0, ratio = 0.0.
+    - `status`: "ok" si ratio < 0.80, "warning" si 0.80 ≤ ratio < 1.00, "over_budget" si ratio ≥ 1.00.
+    - `remaining_usd`: budget_usd - cost_usd, redondeado a 4 decimales (puede ser negativo).
+  hint: |
+    Evalúa los casos en orden descendente de gravedad: over_budget primero, luego warning, luego ok.
+  starter: |
+    def check_budget_status(cost_usd: float, budget_usd: float) -> dict:
+        if budget_usd == 0:
+            return {"ratio": 0.0, "status": "ok", "remaining_usd": 0.0}
+        ...
+  test: |
+    r = check_budget_status(30.0, 100.0)
+    assert r["ratio"] == 0.3 and r["status"] == "ok" and r["remaining_usd"] == 70.0
+
+    r = check_budget_status(80.0, 100.0)
+    assert r["ratio"] == 0.8 and r["status"] == "warning"
+
+    r = check_budget_status(95.0, 100.0)
+    assert r["status"] == "warning"
+
+    r = check_budget_status(100.0, 100.0)
+    assert r["status"] == "over_budget"
+
+    r = check_budget_status(120.0, 100.0)
+    assert r["status"] == "over_budget" and r["remaining_usd"] == -20.0
+
+    r = check_budget_status(10.0, 0)
+    assert r["ratio"] == 0.0 and r["status"] == "ok"
+
+    print("ok")
+  solution: |
+    def check_budget_status(cost_usd: float, budget_usd: float) -> dict:
+        if budget_usd == 0:
+            return {"ratio": 0.0, "status": "ok", "remaining_usd": 0.0}
+        ratio = round(cost_usd / budget_usd, 4)
+        remaining = round(budget_usd - cost_usd, 4)
+        if ratio >= 1.0:
+            status = "over_budget"
+        elif ratio >= 0.80:
+            status = "warning"
+        else:
+            status = "ok"
+        return {"ratio": ratio, "status": status, "remaining_usd": remaining}
+
+- slug: estimate-monthly-cost
+  title: "Calcula el costo mensual real de una auditoría"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `estimate_monthly_cost(runs_per_month: int, tokens_in: int, tokens_out: int, cache_hit_ratio: float) -> dict`
+    que calcula el costo mensual de ejecutar el agente de auditoría.
+
+    Precios de claude-sonnet-4-6:
+    - Input sin cache: 3.00 USD/millón de tokens
+    - Output: 15.00 USD/millón de tokens
+    - Cache read: 0.30 USD/millón de tokens
+    - Cache write: 3.75 USD/millón de tokens (se paga una vez por el token cacheado)
+
+    La función debe:
+    - Calcular tokens de input sin cache: tokens_in * (1 - cache_hit_ratio)
+    - Calcular tokens de cache read: tokens_in * cache_hit_ratio
+    - Cache write se asume igual a tokens_in (primera vez, una vez al mes)
+    - Devolver: {"cost_no_cache": float, "cost_with_cache": float, "savings_usd": float, "savings_pct": float}
+    Todos los floats redondeados a 4 decimales.
+  hint: |
+    Divide el token count por 1_000_000 antes de multiplicar por el precio.
+    Para cost_no_cache: todos los tokens_in al precio full.
+    Para cost_with_cache: cache_write una vez + cache_read * hit_ratio + input_full * (1-hit_ratio).
+  starter: |
+    def estimate_monthly_cost(
+        runs_per_month: int,
+        tokens_in: int,
+        tokens_out: int,
+        cache_hit_ratio: float,
+    ) -> dict:
+        PRICE = {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_write": 3.75}
+        M = 1_000_000
+        # calcular costos
+        ...
+  test: |
+    # Una auditoría ACME: 150_000 tokens in, 20_000 tokens out, 4 runs/mes, 70% cache hit
+    result = estimate_monthly_cost(4, 150_000, 20_000, 0.70)
+    # Sin cache: 4 * (150_000 * 3.00 + 20_000 * 15.00) / M = 4 * (0.45 + 0.30) = 3.00
+    assert abs(result["cost_no_cache"] - 3.00) < 0.01, f"cost_no_cache: {result['cost_no_cache']}"
+    # Con cache: cache_write una vez (150_000 * 3.75/M) + 4 runs * (input_nocache + cache_read + output)
+    # = 0.5625 + 4 * (45_000*3.00/M + 105_000*0.30/M + 20_000*15.00/M)
+    # = 0.5625 + 4 * (0.135 + 0.0315 + 0.30) = 0.5625 + 4 * 0.4665 = 0.5625 + 1.866 = 2.4285
+    assert result["cost_with_cache"] < result["cost_no_cache"], "cache debe ahorrar costo"
+    assert 0 < result["savings_pct"] <= 100, f"savings_pct: {result['savings_pct']}"
+    print("ok")
+  solution: |
+    def estimate_monthly_cost(
+        runs_per_month: int,
+        tokens_in: int,
+        tokens_out: int,
+        cache_hit_ratio: float,
+    ) -> dict:
+        PRICE = {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_write": 3.75}
+        M = 1_000_000
+        cost_no_cache = runs_per_month * (
+            tokens_in * PRICE["input"] / M
+            + tokens_out * PRICE["output"] / M
+        )
+        tokens_cached = tokens_in * cache_hit_ratio
+        tokens_not_cached = tokens_in * (1 - cache_hit_ratio)
+        cost_with_cache = (
+            tokens_in * PRICE["cache_write"] / M          # escritura de cache (una vez al mes)
+            + runs_per_month * (
+                tokens_not_cached * PRICE["input"] / M
+                + tokens_cached * PRICE["cache_read"] / M
+                + tokens_out * PRICE["output"] / M
+            )
+        )
+        savings = cost_no_cache - cost_with_cache
+        savings_pct = round(savings / cost_no_cache * 100, 4) if cost_no_cache > 0 else 0.0
+        return {
+            "cost_no_cache": round(cost_no_cache, 4),
+            "cost_with_cache": round(cost_with_cache, 4),
+            "savings_usd": round(savings, 4),
+            "savings_pct": savings_pct,
+        }
+
+- slug: optimization-priority
+  title: "Prioriza técnicas de optimización por impacto"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Tienes un tenant `globex` con el siguiente breakdown de tokens/mes:
+    - System prompt: 80_000 tokens (repetido en cada turno, sin cache aún)
+    - Historial de sesión: 120_000 tokens (promedio de 80 turnos por sesión)
+    - Output: 15_000 tokens
+
+    Implementa `top_optimizations(breakdown: dict) -> list[str]` que recibe un dict con claves
+    `system_prompt_tokens`, `history_tokens`, `output_tokens` y devuelve una lista ordenada
+    (mayor ahorro primero) de técnicas a aplicar.
+
+    Reglas de priorización:
+    - Si `system_prompt_tokens > 50_000`: añadir "prompt_caching" (ahorra ~70% de system_prompt_tokens)
+    - Si `history_tokens > 50_000`: añadir "truncate_history" (ahorra ~40% de history_tokens)
+    - Si `output_tokens > 30_000`: añadir "reduce_output_verbosity" (ahorra ~30% de output_tokens)
+    - Ordenar por ahorro estimado (mayor primero)
+  hint: |
+    Calcula el ahorro estimado para cada técnica aplicable y ordena.
+    Primero filtra cuáles aplican, luego calcula el ahorro, luego ordena.
+  starter: |
+    def top_optimizations(breakdown: dict) -> list[str]:
+        candidates = []
+        sp = breakdown.get("system_prompt_tokens", 0)
+        hist = breakdown.get("history_tokens", 0)
+        out = breakdown.get("output_tokens", 0)
+        # detectar candidatos y calcular ahorro
+        # ordenar por ahorro
+        return [name for name, _ in candidates]
+  test: |
+    result = top_optimizations({
+        "system_prompt_tokens": 80_000,
+        "history_tokens": 120_000,
+        "output_tokens": 15_000,
+    })
+    assert "prompt_caching" in result
+    assert "truncate_history" in result
+    assert "reduce_output_verbosity" not in result
+    # truncate_history ahorra más (120_000 * 0.40 = 48_000) que prompt_caching (80_000 * 0.70 = 56_000)
+    # espera que prompt_caching esté primero (56_000 > 48_000)
+    assert result.index("prompt_caching") < result.index("truncate_history"), \
+        "prompt_caching ahorra más en este caso"
+    print("ok")
+  solution: |
+    def top_optimizations(breakdown: dict) -> list[str]:
+        sp = breakdown.get("system_prompt_tokens", 0)
+        hist = breakdown.get("history_tokens", 0)
+        out = breakdown.get("output_tokens", 0)
+        candidates = []
+        if sp > 50_000:
+            candidates.append(("prompt_caching", sp * 0.70))
+        if hist > 50_000:
+            candidates.append(("truncate_history", hist * 0.40))
+        if out > 30_000:
+            candidates.append(("reduce_output_verbosity", out * 0.30))
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        return [name for name, _ in candidates]

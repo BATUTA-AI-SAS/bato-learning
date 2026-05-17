@@ -1,0 +1,154 @@
+# B04 — Ejercicios: Las cuatro capas
+# runner: pyodide para los primeros (lógica pura); design para el último
+
+- slug: identify_layer
+  title: "Identifica la capa"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dado el código siguiente, la variable `layer` debe contener el nombre de la
+    capa a la que pertenece la función: `"router"`, `"service"`, `"repo"` o `"model"`.
+
+    ```python
+    # Función en cuestión:
+    async def get_invoice(session, invoice_id: int):
+        return await session.get(Invoice, invoice_id)
+    ```
+
+    Asigna el string correcto a `layer`.
+  hint: |
+    La función recibe `session`, no conoce HTTP, y ejecuta una query concreta contra
+    la DB. ¿Qué capa hace exactamente eso?
+  starter: |
+    # asigna "router", "service", "repo" o "model"
+    layer = ""
+  test: |
+    assert layer == "repo", (
+        f"Esperaba 'repo'. La función recibe session y ejecuta una query "
+        f"concreta — eso es un repo. Obtuve: {layer!r}"
+    )
+    print("ok")
+  solution: |
+    layer = "repo"
+
+- slug: import_direction
+  title: "Detecta la violación de dirección"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente fragmento tiene una importación que viola la regla de dirección
+    de capas. Identifica cuál es el import incorrecto y asígnalo a `bad_import`
+    como string exacto (incluyendo el `from ... import ...` completo).
+
+    ```python
+    # archivo: app/services/invoice_service.py
+    from fastapi import Request            # A
+    from ..repos import invoices as repo  # B
+    from ..models import Invoice          # C
+    ```
+  hint: |
+    Los servicios no conocen HTTP. ¿Qué objeto pertenece exclusivamente al mundo
+    HTTP y no debería cruzar hacia la capa de servicio?
+  starter: |
+    bad_import = ""
+  test: |
+    assert "Request" in bad_import and "fastapi" in bad_import, (
+        f"La violación es importar `Request` de FastAPI dentro de un servicio. "
+        f"El servicio no debe conocer la capa HTTP. Obtuve: {bad_import!r}"
+    )
+    print("ok")
+  solution: |
+    bad_import = "from fastapi import Request"
+
+- slug: split_responsibilities
+  title: "Clasifica responsabilidades"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes estas cuatro acciones. Asigna a cada variable el nombre de la capa
+    que debería ejecutarla: `"router"`, `"service"`, `"repo"` o `"model"`.
+
+    1. Validar que el body JSON tiene el campo `amount` y que es positivo.
+    2. Decidir si una factura es un duplicado revisando las últimas 30 del proveedor.
+    3. Obtener de la DB las facturas de ACME del período `"2026-04"`.
+    4. Definir la columna `amount` con tipo `Numeric(12, 2)`.
+  hint: |
+    - La validación de body es de Pydantic, que vive en la capa más externa.
+    - «Decidir si es duplicado» es lógica de negocio.
+    - «Obtener de la DB» es una query concreta.
+    - «Definir la columna» es la definición de la tabla.
+  starter: |
+    action_1 = ""  # validar body
+    action_2 = ""  # decidir si es duplicado
+    action_3 = ""  # obtener facturas de la DB
+    action_4 = ""  # definir columna amount
+  test: |
+    assert action_1 == "router",  f"validar body → router. Obtuve: {action_1!r}"
+    assert action_2 == "service", f"decidir duplicado → service. Obtuve: {action_2!r}"
+    assert action_3 == "repo",    f"query DB → repo. Obtuve: {action_3!r}"
+    assert action_4 == "model",   f"definir columna → model. Obtuve: {action_4!r}"
+    print("ok")
+  solution: |
+    action_1 = "router"
+    action_2 = "service"
+    action_3 = "repo"
+    action_4 = "model"
+
+- slug: refactor_monolith
+  title: "Refactoriza el monolito"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El siguiente router hace demasiado: consulta la DB directamente y aplica una
+    regla de negocio. Refactoriza extrayendo la función `get_active_vendors` que
+    representa lo que iría en un repo, y `filter_large_vendors` que iría en un
+    servicio.
+
+    El resultado: `active = get_active_vendors(all_vendors)` y
+    `large = filter_large_vendors(active, threshold=5000)`.
+
+    Los datos de prueba están dados abajo.
+  hint: |
+    `get_active_vendors` filtra por `active == True`.
+    `filter_large_vendors` filtra por `monthly_volume >= threshold`.
+  starter: |
+    # datos de prueba (simula lo que vendría de la DB)
+    all_vendors = [
+        {"name": "ACME Supplies",   "active": True,  "monthly_volume": 8200},
+        {"name": "Globex Parts",    "active": True,  "monthly_volume": 3100},
+        {"name": "Initech Tools",   "active": False, "monthly_volume": 9900},
+        {"name": "Andina Materia",  "active": True,  "monthly_volume": 5500},
+    ]
+
+    def get_active_vendors(vendors: list[dict]) -> list[dict]:
+        pass  # completa
+
+    def filter_large_vendors(vendors: list[dict], threshold: int) -> list[dict]:
+        pass  # completa
+
+    active = get_active_vendors(all_vendors)
+    large = filter_large_vendors(active, threshold=5000)
+  test: |
+    assert len(active) == 3, f"3 vendors activos esperados, obtuve {len(active)}"
+    assert len(large) == 2, f"2 vendors grandes esperados (ACME + Andina), obtuve {len(large)}"
+    names = {v["name"] for v in large}
+    assert "ACME Supplies" in names, "ACME debe estar entre los grandes"
+    assert "Andina Materia" in names, "Andina debe estar entre los grandes"
+    assert "Globex Parts" not in names, "Globex tiene volumen < 5000"
+    print("ok")
+  solution: |
+    all_vendors = [
+        {"name": "ACME Supplies",   "active": True,  "monthly_volume": 8200},
+        {"name": "Globex Parts",    "active": True,  "monthly_volume": 3100},
+        {"name": "Initech Tools",   "active": False, "monthly_volume": 9900},
+        {"name": "Andina Materia",  "active": True,  "monthly_volume": 5500},
+    ]
+
+    def get_active_vendors(vendors: list[dict]) -> list[dict]:
+        return [v for v in vendors if v["active"]]
+
+    def filter_large_vendors(vendors: list[dict], threshold: int) -> list[dict]:
+        return [v for v in vendors if v["monthly_volume"] >= threshold]
+
+    active = get_active_vendors(all_vendors)
+    large = filter_large_vendors(active, threshold=5000)

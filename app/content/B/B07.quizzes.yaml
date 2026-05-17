@@ -1,0 +1,56 @@
+- slug: ui-definition
+  question: |
+    ¿Cuál de estas afirmaciones describe mejor qué es una UI?
+  explanation: |
+    UI es el ciclo completo: estado → representación → acción del usuario → actualización del estado.
+    No importa si es visual, auditiva o textual.
+  options:
+    - text: "Una pantalla con botones y colores"
+      correct: false
+      feedback: "Demasiado restrictivo. Una CLI, un email o un PDF también son UIs. Lo que define a una UI es el ciclo estado→render→evento, no el aspecto visual."
+    - text: "Cualquier capa que transforma datos en una representación perceptible por un humano y acepta acciones de vuelta"
+      correct: true
+      feedback: "Correcto. Esta definición abarca web, CLI, email, PDF, Excel — cualquier interfaz que un humano usa para interactuar con un sistema."
+    - text: "El código JavaScript que corre en el navegador"
+      correct: false
+      feedback: "JavaScript es una implementación posible del render client-side, pero no define qué es una UI. Una app server-rendered con Jinja2 tiene UI sin JavaScript."
+    - text: "El endpoint REST que devuelve los datos"
+      correct: false
+      feedback: "Una API REST es la capa de datos, no la UI. La UI es lo que el humano percibe. Un JSON crudo en Postman es técnicamente una UI para el desarrollador, pero no para el usuario final."
+
+- slug: server-rendered-vs-spa
+  question: |
+    En una app **server-rendered**, ¿dónde ocurre el render (conversión de datos a HTML)?
+  explanation: |
+    Server-rendered significa que el servidor Python genera el HTML completo antes de enviarlo.
+    El navegador solo construye el DOM con ese HTML.
+  options:
+    - text: "En el navegador, con JavaScript"
+      correct: false
+      feedback: "Eso describe una SPA (Single-Page Application). En server-rendered, el HTML llega ya construido desde el servidor."
+    - text: "En el servidor, con Python y Jinja2"
+      correct: true
+      feedback: "Sí. El servidor evalúa la plantilla Jinja2 con el contexto Python y envía HTML listo. El navegador solo construye el DOM con ese HTML — no recalcula nada."
+    - text: "En la base de datos, con SQL"
+      correct: false
+      feedback: "La DB devuelve datos (filas, JSON). El render ocurre en la capa de presentación — el servidor con Jinja2 en este caso."
+    - text: "En el CDN, en el borde de la red"
+      correct: false
+      feedback: "El CDN puede cachear el HTML ya renderizado, pero no lo genera. El render ocurre en el origen — el servidor de FastAPI."
+
+- slug: dom-role
+  question: |
+    ¿Qué es el DOM y quién lo construye?
+  explanation: |
+    El DOM es el árbol de objetos en memoria que el navegador construye a partir del HTML.
+    Es el puente entre el markup y los píxeles.
+  options:
+    - text: "Un lenguaje de programación para hacer páginas web interactivas"
+      correct: false
+      feedback: "Eso describe JavaScript (o TypeScript). El DOM es una estructura de datos — el árbol de nodos que el navegador construye para representar el HTML."
+    - text: "El árbol de nodos en memoria que el navegador construye a partir del HTML recibido"
+      correct: true
+      feedback: "Correcto. El navegador parsea el HTML y construye el DOM. JavaScript o HTMX pueden modificar nodos del DOM; el navegador actualiza los píxeles correspondientes."
+    - text: "El archivo HTML que el servidor envía por HTTP"
+      correct: false
+      feedback: "El HTML es el texto plano que viaja por la red. El DOM es la representación en memoria que el navegador construye a partir de ese texto."

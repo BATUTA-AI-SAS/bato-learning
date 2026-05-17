@@ -1,0 +1,52 @@
+slug: evals-golden-set
+title: "Mide si tu agente da respuestas correctas"
+kind: code
+phase: PH03
+ord: 48
+trains_skill: evals
+concepts_introduced: [evals, golden-set, llm-as-judge]
+concepts_reinforced: [pydantic, agent-loop, testing]
+xp: 20
+est_seconds: 200
+scenario_md: |
+  El agente de ACME lleva una semana en producción. ¿Cómo sabes si mejora
+  o empeora al cambiar el prompt? Construye un eval básico con un golden set
+  de 3 preguntas y un juez LLM.
+payload:
+  starter: |
+    from anthropic import AsyncAnthropic
+    from dataclasses import dataclass
+
+    client = AsyncAnthropic()
+
+    @dataclass
+    class EvalCase:
+        question: str
+        expected_contains: str  # texto que DEBE aparecer en la respuesta
+
+    GOLDEN_SET = [
+        EvalCase("¿Cuál es el total de facturas de abril?", "abril"),
+        EvalCase("¿Qué proveedor tiene más facturas?", "proveedor"),
+        EvalCase("¿Hay facturas vencidas?", "vencid"),
+    ]
+
+    async def run_evals(agent_fn) -> dict:
+        """Corre el golden set contra agent_fn. Retorna {'passed': int, 'total': int}."""
+        ...
+  tests: |
+    import asyncio
+
+    async def dummy_agent(q: str) -> str:
+        return f"La respuesta a '{q}' involucra abril, proveedor y facturas vencidas."
+
+    result = asyncio.run(run_evals(dummy_agent))
+    assert result["total"] == 3
+    assert result["passed"] == 3
+hint_md: |
+  Para cada caso, llama a `agent_fn(case.question)` y verifica si
+  `case.expected_contains.lower()` está en la respuesta en minúsculas.
+  Un juez LLM real usaría otro LLM para evaluar semántica, no solo substring.
+solution_md: |
+  Evals son tests para agentes. El golden set es un conjunto de preguntas
+  con respuestas conocidas. Sin evals, cambiar el prompt es adivinar.
+  LLM-as-judge escala a semántica: le preguntas al LLM si la respuesta es correcta.

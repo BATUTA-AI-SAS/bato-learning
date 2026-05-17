@@ -1,0 +1,10 @@
+slug: funcion
+title: "¿Qué es una función?"
+analogy_md: |
+  En Excel, =SUMA() o =BUSCARV() son funciones reutilizables que encapsulan lógica.
+  En Python defines tus propias funciones con def, les das un nombre y las llamas cuando las necesitas.
+example_md: |
+  ```python
+  def calcular_iva(monto: float) -> float:
+      return monto * 0.19
+  ```

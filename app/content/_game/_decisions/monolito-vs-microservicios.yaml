@@ -1,0 +1,22 @@
+slug: monolito-vs-microservicios
+chapter_ref: phase2
+prompt_md: |
+  El sistema de ACME tiene módulos de facturación, inventario y RRHH. El equipo
+  de ingeniería es de cuatro personas. ¿Cómo estructuras el backend?
+options:
+  - label: "Monolito (una sola aplicación)"
+    tradeoff_md: |
+      + Un solo repo, un solo deploy, una sola base de datos.
+      + Refactorizar entre módulos es trivial: mueves archivos.
+      + Cuatro personas pueden entender el sistema completo.
+      − Si un módulo tiene un bug, el deploy afecta a todos.
+      − Escalar inventario no se puede hacer sin escalar facturación también.
+    consequence_skill: monolito-ops
+  - label: "Microservicios (un servicio por módulo)"
+    tradeoff_md: |
+      + Cada equipo despliega su servicio de forma independiente.
+      + Puedes escalar solo el servicio de inventario si es el cuello de botella.
+      − Con cuatro personas, mantener tres repos, tres pipelines y comunicación entre servicios
+        consume más tiempo del que ahorra.
+      − Depurar errores que cruzan servicios es significativamente más complejo.
+    consequence_skill: microservicios-ops

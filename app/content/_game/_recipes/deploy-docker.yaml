@@ -1,0 +1,19 @@
+slug: deploy-docker
+title: "Receta: Deploy con Docker Compose"
+chapter_ref: phase2
+ingredients: [docker, cd, arquitectura]
+body_md: |
+  Docker Compose empaqueta la app y sus dependencias en un solo comando. Define cada servicio,
+  sus variables de entorno (nunca en el compose, siempre en .env) y los puertos expuestos.
+yields_md: |
+  ```yaml
+  services:
+    api:
+      build: .
+      ports: ["8080:8080"]
+      env_file: .env
+      depends_on: [db]
+    db:
+      image: postgres:16
+      volumes: [pgdata:/var/lib/postgresql/data]
+  ```

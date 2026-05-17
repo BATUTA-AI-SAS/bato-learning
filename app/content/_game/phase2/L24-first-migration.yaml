@@ -1,0 +1,27 @@
+slug: first-migration
+title: "Añade la columna 'status' sin perder datos"
+kind: order_steps
+phase: PH02
+ord: 24
+trains_skill: alembic-migrations
+xp: 15
+est_seconds: 120
+scenario_md: |
+  ACME quiere rastrear si cada factura está pendiente, aprobada o rechazada.
+  Hay 4 000 filas en producción. El schema debe cambiar sin borrar la tabla.
+  Ordena los pasos correctos para ejecutar la migración.
+payload:
+  steps:
+    - "Modificar el modelo ORM: añadir `status = Column(String, default='pending')`"
+    - "Ejecutar `alembic upgrade head` en el servidor de staging"
+    - "Correr `alembic revision --autogenerate -m 'add invoice status'`"
+    - "Revisar el archivo generado en `migrations/versions/` y verificar que el `upgrade()` hace ADD COLUMN y el `downgrade()` hace DROP COLUMN"
+    - "Ejecutar `alembic upgrade head` en producción tras confirmar que staging está bien"
+  correct_order: [0, 2, 3, 1, 4]
+hint_md: |
+  Primero cambia el código (el modelo), luego genera la migración,
+  luego revísala, luego aplícala en staging, luego en producción.
+solution_md: |
+  El modelo es la fuente de verdad del schema. Alembic compara el modelo
+  actual contra el historial de migraciones y genera el delta. Sin revisar
+  el archivo generado puedes aplicar una migración destructiva sin querer.

@@ -1,0 +1,266 @@
+- slug: ndr-calculator
+  title: "Calcula el NDR de tu cartera"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes 5 clientes al inicio de enero. Calcula el NDR del mes de enero.
+    Escribe la función `compute_ndr(clients_start, events)` que recibe:
+    - `clients_start`: dict {client_id: mrr_usd} al inicio del período
+    - `events`: lista de {client_id, event_type, amount_usd}
+      donde event_type puede ser: 'expansion', 'contraction', 'churn'
+
+    Retorna dict con: `mrr_start`, `mrr_end`, `ndr_pct` (redondeado a 1 decimal)
+  hint: |
+    NDR = (mrr_start + total_expansion - total_contraction - total_churn) / mrr_start × 100
+    Si NDR > 100: creces con la base existente. Si < 100: te estás encogiendo.
+  starter: |
+    def compute_ndr(clients_start: dict, events: list) -> dict:
+        """
+        clients_start: {client_id: mrr_usd}
+        events: [{client_id, event_type, amount_usd}]
+        event_type: 'expansion' | 'contraction' | 'churn'
+        """
+        pass
+
+    # Cartera de enero
+    cartera = {
+        "andina": 650.0,
+        "acme_mx": 400.0,
+        "expreslog": 500.0,
+        "tiendabox": 300.0,
+        "consultorabc": 250.0
+    }
+    eventos = [
+        {"client_id": "andina", "event_type": "expansion", "amount_usd": 200.0},  # nuevo SOW
+        {"client_id": "tiendabox", "event_type": "churn", "amount_usd": 300.0},   # canceló
+        {"client_id": "consultorabc", "event_type": "contraction", "amount_usd": 50.0},  # bajó de tier
+    ]
+    result = compute_ndr(cartera, eventos)
+    print(result)
+  test: |
+    assert callable(compute_ndr)
+    cartera = {
+        "andina": 650.0, "acme_mx": 400.0, "expreslog": 500.0,
+        "tiendabox": 300.0, "consultorabc": 250.0
+    }
+    eventos = [
+        {"client_id": "andina", "event_type": "expansion", "amount_usd": 200.0},
+        {"client_id": "tiendabox", "event_type": "churn", "amount_usd": 300.0},
+        {"client_id": "consultorabc", "event_type": "contraction", "amount_usd": 50.0},
+    ]
+    r = compute_ndr(cartera, eventos)
+    assert isinstance(r, dict)
+    assert "mrr_start" in r and "mrr_end" in r and "ndr_pct" in r
+
+    assert abs(r["mrr_start"] - 2100.0) < 0.1, \
+        f"mrr_start esperado 2100.0, obtenido {r['mrr_start']}"
+    # mrr_end = 2100 + 200 - 50 - 300 = 1950
+    assert abs(r["mrr_end"] - 1950.0) < 0.1, \
+        f"mrr_end esperado 1950.0, obtenido {r['mrr_end']}"
+    # ndr = 1950 / 2100 × 100 = 92.86 → 92.9
+    assert abs(r["ndr_pct"] - 92.9) < 0.2, \
+        f"ndr_pct esperado 92.9, obtenido {r['ndr_pct']}"
+    print("ok")
+  solution: |
+    def compute_ndr(clients_start: dict, events: list) -> dict:
+        mrr_start = sum(clients_start.values())
+        expansion = sum(e["amount_usd"] for e in events if e["event_type"] == "expansion")
+        contraction = sum(e["amount_usd"] for e in events if e["event_type"] == "contraction")
+        churn = sum(e["amount_usd"] for e in events if e["event_type"] == "churn")
+        mrr_end = mrr_start + expansion - contraction - churn
+        ndr_pct = round(mrr_end / mrr_start * 100, 1)
+        return {
+            "mrr_start": round(mrr_start, 2),
+            "mrr_end": round(mrr_end, 2),
+            "ndr_pct": ndr_pct
+        }
+  hints:
+    - "mrr_end = mrr_start + expansion - contraction - churn"
+    - "NDR < 100 significa que aunque adquieras clientes nuevos, el ingreso base se está encogiendo."
+
+- slug: churn-signals-detection
+  title: "Detecta clientes en riesgo de churn"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Tienes los datos de uso mensual de tus clientes. Escribe la función
+    `flag_churn_risk(clients_usage)` que recibe una lista de dicts con
+    el perfil de uso de cada cliente y retorna la lista de client_ids
+    que están en riesgo de churn.
+
+    Un cliente está en riesgo si cumple ≥ 2 de las siguientes condiciones:
+    1. `usage_drop_pct` > 20 (caída de uso > 20 % respecto al mes anterior)
+    2. `late_payment` es True (pago tardío este mes)
+    3. `no_login_days` > 20 (no ha iniciado sesión en > 20 días)
+    4. `stakeholder_changed` es True (el contacto principal cambió)
+  hint: |
+    Suma las condiciones que cumple cada cliente. Si la suma ≥ 2, está en riesgo.
+  starter: |
+    def flag_churn_risk(clients_usage: list) -> list:
+        """
+        clients_usage: [{client_id, usage_drop_pct, late_payment,
+                          no_login_days, stakeholder_changed}]
+        retorna: lista de client_ids en riesgo
+        """
+        pass
+
+    usage_data = [
+        {"client_id": "andina", "usage_drop_pct": 5, "late_payment": False, "no_login_days": 3, "stakeholder_changed": False},
+        {"client_id": "expreslog", "usage_drop_pct": 35, "late_payment": True, "no_login_days": 8, "stakeholder_changed": False},
+        {"client_id": "tiendabox", "usage_drop_pct": 10, "late_payment": False, "no_login_days": 25, "stakeholder_changed": True},
+        {"client_id": "consultorabc", "usage_drop_pct": 0, "late_payment": False, "no_login_days": 2, "stakeholder_changed": False},
+    ]
+    at_risk = flag_churn_risk(usage_data)
+    print(at_risk)
+  test: |
+    assert callable(flag_churn_risk)
+
+    usage_data = [
+        {"client_id": "andina", "usage_drop_pct": 5, "late_payment": False, "no_login_days": 3, "stakeholder_changed": False},
+        {"client_id": "expreslog", "usage_drop_pct": 35, "late_payment": True, "no_login_days": 8, "stakeholder_changed": False},
+        {"client_id": "tiendabox", "usage_drop_pct": 10, "late_payment": False, "no_login_days": 25, "stakeholder_changed": True},
+        {"client_id": "consultorabc", "usage_drop_pct": 0, "late_payment": False, "no_login_days": 2, "stakeholder_changed": False},
+    ]
+    result = flag_churn_risk(usage_data)
+    assert isinstance(result, list), "debe devolver una lista"
+
+    # andina: 0 señales → no en riesgo
+    assert "andina" not in result, "andina no tiene señales de churn"
+    # expreslog: 2 señales (usage_drop + late_payment) → en riesgo
+    assert "expreslog" in result, "expreslog tiene 2 señales: uso caído + pago tardío"
+    # tiendabox: 2 señales (no_login + stakeholder) → en riesgo
+    assert "tiendabox" in result, "tiendabox tiene 2 señales: no login 25 días + stakeholder cambió"
+    # consultorabc: 0 señales → no en riesgo
+    assert "consultorabc" not in result, "consultorabc no tiene señales de churn"
+    print("ok")
+  solution: |
+    def flag_churn_risk(clients_usage: list) -> list:
+        at_risk = []
+        for c in clients_usage:
+            signals = 0
+            if c["usage_drop_pct"] > 20:
+                signals += 1
+            if c["late_payment"]:
+                signals += 1
+            if c["no_login_days"] > 20:
+                signals += 1
+            if c["stakeholder_changed"]:
+                signals += 1
+            if signals >= 2:
+                at_risk.append(c["client_id"])
+        return at_risk
+  hints:
+    - "Suma las condiciones como True/False (en Python True == 1). Luego compara con 2."
+    - "No necesitas `elif`: todas las condiciones son independientes."
+
+- slug: qbr-deck-design
+  title: "Diseña el deck del QBR Q1 para Andina"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Diseña el contenido de los 5 bloques del QBR del primer trimestre
+    para Constructora Andina. Usa los datos del ejemplo conducido del módulo.
+
+    El QBR debe:
+    - Mostrar valor con números concretos (no palabras vagas)
+    - Incluir una propuesta de expansión (upsell)
+    - Tener al menos 2 acuerdos con fecha y responsable
+  hint: |
+    El bloque de valor entregado es el más importante. Si no tienes
+    números concretos, el QBR no tiene credibilidad.
+  starter: |
+    qbr = {
+        "client": "Constructora Andina",
+        "period": "Q1 2026 (enero–marzo post go-live)",
+        "blocks": {
+            "valor_entregado": {
+                "transactions_processed": 0,
+                "auto_match_avg_pct": 0.0,
+                "hours_saved": 0,
+                "hours_saved_value_cop": 0,
+                "duplicates_detected": 0,
+                "duplicates_value_cop": 0
+            },
+            "estado_servicio": {
+                "uptime_pct": 0.0,
+                "incidents": 0,
+                "improvements": []
+            },
+            "feedback_cliente": {
+                "positive": [],
+                "improvement_requests": []
+            },
+            "roadmap": {
+                "q2_improvements": [],
+                "upsell_proposal": ""
+            },
+            "acuerdos": []  # lista de {accion, responsable, fecha}
+        }
+    }
+  test: |
+    assert isinstance(qbr, dict)
+    blocks = qbr["blocks"]
+
+    # Valor entregado: números concretos
+    ve = blocks["valor_entregado"]
+    assert ve["transactions_processed"] > 0, "transactions_processed debe ser > 0"
+    assert ve["auto_match_avg_pct"] >= 85.0, \
+        f"auto_match_avg_pct debe ser ≥ 85 % (meta del SOW), obtenido {ve['auto_match_avg_pct']}"
+    assert ve["hours_saved"] > 0, "hours_saved debe ser > 0"
+    assert ve["hours_saved_value_cop"] > 0, "hours_saved_value_cop debe ser > 0"
+
+    # Estado del servicio
+    es = blocks["estado_servicio"]
+    assert es["uptime_pct"] >= 99.0, "uptime mínimo 99.0 % para PYME"
+
+    # Roadmap: debe haber una propuesta de upsell
+    roadmap = blocks["roadmap"]
+    assert roadmap["upsell_proposal"] != "", "upsell_proposal no puede estar vacío"
+    assert "factura" in roadmap["upsell_proposal"].lower() or \
+           "auditor" in roadmap["upsell_proposal"].lower() or \
+           "f-cta" in roadmap["upsell_proposal"].lower(), \
+        "La propuesta de upsell debe mencionar auditoría de facturas (F-CTA-02)"
+
+    # Acuerdos: al menos 2 con acción, responsable y fecha
+    assert len(blocks["acuerdos"]) >= 2, "El QBR debe tener al menos 2 acuerdos"
+    for a in blocks["acuerdos"]:
+        assert a.get("accion", "") != "", "Cada acuerdo debe tener 'accion'"
+        assert a.get("responsable", "") != "", "Cada acuerdo debe tener 'responsable'"
+        assert a.get("fecha", "") != "", "Cada acuerdo debe tener 'fecha'"
+    print("ok")
+  solution: |
+    qbr = {
+        "client": "Constructora Andina",
+        "period": "Q1 2026 (enero–marzo post go-live)",
+        "blocks": {
+            "valor_entregado": {
+                "transactions_processed": 2347,
+                "auto_match_avg_pct": 91.8,
+                "hours_saved": 32,
+                "hours_saved_value_cop": 1120000,
+                "duplicates_detected": 1,
+                "duplicates_value_cop": 2300000
+            },
+            "estado_servicio": {
+                "uptime_pct": 99.8,
+                "incidents": 0,
+                "improvements": ["Saldo acumulado añadido al reporte", "Parser BBVA mejorado para PDFs de nueva versión"]
+            },
+            "feedback_cliente": {
+                "positive": ["El reporte llega puntual el día 4 de cada mes", "Héctor solo revisa 60 excepciones/mes vs 480 antes"],
+                "improvement_requests": ["Agregar columna de saldo por banco en el resumen", "Posibilidad de corrida bajo demanda cuando cierran un proyecto"]
+            },
+            "roadmap": {
+                "q2_improvements": ["Columna de saldo por banco en el resumen ejecutivo", "Segunda corrida mensual bajo demanda incluida en el plan Profesional"],
+                "upsell_proposal": "Proponer en Q2 el agente de auditoría de facturas de proveedores (F-CTA-02): el mismo problema de duplicados que resolvemos en el banco aplica a las facturas. Andina tiene 80+ proveedores activos. Precio estimado: +300 USD/mes."
+            },
+            "acuerdos": [
+                {"accion": "Añadir columna de saldo por banco al reporte mensual", "responsable": "Proveedor", "fecha": "2026-04-15"},
+                {"accion": "Presentar propuesta formal de auditoría de facturas (F-CTA-02)", "responsable": "Proveedor", "fecha": "2026-05-01"},
+                {"accion": "Héctor confirma si quiere la segunda corrida mensual bajo demanda", "responsable": "Héctor Rivas (Andina)", "fecha": "2026-04-10"}
+            ]
+        }
+    }
+  hints:
+    - "hours_saved = (horas_antes - horas_ahora) × 3 meses. Antes: 16h/mes; ahora: ~5h/mes de revisión."
+    - "El upsell debe conectar con el dolor del discovery: Carlos mencionó las facturas de proveedores en el QBR de ejemplo."

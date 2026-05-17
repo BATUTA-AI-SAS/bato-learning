@@ -1,0 +1,183 @@
+- slug: retrieval_strategy_selector
+  title: "Implementa el decision tree de estrategia de retrieval"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `choose_strategy(case)` que aplica el decision tree del módulo
+    y retorna la estrategia recomendada como uno de estos strings exactos:
+    - `"long-context+caching"`
+    - `"rag"`
+    - `"lexical-search"`
+    - `"fine-tuning"`
+
+    El dict `case` tiene estas claves:
+    - `corpus_tokens` (int): tamaño del corpus en tokens
+    - `updates_per_day` (float): actualizaciones del corpus por día
+    - `semantic_queries` (bool): ¿las queries son semánticas?
+    - `labeled_examples` (int): número de pares etiquetados disponibles
+    - `context_window` (int, default 200000): tamaño del context window
+
+    Reglas (en orden de prioridad):
+    1. Si `semantic_queries=False`: → `"lexical-search"`
+    2. Si `labeled_examples >= 500` y `corpus_tokens >= context_window`: → `"fine-tuning"`
+    3. Si `corpus_tokens < context_window` y `updates_per_day < 1`: → `"long-context+caching"`
+    4. En cualquier otro caso: → `"rag"`
+  hint: |
+    Aplica las reglas en el orden indicado con `if/elif/else`.
+    Regla 1 es la más prioritaria — se evalúa primero.
+  starter: |
+    def choose_strategy(case: dict) -> str:
+        context_window = case.get("context_window", 200_000)
+        # implementa el decision tree aquí
+        pass
+
+    test_cases = [
+        # (descripción, case, esperado)
+        ("manuales 40K tokens, actualización mensual, semántico",
+         {"corpus_tokens": 40_000, "updates_per_day": 0.03, "semantic_queries": True, "labeled_examples": 0},
+         "long-context+caching"),
+        ("normativa 800K tokens, actualización anual, semántico",
+         {"corpus_tokens": 800_000, "updates_per_day": 0.003, "semantic_queries": True, "labeled_examples": 0},
+         "rag"),
+        ("búsqueda por número de artículo",
+         {"corpus_tokens": 200_000, "updates_per_day": 0.1, "semantic_queries": False, "labeled_examples": 0},
+         "lexical-search"),
+        ("clasificación OPEX/CAPEX con 2000 ejemplos",
+         {"corpus_tokens": 900_000, "updates_per_day": 0.01, "semantic_queries": True, "labeled_examples": 2000},
+         "fine-tuning"),
+        ("corpus grande cambia diariamente, semántico",
+         {"corpus_tokens": 500_000, "updates_per_day": 5.0, "semantic_queries": True, "labeled_examples": 0},
+         "rag"),
+    ]
+
+    for desc, case, expected in test_cases:
+        result = choose_strategy(case)
+        print(f"{'OK' if result == expected else 'FAIL'} | {desc} → {result} (expected {expected})")
+  test: |
+    for desc, case, expected in test_cases:
+        result = choose_strategy(case)
+        assert result == expected, (
+            f"FAIL: '{desc}'\n  esperaba '{expected}', obtuve '{result}'"
+        )
+    print("ok")
+  solution: |
+    def choose_strategy(case):
+        context_window = case.get("context_window", 200_000)
+        if not case["semantic_queries"]:
+            return "lexical-search"
+        if case["labeled_examples"] >= 500 and case["corpus_tokens"] >= context_window:
+            return "fine-tuning"
+        if case["corpus_tokens"] < context_window and case["updates_per_day"] < 1:
+            return "long-context+caching"
+        return "rag"
+
+- slug: caching_cost_comparison
+  title: "Compara el costo de prompt caching vs RAG"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Calcula y compara el costo mensual de dos estrategias para el Manual Contable
+    de ACME (corpus de 30 000 tokens, actualización mensual, 200 queries/día).
+
+    Precios:
+    - Sin caching: $3.00 por millón de tokens de entrada
+    - Con caching (input): $0.30 por millón de tokens de entrada (10% del precio)
+    - Con caching (write, primer request de cada hora): $3.75 por millón de tokens
+    - LLM salida: $15.00 por millón de tokens
+    - RAG embedding query: $0.06 por millón de tokens (voyage-3)
+    - RAG reranking: $0.002 por 1000 queries
+    - RAG LLM input (con 5 chunks de 400 tokens + 50 tokens de pregunta): $3.00/M tokens
+
+    Supón:
+    - Respuestas de 300 tokens en todos los casos
+    - Cache hit rate del 95% (5% de las queries pagan cache write)
+    - Con prompt caching: cada query envía los 30K tokens del corpus
+    - Con RAG: cada query envía 50 (pregunta) + 5 × 400 (chunks) = 2 050 tokens al LLM
+
+    Implementa:
+    - `cost_no_caching(queries_per_month, corpus_tokens, answer_tokens)`
+    - `cost_with_caching(queries_per_month, corpus_tokens, answer_tokens, cache_hit_rate=0.95)`
+    - `cost_rag(queries_per_month, question_tokens, chunks, tokens_per_chunk, answer_tokens)`
+
+    Cada función retorna el costo total en USD (float, redondeado a 2 decimales).
+  hint: |
+    Sin caching: todas las queries pagan el precio completo de entrada.
+    Con caching: `cache_hit_rate` de queries pagan $0.30/M; el resto pagan $3.75/M (cache write).
+    RAG: el LLM input es más barato porque los chunks son menos que el corpus completo.
+  starter: |
+    def cost_no_caching(queries_per_month: int, corpus_tokens: int, answer_tokens: int) -> float:
+        # todas las queries pagan input full + output
+        pass
+
+    def cost_with_caching(
+        queries_per_month: int,
+        corpus_tokens: int,
+        answer_tokens: int,
+        cache_hit_rate: float = 0.95,
+    ) -> float:
+        # hits pagan cache read ($0.30/M), misses pagan cache write ($3.75/M)
+        pass
+
+    def cost_rag(
+        queries_per_month: int,
+        question_tokens: int,
+        chunks: int,
+        tokens_per_chunk: int,
+        answer_tokens: int,
+    ) -> float:
+        # embedding + reranking + LLM (input reducido con chunks, no corpus completo)
+        pass
+
+    # configuración de ACME
+    qpm = 200 * 30  # 6000 queries/mes
+    corpus = 30_000
+    answer = 300
+
+    no_cache = cost_no_caching(qpm, corpus, answer)
+    with_cache = cost_with_caching(qpm, corpus, answer)
+    rag = cost_rag(qpm, 50, 5, 400, answer)
+
+    print(f"Sin caching:     ${no_cache}")
+    print(f"Con caching:     ${with_cache}")
+    print(f"RAG:             ${rag}")
+    print(f"Ahorro caching vs sin caching: ${round(no_cache - with_cache, 2)}")
+  test: |
+    assert no_cache > 0 and with_cache > 0 and rag > 0
+    # sin caching debe ser el más caro (más tokens de entrada)
+    assert no_cache > with_cache, (
+        f"sin caching ({no_cache}) debería ser más caro que con caching ({with_cache})"
+    )
+    # caching debería ser claramente más barato que sin caching
+    savings_ratio = (no_cache - with_cache) / no_cache
+    assert savings_ratio > 0.7, (
+        f"con caching al 95% debería ahorrar >70%, ahorra {savings_ratio:.0%}"
+    )
+    # RAG debería ser más barato que sin caching (menos tokens de input)
+    assert rag < no_cache, f"RAG ({rag}) debería ser más barato que sin caching ({no_cache})"
+
+    # verificar magnitudes razonables para el config dado (6000 queries/mes, 30K tokens corpus)
+    assert 100 < no_cache < 700, f"sin caching debería estar entre $100 y $700, obtuve ${no_cache}"
+    assert 5 < with_cache < 80, f"con caching debería estar entre $5 y $80, obtuve ${with_cache}"
+    assert 5 < rag < 80, f"RAG debería estar entre $5 y $80, obtuve ${rag}"
+    print("ok")
+  solution: |
+    def cost_no_caching(queries_per_month, corpus_tokens, answer_tokens):
+        input_cost  = queries_per_month * corpus_tokens / 1_000_000 * 3.00
+        output_cost = queries_per_month * answer_tokens  / 1_000_000 * 15.00
+        return round(input_cost + output_cost, 2)
+
+    def cost_with_caching(queries_per_month, corpus_tokens, answer_tokens, cache_hit_rate=0.95):
+        hits   = queries_per_month * cache_hit_rate
+        misses = queries_per_month * (1 - cache_hit_rate)
+        hit_cost   = hits   * corpus_tokens / 1_000_000 * 0.30
+        write_cost = misses * corpus_tokens / 1_000_000 * 3.75
+        output_cost = queries_per_month * answer_tokens / 1_000_000 * 15.00
+        return round(hit_cost + write_cost + output_cost, 2)
+
+    def cost_rag(queries_per_month, question_tokens, chunks, tokens_per_chunk, answer_tokens):
+        embed_cost   = queries_per_month * question_tokens / 1_000_000 * 0.06
+        rerank_cost  = queries_per_month / 1_000 * 0.002
+        llm_in_tokens = queries_per_month * (question_tokens + chunks * tokens_per_chunk)
+        llm_in_cost  = llm_in_tokens / 1_000_000 * 3.00
+        llm_out_cost = queries_per_month * answer_tokens / 1_000_000 * 15.00
+        return round(embed_cost + rerank_cost + llm_in_cost + llm_out_cost, 2)

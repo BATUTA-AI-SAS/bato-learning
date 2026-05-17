@@ -1,0 +1,27 @@
+slug: first-variable
+title: "Ponle nombre al número"
+kind: fill_blank
+trains_skill: variable
+concepts_introduced: [variable, string, int, print]
+concepts_reinforced: [terminal]
+scenario_md: |
+  María, tu compañera en ACME, tiene el monto de una factura pendiente escrito
+  en papel: 8 500 pesos. Necesitas guardarlo en el script para poder usarlo
+  después. Completa las dos líneas que faltan.
+payload:
+  code_template: |
+    monto = ___
+    proveedor = ___
+    print(monto, proveedor)
+  blanks:
+    - label: "valor del monto (número entero)"
+      correct: ["8500", "8_500"]
+    - label: "nombre del proveedor entre comillas"
+      correct: ["\"Proveedor ABC\"", "'Proveedor ABC'", "\"ACME\"", "'ACME'"]
+hint_md: "Un número entero no lleva comillas; un texto sí."
+solution_md: |
+  monto = 8500  (int, sin comillas)
+  proveedor = "Proveedor ABC"  (str, con comillas)
+  print imprime ambos valores separados por espacio.
+xp: 15
+est_seconds: 75

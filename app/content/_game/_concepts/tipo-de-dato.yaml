@@ -1,0 +1,11 @@
+slug: tipo-de-dato
+title: "¿Qué es un tipo de dato?"
+analogy_md: |
+  En Excel, una celda puede ser Número, Texto o Fecha; si sumas texto con número Excel
+  protesta. Python hace lo mismo: cada valor tiene un tipo y las operaciones deben ser compatibles.
+example_md: |
+  ```python
+  monto = 1500.50   # float
+  cliente = "ACME"  # str
+  pagado = True     # bool
+  ```

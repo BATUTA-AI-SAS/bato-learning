@@ -1,0 +1,17 @@
+slug: deploy-produccion
+title: "Receta: Deploy a producción"
+chapter_ref: phase4
+ingredients: [kubernetes, cd, observabilidad, seguridad-web, feature-flags]
+body_md: |
+  Un deploy a producción necesita más que docker push. Requiere health checks, rollout gradual,
+  variables secretas gestionadas por el cluster y alertas configuradas antes de que llegue tráfico real.
+yields_md: |
+  ```yaml
+  # k8s/deployment.yaml (fragmento)
+  readinessProbe:
+    httpGet: {path: /healthz, port: 8080}
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  envFrom:
+    - secretRef: {name: api-secrets}
+  ```

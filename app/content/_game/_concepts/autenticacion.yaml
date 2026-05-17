@@ -1,0 +1,10 @@
+slug: autenticacion
+title: "¿Qué es la autenticación?"
+analogy_md: |
+  Es el proceso de verificar quién eres, como mostrar tu credencial al entrar a las oficinas
+  de ACME. El sistema comprueba usuario y contraseña (o token) antes de dejarte pasar.
+example_md: |
+  ```
+  POST /auth/login  {"email": "...", "password": "..."}
+  → {"access_token": "eyJ...", "expires_in": 3600}
+  ```

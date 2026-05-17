@@ -1,0 +1,10 @@
+slug: kubernetes
+title: "¿Qué es Kubernetes?"
+analogy_md: |
+  Kubernetes es el sistema que gestiona decenas de contenedores Docker en producción:
+  los reinicia si fallan, los escala automáticamente bajo carga y distribuye el tráfico,
+  como un director de operaciones que supervisa todos los turnos de trabajo en ACME.
+example_md: |
+  ```
+  kubectl scale deployment api --replicas=10
+  ```

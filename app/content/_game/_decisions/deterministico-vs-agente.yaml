@@ -1,0 +1,23 @@
+slug: deterministico-vs-agente
+chapter_ref: phase3
+prompt_md: |
+  ACME quiere automatizar la reconciliación de facturas: leer PDFs, cruzar con el ERP
+  y marcar discrepancias. ¿Lo implementas como un flujo determinístico o como un agente?
+options:
+  - label: "Flujo determinístico (pasos fijos con código)"
+    tradeoff_md: |
+      + Cada paso es predecible, testeable y auditable.
+      + No hay costo por token en el camino feliz.
+      + Si falla, sabes exactamente qué línea falló.
+      − Cubrir todos los casos borde (PDFs malformados, formatos inesperados) requiere
+        mucho código de manejo de excepciones.
+      − Poco flexible ante variaciones no anticipadas.
+    consequence_skill: flujo-deterministico
+  - label: "Agente con LLM"
+    tradeoff_md: |
+      + Maneja variaciones de formato sin código adicional.
+      + Puede razonar sobre casos ambiguos y pedir aclaración.
+      − Costo por token en cada ejecución. Con 10,000 facturas al mes, suma.
+      − No determinístico: la misma factura puede producir resultados distintos.
+      − Necesita evals para medir calidad y guardrails para evitar errores silenciosos.
+    consequence_skill: agente-llm

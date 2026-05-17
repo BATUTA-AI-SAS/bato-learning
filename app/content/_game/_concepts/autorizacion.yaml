@@ -1,0 +1,10 @@
+slug: autorizacion
+title: "¿Qué es la autorización?"
+analogy_md: |
+  Después de saber quién eres (autenticación), la autorización decide qué puedes hacer:
+  el contador de ACME ve facturas pero no puede borrarlas; el Director Financiero sí.
+example_md: |
+  ```python
+  if current_user.role != "admin":
+      raise HTTPException(status_code=403)
+  ```

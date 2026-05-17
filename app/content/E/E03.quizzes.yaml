@@ -1,0 +1,139 @@
+# Quizzes de E03 — Skills, AGENTS.md, CLAUDE.md y aislamiento de contexto
+# 4 preguntas. Cada distractor lleva feedback explicativo.
+
+- slug: claude_md_vs_agents_md
+  kind: quiz
+  ord: 1
+  question_md: |
+    Un repo usa Claude Code como agente principal pero el equipo también
+    usa Cursor. ¿Cuál es la recomendación del curso para gestionar las
+    instrucciones del agente?
+  options:
+    - text_md: |
+        Un solo `AGENTS.md` en la raíz; `CLAUDE.md` como symlink o con
+        una redirección explícita a `AGENTS.md`.
+      is_correct: true
+      feedback_md: |
+        Correcto. `AGENTS.md` es el estándar multi-agente adoptado en 2025.
+        Claude Code respeta ambos pero da precedencia a `CLAUDE.md`. En un
+        repo multi-agente, mantener un solo archivo de referencia y hacer
+        que el otro apunte a él evita que los dos divergan.
+    - text_md: "Mantener `CLAUDE.md` y `AGENTS.md` con contenidos distintos para cada agente."
+      is_correct: false
+      feedback_md: |
+        Tener dos fuentes de verdad divergentes es el anti-patrón. Cursor
+        hará una cosa y Claude Code otra; el equipo no puede reproducir
+        comportamientos consistentemente.
+    - text_md: "Eliminar `CLAUDE.md` y mover todo a skills, porque `AGENTS.md` lo reemplaza."
+      is_correct: false
+      feedback_md: |
+        `AGENTS.md` no reemplaza a los skills; es el archivo de instrucciones
+        globales del proyecto. Los skills siguen siendo necesarios para
+        recetas de tareas específicas.
+    - text_md: "Usar `CLAUDE.md` siempre; `AGENTS.md` es solo para repos open source."
+      is_correct: false
+      feedback_md: |
+        `AGENTS.md` no está limitado a open source. Es un estándar adoptado
+        por múltiples editores y agentes en 2025, incluyendo Claude Code.
+
+- slug: skill_slot_purpose
+  kind: quiz
+  ord: 2
+  question_md: |
+    ¿Para qué sirven los `slots` en el frontmatter de un skill?
+  options:
+    - text_md: |
+        Son variables que el harness sustituye con datos del tenant en
+        runtime, permitiendo reusar un solo skill para N clientes.
+      is_correct: true
+      feedback_md: |
+        Correcto. Sin slots, necesitarías un archivo de skill por cliente
+        con el mismo body pero el catálogo de cuentas distinto. Con slots,
+        el skill es genérico; el harness inyecta el catálogo del tenant.
+    - text_md: "Son campos opcionales que el lector puede rellenar manualmente en el YAML."
+      is_correct: false
+      feedback_md: |
+        Los slots no los rellena el lector en el archivo; los rellena el
+        harness automáticamente en onboarding del tenant, sin tocar el
+        skill.
+    - text_md: "Son parámetros de `messages.create` que controlan el comportamiento del modelo."
+      is_correct: false
+      feedback_md: |
+        Los slots son una abstracción del harness, no del SDK. `messages.create`
+        no sabe que existen; el harness sustituye los placeholders antes de
+        construir el system prompt.
+    - text_md: "Son metadatos para el sistema de búsqueda de skills, no afectan al modelo."
+      is_correct: false
+      feedback_md: |
+        Los slots sí afectan al modelo: su valor termina en el body del
+        system prompt que el modelo recibe. Si el slot `chart_of_accounts`
+        está vacío, el modelo clasifica sin catálogo.
+
+- slug: gating_purpose
+  kind: quiz
+  ord: 3
+  question_md: |
+    ¿Por qué el harness no carga todos los skills en el system prompt de
+    todos los nodos del grafo?
+  options:
+    - text_md: |
+        Para mantener el contexto limpio y evitar que el modelo combine
+        recetas de dominios distintos o confunda instrucciones entre sí.
+      is_correct: true
+      feedback_md: |
+        Correcto. Cada nodo tiene una responsabilidad acotada. Si el nodo
+        `classify` recibe además las instrucciones de `draft_report`, el
+        modelo puede incluir elementos del reporte en la clasificación,
+        degradando la calidad de ambas tareas.
+    - text_md: "Para reducir el número de llamadas al API de Anthropic y ahorrar costo."
+      is_correct: false
+      feedback_md: |
+        El gating reduce tokens en el system prompt, lo que sí impacta el
+        costo. Pero la razón principal es la calidad: evitar que el modelo
+        mezcle instrucciones. El ahorro es un efecto secundario deseable.
+    - text_md: "Porque el SDK tiene un límite de 2 skills por llamada."
+      is_correct: false
+      feedback_md: |
+        No existe ese límite en el SDK. El número de skills es una decisión
+        de diseño del harness, no una restricción técnica de la API.
+    - text_md: "Para cumplir un requisito de seguridad: los skills tienen datos de tenants distintos."
+      is_correct: false
+      feedback_md: |
+        La seguridad multitenant se garantiza con slots, no con gating. El
+        gating es sobre coherencia de instrucciones, no sobre aislamiento
+        de datos entre tenants.
+
+- slug: antipattern_butler
+  kind: quiz
+  ord: 4
+  question_md: |
+    El sistema prompt de un nodo tiene 9 000 tokens y contiene instrucciones
+    de clasificación contable, conciliación bancaria, y redacción de reportes.
+    ¿Cuál es el diagnóstico y el arreglo?
+  options:
+    - text_md: |
+        Anti-patrón agente mayordomo. Arreglo: un agente por caso de uso,
+        con gating selectivo en el harness.
+      is_correct: true
+      feedback_md: |
+        Correcto. 9 000 tokens de instrucciones mezcladas es la señal
+        clásica del agente mayordomo. El modelo puede combinar recetas de
+        forma incorrecta, las instrucciones pueden contradecirse en casos
+        borde, y no hay forma de auditar qué instrucción causó qué decisión.
+    - text_md: "El nodo es demasiado corto; hay que añadir más instrucciones para cubrir más casos."
+      is_correct: false
+      feedback_md: |
+        La dirección es la contraria: 9 000 tokens de instrucciones mezcladas
+        es demasiado, no poco. Añadir más instrucciones empeora el problema.
+    - text_md: "Hay que usar extended thinking para que el modelo maneje la complejidad."
+      is_correct: false
+      feedback_md: |
+        Extended thinking ayuda al modelo a razonar en pasos, pero no
+        resuelve el problema de instrucciones mezcladas. El modelo seguirá
+        combinando recetas incorrectamente, solo con más tokens de razonamiento.
+    - text_md: "Hay que usar `tool_choice: any` para que el modelo llame siempre una tool y no mezcle texto."
+      is_correct: false
+      feedback_md: |
+        `tool_choice` controla si el modelo llama tools, no cómo usa las
+        instrucciones del system prompt. Las instrucciones mezcladas siguen
+        influyendo en qué input genera para las tools.

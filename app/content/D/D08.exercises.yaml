@@ -1,0 +1,231 @@
+- slug: detect-secret-antipatterns
+  title: "Detecta secretos mal gestionados en este repo"
+  runner: backend
+  kind: design
+  prompt: |
+    El siguiente es un extracto de un repo real de Globex Logistics.
+    Identifica todos los problemas de gestión de secretos, clasifica la severidad
+    de cada uno (crítica / alta / media), y propón la corrección concreta.
+
+    **Archivo 1: `docker-compose.yml`**
+    ```yaml
+    services:
+      api:
+        image: globex/logistics-api:latest
+        environment:
+          ANTHROPIC_API_KEY: sk-ant-api03-abc123def456ghi789jkl012
+          DATABASE_URL: postgresql://admin:gl0b3x_pass@postgres:5432/logistics
+          REDIS_URL: redis://:r3d1s_pass@redis:6379/0
+    ```
+
+    **Archivo 2: `scripts/deploy.sh`**
+    ```bash
+    #!/bin/bash
+    echo "Deploying to production..."
+    echo "API Key: $ANTHROPIC_API_KEY"
+    ssh deploy@prod.globex.com "
+      export ANTHROPIC_API_KEY=sk-ant-api03-abc123def456ghi789jkl012
+      docker compose pull && docker compose up -d
+    "
+    ```
+
+    **Archivo 3: `.gitignore`**
+    ```
+    __pycache__/
+    *.pyc
+    .venv/
+    ```
+    (nota: no hay `.env` en este gitignore)
+
+    Cada problema: nombre, severidad, por qué es un riesgo, corrección.
+  hint: |
+    Hay al menos 5 problemas distintos distribuidos en los 3 archivos.
+    Algunos problemas se repiten en múltiples archivos.
+  solution: |
+    Problema 1 — ANTHROPIC_API_KEY hardcodeada en docker-compose.yml.
+    Severidad: CRÍTICA.
+    Riesgo: cualquier persona con acceso al repo puede ver y usar la key.
+    Si el repo alguna vez fue público, la key está comprometida permanentemente
+    (GitHub Archive Program, Google cache, Wayback Machine).
+    Corrección: usar `ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}` y gestionar el
+    valor con .env en el servidor (fuera del repo) o con sops+age.
+
+    Problema 2 — DATABASE_URL con password hardcodeada en docker-compose.yml.
+    Severidad: CRÍTICA.
+    Riesgo: acceso directo a la base de datos de producción para cualquiera
+    que vea el compose file. Más grave que la API key: una DB comprometida
+    puede implicar pérdida o exfiltración de datos de todos los tenants.
+    Corrección: `DATABASE_URL: ${DATABASE_URL}`, gestionar fuera del repo.
+
+    Problema 3 — `echo "API Key: $ANTHROPIC_API_KEY"` en el script de deploy.
+    Severidad: ALTA.
+    Riesgo: los logs del CI/CD mostrarán la API key en texto plano si el
+    script se corre en un pipeline (aunque GitHub Actions intenta enmascarar
+    variables, este echo explícito puede filtrarla en herramientas externas
+    que capturan stdout).
+    Corrección: eliminar el echo. Si necesitas confirmación, loguear el
+    prefijo: `echo "API Key prefix: ${ANTHROPIC_API_KEY:0:10}..."`.
+
+    Problema 4 — API key hardcodeada en el comando SSH del script.
+    Severidad: CRÍTICA.
+    Riesgo: el `ssh` con `export ANTHROPIC_API_KEY=sk-ant-...` queda en el
+    historial de bash del runner y del servidor. Cualquier `~/.bash_history`
+    expone la key.
+    Corrección: la key ya debe estar en el .env del servidor. El script SSH
+    solo hace `docker compose pull && docker compose up -d` sin pasar la key.
+
+    Problema 5 — `.env` no está en `.gitignore`.
+    Severidad: ALTA.
+    Riesgo: si alguien crea un `.env` local con secretos reales y hace `git add .`,
+    el `.env` se commitea sin advertencia.
+    Corrección: añadir `.env`, `.env.*`, `!.env.example` al `.gitignore`.
+
+- slug: sops-age-setup
+  title: "Diseña el flujo de sops+age para un equipo de 3 personas"
+  runner: backend
+  kind: design
+  prompt: |
+    El equipo de ACME Manufacturing tiene 3 ingenieros: Ana, Bruno y Carlos.
+    Usan GitHub y despliegan en Hetzner con GitHub Actions.
+
+    Diseña el flujo completo de gestión de secretos con sops+age que responda:
+
+    1. ¿Cuántas claves age se generan y quién tiene qué?
+    2. ¿Cómo se configura `.sops.yaml` para que los 3 puedan descifrar?
+    3. ¿Qué archivos van al repo y cuáles no?
+    4. ¿Cómo descifra el pipeline de GitHub Actions (que no es Ana, Bruno ni Carlos)?
+    5. ¿Qué pasa si Carlos deja el equipo?
+
+    Escribe el `.sops.yaml` resultante y el comando de GitHub Actions para descifrar.
+  hint: |
+    El pipeline necesita descifrar también → necesita una clave age. Esa clave
+    no es de ninguna persona: es del entorno de CI/CD.
+    Para revocar el acceso de Carlos: re-cifrar el archivo con las claves restantes.
+  solution: |
+    1. Claves age a generar:
+       - ana_age_key (Ana, en su laptop)
+       - bruno_age_key (Bruno, en su laptop)
+       - carlos_age_key (Carlos, en su laptop)
+       - ci_age_key (clave del pipeline, guardada como GitHub Secret)
+       Total: 4 claves. Cada persona solo tiene su propia clave privada.
+
+    2. .sops.yaml:
+    ```yaml
+    creation_rules:
+      - path_regex: \.env\.prod$
+        age: >-
+          age1ana...publickey,
+          age1bruno...publickey,
+          age1carlos...publickey,
+          age1ci...publickey
+    ```
+    sops cifra el mismo archivo para todas las claves listadas. Cualquier
+    una de ellas puede descifrar independientemente.
+
+    3. Archivos en el repo (SÍ):
+       - .sops.yaml
+       - .env.prod.enc (el .env cifrado)
+    Archivos NUNCA en el repo:
+       - .env.prod (el .env en claro)
+       - Las claves privadas de age (*.txt, keys.txt)
+
+    4. Pipeline de GitHub Actions:
+    ```yaml
+    - name: Decrypt secrets
+      run: |
+        mkdir -p ~/.config/sops/age
+        echo "$CI_AGE_PRIVATE_KEY" > ~/.config/sops/age/keys.txt
+        chmod 600 ~/.config/sops/age/keys.txt
+        sops --decrypt .env.prod.enc > /tmp/.env.prod
+      env:
+        CI_AGE_PRIVATE_KEY: ${{ secrets.CI_AGE_PRIVATE_KEY }}
+    ```
+    La clave privada de CI vive en los secrets de GitHub (Settings → Secrets).
+
+    5. Cuando Carlos deja el equipo:
+       a. Carlos ya no tiene acceso al repo (se revoca en GitHub).
+       b. Re-cifrar el .env.prod sin la clave de Carlos:
+          Editar .sops.yaml eliminando la clave pública de Carlos.
+          SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops updatekeys .env.prod.enc
+          git add .env.prod.enc .sops.yaml
+          git commit -m "security: remove carlos from sops recipients"
+       c. Si se sospecha que Carlos pudo haber copiado los secretos:
+          Rotar todos los secretos del .env.prod.enc (nueva API key, nueva DB password).
+
+- slug: identify-secret-in-log
+  title: "¿Qué secretos se filtran en estos logs?"
+  runner: pyodide
+  kind: code
+  prompt: |
+    La siguiente función simula la detección de posibles secretos en logs de CI.
+    Implementa `find_leaked_secrets(log_lines)` que recibe una lista de strings
+    y devuelve una lista con los números de línea (1-indexed) donde se detecta
+    un posible secreto según estas reglas:
+
+    - Una línea es sospechosa si contiene alguno de estos patrones:
+      - `sk-ant-api03-` (Anthropic API key)
+      - `sk-` seguido de 20+ caracteres alfanuméricos (OpenAI-style key)
+      - `password` o `passwd` seguido de `=` y caracteres no-espacio
+      - `token=` seguido de caracteres no-espacio de longitud > 10
+
+    Devuelve los números de línea (empezando en 1) donde se detecta al menos un patrón.
+  starter: |
+    import re
+
+    def find_leaked_secrets(log_lines: list[str]) -> list[int]:
+        # patrones de detección (expresiones regulares)
+        patterns = [
+            r"sk-ant-api03-",
+            r"sk-[a-zA-Z0-9]{20,}",
+            r"(password|passwd)\s*=\s*\S+",
+            r"token=\S{11,}",
+        ]
+        # tu implementación aquí
+        pass
+
+    # test
+    logs = [
+        "Starting deployment...",                               # línea 1: limpia
+        "ANTHROPIC_API_KEY=sk-ant-api03-abc123def456",         # línea 2: sospechosa
+        "Connected to database successfully",                  # línea 3: limpia
+        "DATABASE_URL=postgresql://admin:password=super123@host", # línea 4: sospechosa
+        "Deploy complete.",                                    # línea 5: limpia
+        "token=eyJhbGciOiJIUzI1NiJ9.abc123.xyz",              # línea 6: sospechosa
+    ]
+    print(find_leaked_secrets(logs))  # esperado: [2, 4, 6]
+  test: |
+    import re
+
+    logs = [
+        "Starting deployment...",
+        "ANTHROPIC_API_KEY=sk-ant-api03-abc123def456",
+        "Connected to database successfully",
+        "DATABASE_URL=postgresql://admin:password=super123@host",
+        "Deploy complete.",
+        "token=eyJhbGciOiJIUzI1NiJ9.abc123.xyz",
+    ]
+    result = find_leaked_secrets(logs)
+    assert 2 in result, f"línea 2 debería detectarse (Anthropic key), got {result}"
+    assert 4 in result, f"línea 4 debería detectarse (password), got {result}"
+    assert 6 in result, f"línea 6 debería detectarse (token), got {result}"
+    assert 1 not in result, f"línea 1 no debería detectarse, got {result}"
+    assert 3 not in result, f"línea 3 no debería detectarse, got {result}"
+    assert 5 not in result, f"línea 5 no debería detectarse, got {result}"
+    print("ok")
+  solution: |
+    import re
+
+    def find_leaked_secrets(log_lines: list[str]) -> list[int]:
+        patterns = [
+            r"sk-ant-api03-",
+            r"sk-[a-zA-Z0-9]{20,}",
+            r"(password|passwd)\s*=\s*\S+",
+            r"token=\S{11,}",
+        ]
+        leaked = []
+        for i, line in enumerate(log_lines, start=1):
+            for pattern in patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    leaked.append(i)
+                    break   # evitar duplicados si hay múltiples patrones en la misma línea
+        return leaked

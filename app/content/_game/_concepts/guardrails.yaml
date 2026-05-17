@@ -1,0 +1,11 @@
+slug: guardrails
+title: "¿Qué son los guardrails?"
+analogy_md: |
+  Son validaciones que envuelven al agente para que no haga cosas que no debe: como el proceso
+  de doble aprobación de ACME para pagos grandes. El agente puede proponer, pero el guardrail
+  decide si se ejecuta.
+example_md: |
+  ```python
+  if accion.tipo == "pago" and accion.monto > 50000:
+      raise GuardrailViolation("requiere aprobacion humana")
+  ```

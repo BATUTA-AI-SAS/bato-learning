@@ -1,0 +1,172 @@
+- slug: golden-set-validator
+  title: "Valida un golden set"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `validate_golden_set(cases: list[dict]) -> list[str]` que valida una
+    colección de casos de golden set.
+
+    Reglas:
+    - Debe tener entre 5 y 50 casos.
+    - Cada caso debe tener claves: `id`, `input`, `expected`.
+    - Los `id` deben ser únicos.
+    - Ningún caso debe tener `input` o `expected` vacíos (ni None ni dict vacío).
+    - Devuelve lista de errores; vacía si el golden set es válido.
+  hint: |
+    Usa un set para detectar IDs duplicados.
+    Para verificar "vacío": comprueba `not item` que captura None, {}, y "".
+  starter: |
+    def validate_golden_set(cases: list[dict]) -> list[str]:
+        errors = []
+        # longitud
+        # campos requeridos
+        # ids únicos
+        # inputs y expected no vacíos
+        return errors
+  test: |
+    valid_cases = [
+        {"id": f"case_{i}", "input": {"query": f"factura {i}"}, "expected": {"type": "ok"}}
+        for i in range(7)
+    ]
+    too_few = valid_cases[:3]
+    dup_id = valid_cases + [{"id": "case_0", "input": {"q": "x"}, "expected": {"t": "y"}}]
+    empty_input = valid_cases + [{"id": "case_empty", "input": {}, "expected": {"t": "y"}}]
+    missing_key = [{"id": "x", "input": {"q": "x"}}]  # falta expected
+
+    assert validate_golden_set(valid_cases) == [], f"válido: {validate_golden_set(valid_cases)}"
+    assert len(validate_golden_set(too_few)) >= 1
+    assert len(validate_golden_set(dup_id)) >= 1
+    assert len(validate_golden_set(empty_input)) >= 1
+    assert len(validate_golden_set(missing_key)) >= 1
+    print("ok")
+  solution: |
+    def validate_golden_set(cases: list[dict]) -> list[str]:
+        errors = []
+        if not (5 <= len(cases) <= 50):
+            errors.append(f"el golden set tiene {len(cases)} casos, necesita entre 5 y 50")
+        ids_seen = set()
+        for i, case in enumerate(cases):
+            for key in ("id", "input", "expected"):
+                if key not in case:
+                    errors.append(f"caso {i}: falta clave '{key}'")
+            case_id = case.get("id")
+            if case_id in ids_seen:
+                errors.append(f"id duplicado: {case_id!r}")
+            if case_id:
+                ids_seen.add(case_id)
+            if not case.get("input"):
+                errors.append(f"caso {i} ({case_id!r}): input vacío")
+            if not case.get("expected"):
+                errors.append(f"caso {i} ({case_id!r}): expected vacío")
+        return errors
+
+- slug: eval-pass-rate
+  title: "Calcula pass_rate y regression_rate"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `compute_eval_metrics(current_results: list[bool], previous_results: list[bool]) -> dict`
+    que recibe dos listas de booleanos (True = caso aprobado) y devuelve:
+    - `pass_rate`: tasa de aprobación actual (float 0.0-1.0, redondeado a 4 decimales)
+    - `regression_rate`: proporción de casos que antes pasaban (True) y ahora fallan (False)
+      sobre el total de casos. Si `previous_results` está vacío, devuelve 0.0.
+    - `alert`: True si `pass_rate < 0.90` o `regression_rate > 0.10`
+
+    Las listas tienen la misma longitud. Si alguna está vacía, devuelve `{"pass_rate": 0.0, "regression_rate": 0.0, "alert": True}`.
+  hint: |
+    Para regression_rate: cuenta los casos donde `previous[i] is True and current[i] is False`.
+    Divide por `len(current_results)`.
+  starter: |
+    def compute_eval_metrics(
+        current_results: list[bool],
+        previous_results: list[bool],
+    ) -> dict:
+        if not current_results:
+            return {"pass_rate": 0.0, "regression_rate": 0.0, "alert": True}
+        ...
+  test: |
+    r1 = compute_eval_metrics(
+        [True]*18 + [False]*2,   # 18/20 pasan
+        [True]*20,               # antes todos pasaban
+    )
+    assert r1["pass_rate"] == 0.9, f"pass_rate: {r1['pass_rate']}"
+    assert r1["regression_rate"] == 0.1, f"regression_rate: {r1['regression_rate']}"
+    assert r1["alert"] is False, "0.90 pass_rate exacto y 0.10 regression_rate exacto no deben alertar"
+
+    r2 = compute_eval_metrics(
+        [True]*16 + [False]*4,   # 16/20 pasan -> 0.80 < 0.90
+        [True]*20,
+    )
+    assert r2["alert"] is True
+
+    r3 = compute_eval_metrics([True]*10, [])
+    assert r3["regression_rate"] == 0.0
+
+    print("ok")
+  solution: |
+    def compute_eval_metrics(
+        current_results: list[bool],
+        previous_results: list[bool],
+    ) -> dict:
+        if not current_results:
+            return {"pass_rate": 0.0, "regression_rate": 0.0, "alert": True}
+        n = len(current_results)
+        pass_rate = round(sum(current_results) / n, 4)
+        regression_rate = 0.0
+        if previous_results:
+            regressions = sum(
+                1 for p, c in zip(previous_results, current_results) if p and not c
+            )
+            regression_rate = round(regressions / n, 4)
+        alert = pass_rate < 0.90 or regression_rate > 0.10
+        return {"pass_rate": pass_rate, "regression_rate": regression_rate, "alert": alert}
+
+- slug: ab-test-design
+  title: "Diseña un A/B test de agente"
+  runner: pyodide
+  kind: design
+  prompt: |
+    Quieres comparar dos versiones del prompt del agente de auditoría:
+    - Rama A (actual): detecta duplicados exactos por monto+fecha+proveedor.
+    - Rama B (candidato): detecta también duplicados fuzzy (mismo proveedor, mismo monto ±5%).
+
+    Implementa `ab_test_decision(a_pass_rate: float, b_pass_rate: float, min_conversations: int, actual_conversations: int) -> str`
+    que devuelve:
+    - `"insufficient_data"` si `actual_conversations < min_conversations`
+    - `"promote_b"` si B supera a A en pass_rate Y hay datos suficientes
+    - `"keep_a"` si A es mayor o igual a B Y hay datos suficientes
+    - `"promote_b"` si son iguales Y hay datos suficientes (en caso de empate, promover el candidato)
+
+    La métrica pre-declarada es `pass_rate` con umbral de superioridad de 0.01 (B debe superar a A en ≥0.01).
+  hint: |
+    El umbral de superioridad 0.01 significa que B debe ser estrictamente mayor que A + 0.01
+    para que "promote_b" aplique en el caso normal. En empate exacto, por política se promueve B.
+  starter: |
+    def ab_test_decision(
+        a_pass_rate: float,
+        b_pass_rate: float,
+        min_conversations: int,
+        actual_conversations: int,
+    ) -> str:
+        ...
+  test: |
+    assert ab_test_decision(0.90, 0.95, 100, 50) == "insufficient_data"
+    assert ab_test_decision(0.90, 0.95, 100, 120) == "promote_b"  # B > A + 0.01
+    assert ab_test_decision(0.95, 0.90, 100, 120) == "keep_a"
+    assert ab_test_decision(0.90, 0.90, 100, 120) == "promote_b"  # empate → promover candidato
+    assert ab_test_decision(0.90, 0.905, 100, 120) == "keep_a"   # B > A pero no por 0.01
+    print("ok")
+  solution: |
+    def ab_test_decision(
+        a_pass_rate: float,
+        b_pass_rate: float,
+        min_conversations: int,
+        actual_conversations: int,
+    ) -> str:
+        if actual_conversations < min_conversations:
+            return "insufficient_data"
+        if b_pass_rate == a_pass_rate:
+            return "promote_b"
+        if b_pass_rate >= a_pass_rate + 0.01:
+            return "promote_b"
+        return "keep_a"

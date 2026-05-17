@@ -1,0 +1,29 @@
+slug: ci-pipeline
+title: "Cada push corre lint + tests automáticamente"
+kind: order_steps
+phase: PH02
+ord: 32
+trains_skill: ci-github-actions
+xp: 20
+est_seconds: 120
+scenario_md: |
+  ACME tiene un repo en GitHub. Cada vez que alguien hace push, quiere
+  que se ejecuten lint, tests y build automáticamente. Ordena los stages
+  del pipeline de CI en el orden lógico correcto.
+payload:
+  steps:
+    - "Ejecutar `pytest` — si falla, el pipeline se detiene y no se construye la imagen"
+    - "Hacer `docker build` de la imagen del servicio"
+    - "Ejecutar `ruff check .` para detectar errores de estilo y bugs obvios"
+    - "El desarrollador hace `git push` al branch feature/add-status"
+    - "GitHub Actions detecta el push y lanza el workflow `.github/workflows/ci.yaml`"
+    - "Notificar al equipo: ✓ verde o ✗ rojo con enlace al log del fallo"
+  correct_order: [3, 4, 2, 0, 1, 5]
+hint_md: |
+  Primero el desarrollador pushea. Luego GitHub lo detecta. Luego lint
+  (rápido), luego tests (más lento), luego build (solo si pasaron los anteriores).
+  Al final, notificación.
+solution_md: |
+  El orden importa: lint primero porque es el más rápido — falla en segundos
+  y ahorra tiempo de espera de tests. Build al final porque es el más costoso.
+  Los secretos de producción (API keys) viven en GitHub Secrets, nunca en el YAML.

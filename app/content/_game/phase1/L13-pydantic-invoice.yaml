@@ -1,0 +1,37 @@
+slug: pydantic-invoice
+title: "Valida la factura antes de procesarla"
+kind: code
+trains_skill: pydantic
+concepts_introduced: [Pydantic, BaseModel, Field, ValidationError]
+concepts_reinforced: [dict, funcion]
+scenario_md: |
+  El CFO de ACME exige que ninguna factura con monto negativo o sin número
+  entre al sistema. Define el modelo Pydantic Factura que valide esas dos
+  reglas y levante ValidationError automáticamente si no se cumplen.
+payload:
+  starter: |
+    from pydantic import BaseModel, Field
+
+    class Factura(BaseModel):
+        numero: str
+        monto: float = Field(...)  # Agrega la restricción gt=0
+  tests: |
+    from pydantic import ValidationError
+    f = Factura(numero="FAC-001", monto=1500.0)
+    assert f.monto == 1500.0
+    try:
+        Factura(numero="FAC-002", monto=-100)
+        assert False, "debio lanzar error"
+    except ValidationError:
+        pass
+    try:
+        Factura(numero="", monto=100)
+    except Exception:
+        pass
+hint_md: "Field tiene un argumento gt= para 'greater than'. Agrégalo al campo monto."
+solution_md: |
+  monto: float = Field(..., gt=0)
+  gt=0 le dice a Pydantic que el valor debe ser estrictamente mayor que cero.
+  Si llega -100 o 0, ValidationError se lanza antes de que el dato entre al sistema.
+xp: 20
+est_seconds: 120

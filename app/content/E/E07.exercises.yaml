@@ -1,0 +1,344 @@
+- slug: build-golden-set
+  title: "Construir y validar un golden set de clasificación de facturas"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El agente de ACME clasifica facturas en cuatro categorías:
+    "regular", "nuevo_proveedor", "duplicado", "anomalia".
+
+    Tienes datos reales exportados del cliente (simulados aquí).
+    Completa la función `build_golden_set(raw_cases: list[dict]) -> list[dict]`
+    que:
+    1. Filtra casos donde `validated_by_client` es True.
+    2. Construye cada caso con la forma:
+       {"input": {...}, "expected_output": {"classification": <str>}, "metadata": {"tenant": <str>}}
+    3. Verifica que `classification` sea una de las categorías válidas.
+    4. Devuelve la lista de casos válidos.
+
+    Si un caso tiene clasificación inválida, omítelo (no lances excepción).
+  hint: |
+    Recorre la lista, filtra por validated_by_client, construye el dict con
+    los campos correctos, y verifica que classification esté en el set de valores válidos.
+  starter: |
+    VALID_CLASSIFICATIONS = {"regular", "nuevo_proveedor", "duplicado", "anomalia"}
+
+    def build_golden_set(raw_cases: list[dict]) -> list[dict]:
+        pass
+
+    raw = [
+        {"description": "PAGO FACT ACME", "amount": 4820.0, "vendor_id": "V-0001",
+         "classification": "regular", "validated_by_client": True, "tenant": "acme"},
+        {"description": "NUEVO PROVEEDOR XYZ", "amount": 1200.0, "vendor_id": "V-0099",
+         "classification": "nuevo_proveedor", "validated_by_client": True, "tenant": "acme"},
+        {"description": "PAGO DUPLICADO?", "amount": 4820.0, "vendor_id": "V-0001",
+         "classification": "duplicado", "validated_by_client": False, "tenant": "acme"},
+        {"description": "TRANSFERENCIA EXTRAÑA", "amount": 99999.0, "vendor_id": "V-0002",
+         "classification": "desconocida", "validated_by_client": True, "tenant": "acme"},
+        {"description": "MONTO FUERA DE RANGO", "amount": 50000.0, "vendor_id": "V-0003",
+         "classification": "anomalia", "validated_by_client": True, "tenant": "acme"},
+    ]
+
+    result = build_golden_set(raw)
+    print(f"Casos válidos: {len(result)}")
+    for case in result:
+        print(case)
+  test: |
+    VALID_CLASSIFICATIONS = {"regular", "nuevo_proveedor", "duplicado", "anomalia"}
+
+    raw = [
+        {"description": "PAGO FACT ACME", "amount": 4820.0, "vendor_id": "V-0001",
+         "classification": "regular", "validated_by_client": True, "tenant": "acme"},
+        {"description": "NUEVO PROVEEDOR XYZ", "amount": 1200.0, "vendor_id": "V-0099",
+         "classification": "nuevo_proveedor", "validated_by_client": True, "tenant": "acme"},
+        {"description": "PAGO DUPLICADO?", "amount": 4820.0, "vendor_id": "V-0001",
+         "classification": "duplicado", "validated_by_client": False, "tenant": "acme"},
+        {"description": "TRANSFERENCIA EXTRAÑA", "amount": 99999.0, "vendor_id": "V-0002",
+         "classification": "desconocida", "validated_by_client": True, "tenant": "acme"},
+        {"description": "MONTO FUERA DE RANGO", "amount": 50000.0, "vendor_id": "V-0003",
+         "classification": "anomalia", "validated_by_client": True, "tenant": "acme"},
+    ]
+
+    result = build_golden_set(raw)
+
+    assert len(result) == 3, f"esperaba 3 casos válidos (validated=True + classification válida), obtuve {len(result)}"
+    assert all("input" in c for c in result), "cada caso debe tener 'input'"
+    assert all("expected_output" in c for c in result), "cada caso debe tener 'expected_output'"
+    assert all("metadata" in c for c in result), "cada caso debe tener 'metadata'"
+    assert all(c["expected_output"]["classification"] in VALID_CLASSIFICATIONS for c in result), \
+        "todas las clasificaciones deben ser válidas"
+    assert all(c["metadata"]["tenant"] == "acme" for c in result), \
+        "el tenant debe preservarse en metadata"
+    # el caso con validated_by_client=False no debe estar
+    descs = [c["input"]["description"] for c in result]
+    assert "PAGO DUPLICADO?" not in descs, "casos no validados no deben aparecer"
+    # el caso con clasificación inválida no debe estar
+    assert "TRANSFERENCIA EXTRAÑA" not in descs, "casos con clasificación inválida no deben aparecer"
+    print("ok")
+  solution: |
+    VALID_CLASSIFICATIONS = {"regular", "nuevo_proveedor", "duplicado", "anomalia"}
+
+    def build_golden_set(raw_cases: list[dict]) -> list[dict]:
+        result = []
+        for case in raw_cases:
+            if not case.get("validated_by_client"):
+                continue
+            if case.get("classification") not in VALID_CLASSIFICATIONS:
+                continue
+            result.append({
+                "input": {
+                    "description": case["description"],
+                    "amount": case["amount"],
+                    "vendor_id": case["vendor_id"],
+                },
+                "expected_output": {"classification": case["classification"]},
+                "metadata": {"tenant": case["tenant"]},
+            })
+        return result
+
+    raw = [
+        {"description": "PAGO FACT ACME", "amount": 4820.0, "vendor_id": "V-0001",
+         "classification": "regular", "validated_by_client": True, "tenant": "acme"},
+        {"description": "NUEVO PROVEEDOR XYZ", "amount": 1200.0, "vendor_id": "V-0099",
+         "classification": "nuevo_proveedor", "validated_by_client": True, "tenant": "acme"},
+        {"description": "PAGO DUPLICADO?", "amount": 4820.0, "vendor_id": "V-0001",
+         "classification": "duplicado", "validated_by_client": False, "tenant": "acme"},
+        {"description": "TRANSFERENCIA EXTRAÑA", "amount": 99999.0, "vendor_id": "V-0002",
+         "classification": "desconocida", "validated_by_client": True, "tenant": "acme"},
+        {"description": "MONTO FUERA DE RANGO", "amount": 50000.0, "vendor_id": "V-0003",
+         "classification": "anomalia", "validated_by_client": True, "tenant": "acme"},
+    ]
+
+    result = build_golden_set(raw)
+    print(f"Casos válidos: {len(result)}")
+    for case in result:
+        print(case)
+
+- slug: llm-judge-scorer
+  title: "Implementar un evaluador LLM-judge simulado"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El LLM judge recibe la respuesta del agente y la compara con el output
+    esperado. Para este ejercicio, simula el judge con reglas determinísticas
+    (sin llamar a un modelo real) que capturan la lógica de evaluación.
+
+    Escribe la función `judge_classification(
+        expected: dict, actual: dict
+    ) -> dict` que evalúa tres criterios binarios:
+    1. `classification_match`: ¿coinciden las clasificaciones? (0 o 1)
+    2. `confidence_present`: ¿el output tiene el campo "confidence"? (0 o 1)
+    3. `no_extra_fields`: ¿el output tiene exactamente los campos
+       "classification" y "confidence" y ninguno más? (0 o 1)
+
+    Devuelve un dict con `{"score": <suma de criterios>, "criteria": {...}}`.
+    Score máximo: 3.
+  hint: |
+    Compara los valores de los dicts. Para no_extra_fields, verifica que
+    set(actual.keys()) == {"classification", "confidence"}.
+  starter: |
+    def judge_classification(expected: dict, actual: dict) -> dict:
+        pass
+
+    # Caso perfecto
+    print(judge_classification(
+        {"classification": "regular", "confidence": "high"},
+        {"classification": "regular", "confidence": "high"}
+    ))
+
+    # Clasificación incorrecta pero tiene los campos correctos
+    print(judge_classification(
+        {"classification": "regular", "confidence": "high"},
+        {"classification": "duplicado", "confidence": "medium"}
+    ))
+
+    # Output con campo extra
+    print(judge_classification(
+        {"classification": "anomalia", "confidence": "high"},
+        {"classification": "anomalia", "confidence": "high", "extra": "algo"}
+    ))
+  test: |
+    # caso perfecto
+    r1 = judge_classification(
+        {"classification": "regular", "confidence": "high"},
+        {"classification": "regular", "confidence": "high"}
+    )
+    assert r1["score"] == 3, f"caso perfecto debe dar score 3, obtuvo {r1['score']}"
+
+    # clasificación incorrecta
+    r2 = judge_classification(
+        {"classification": "regular", "confidence": "high"},
+        {"classification": "duplicado", "confidence": "medium"}
+    )
+    assert r2["score"] == 2, f"clasificación incorrecta debe dar score 2, obtuvo {r2['score']}"
+    assert r2["criteria"]["classification_match"] == 0
+
+    # campo extra
+    r3 = judge_classification(
+        {"classification": "anomalia", "confidence": "high"},
+        {"classification": "anomalia", "confidence": "high", "extra": "algo"}
+    )
+    assert r3["criteria"]["no_extra_fields"] == 0
+    assert r3["score"] == 2
+
+    # sin campo confidence
+    r4 = judge_classification(
+        {"classification": "nuevo_proveedor", "confidence": "high"},
+        {"classification": "nuevo_proveedor"}
+    )
+    assert r4["criteria"]["confidence_present"] == 0
+    assert r4["score"] <= 2
+
+    print("ok")
+  solution: |
+    def judge_classification(expected: dict, actual: dict) -> dict:
+        classification_match = int(
+            actual.get("classification") == expected.get("classification")
+        )
+        confidence_present = int("confidence" in actual)
+        no_extra_fields = int(set(actual.keys()) == {"classification", "confidence"})
+        criteria = {
+            "classification_match": classification_match,
+            "confidence_present": confidence_present,
+            "no_extra_fields": no_extra_fields,
+        }
+        return {"score": sum(criteria.values()), "criteria": criteria}
+
+    print(judge_classification(
+        {"classification": "regular", "confidence": "high"},
+        {"classification": "regular", "confidence": "high"}
+    ))
+    print(judge_classification(
+        {"classification": "regular", "confidence": "high"},
+        {"classification": "duplicado", "confidence": "medium"}
+    ))
+    print(judge_classification(
+        {"classification": "anomalia", "confidence": "high"},
+        {"classification": "anomalia", "confidence": "high", "extra": "algo"}
+    ))
+
+- slug: eval-pipeline-threshold
+  title: "Pipeline de eval con umbral de calidad"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Escribe la función `run_eval_pipeline(
+        golden_set: list[dict],
+        predictions: list[dict],
+        threshold: float
+    ) -> dict` que:
+
+    1. Calcula exact_match_accuracy entre predictions y expected_outputs del golden set.
+    2. Calcula el costo total estimado (1 prediction = $0.002 USD).
+    3. Devuelve un dict con:
+       - "accuracy": float (0.0 a 1.0)
+       - "total_cost_usd": float
+       - "passed": bool (True si accuracy >= threshold)
+       - "failed_cases": list de índices donde la predicción no coincide con la esperada
+
+    Lanza ValueError si golden_set y predictions tienen distinta longitud.
+  hint: |
+    Itera con enumerate para rastrear los índices de los casos fallidos.
+    cost = len(predictions) * 0.002
+  starter: |
+    def run_eval_pipeline(
+        golden_set: list[dict],
+        predictions: list[dict],
+        threshold: float
+    ) -> dict:
+        pass
+
+    golden = [
+        {"expected_output": {"classification": "regular"}},
+        {"expected_output": {"classification": "nuevo_proveedor"}},
+        {"expected_output": {"classification": "anomalia"}},
+        {"expected_output": {"classification": "duplicado"}},
+        {"expected_output": {"classification": "regular"}},
+    ]
+    preds = [
+        {"classification": "regular"},
+        {"classification": "regular"},     # fallo
+        {"classification": "anomalia"},
+        {"classification": "duplicado"},
+        {"classification": "regular"},
+    ]
+
+    result = run_eval_pipeline(golden, preds, threshold=0.85)
+    print(result)
+  test: |
+    golden = [
+        {"expected_output": {"classification": "regular"}},
+        {"expected_output": {"classification": "nuevo_proveedor"}},
+        {"expected_output": {"classification": "anomalia"}},
+        {"expected_output": {"classification": "duplicado"}},
+        {"expected_output": {"classification": "regular"}},
+    ]
+    preds = [
+        {"classification": "regular"},
+        {"classification": "regular"},     # fallo en índice 1
+        {"classification": "anomalia"},
+        {"classification": "duplicado"},
+        {"classification": "regular"},
+    ]
+
+    result = run_eval_pipeline(golden, preds, threshold=0.85)
+    assert abs(result["accuracy"] - 0.8) < 0.001, f"accuracy esperado 0.8, obtuvo {result['accuracy']}"
+    assert result["passed"] is False, "0.8 < 0.85, debe ser False"
+    assert 1 in result["failed_cases"], "el índice 1 debe estar en failed_cases"
+    assert len(result["failed_cases"]) == 1
+    assert abs(result["total_cost_usd"] - 0.01) < 0.0001
+
+    # con threshold bajo, debe pasar
+    r2 = run_eval_pipeline(golden, preds, threshold=0.75)
+    assert r2["passed"] is True
+
+    # longitudes distintas lanza ValueError
+    try:
+        run_eval_pipeline(golden, preds[:3], threshold=0.8)
+        assert False, "debería haber lanzado ValueError"
+    except ValueError:
+        pass
+
+    print("ok")
+  solution: |
+    def run_eval_pipeline(
+        golden_set: list[dict],
+        predictions: list[dict],
+        threshold: float
+    ) -> dict:
+        if len(golden_set) != len(predictions):
+            raise ValueError(
+                f"golden_set ({len(golden_set)}) y predictions ({len(predictions)}) tienen distinta longitud"
+            )
+        failed_cases = []
+        correct = 0
+        for i, (case, pred) in enumerate(zip(golden_set, predictions)):
+            expected = case["expected_output"]["classification"]
+            actual = pred.get("classification")
+            if expected == actual:
+                correct += 1
+            else:
+                failed_cases.append(i)
+        accuracy = correct / len(golden_set)
+        return {
+            "accuracy": accuracy,
+            "total_cost_usd": len(predictions) * 0.002,
+            "passed": accuracy >= threshold,
+            "failed_cases": failed_cases,
+        }
+
+    golden = [
+        {"expected_output": {"classification": "regular"}},
+        {"expected_output": {"classification": "nuevo_proveedor"}},
+        {"expected_output": {"classification": "anomalia"}},
+        {"expected_output": {"classification": "duplicado"}},
+        {"expected_output": {"classification": "regular"}},
+    ]
+    preds = [
+        {"classification": "regular"},
+        {"classification": "regular"},
+        {"classification": "anomalia"},
+        {"classification": "duplicado"},
+        {"classification": "regular"},
+    ]
+    result = run_eval_pipeline(golden, preds, threshold=0.85)
+    print(result)

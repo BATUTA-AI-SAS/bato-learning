@@ -1,0 +1,16 @@
+slug: test-unitario
+title: "Receta: Test unitario con pytest"
+chapter_ref: phase2
+ingredients: [test, funcion, error-excepcion]
+body_md: |
+  Un test unitario verifica una función aislada. Usa pytest: nombra los archivos test_*.py,
+  las funciones test_*, y usa assert. Sin fixtures complejos para lógica pura.
+yields_md: |
+  ```python
+  def test_calcular_iva_estandar():
+      assert calcular_iva(1000.0) == 190.0
+
+  def test_calcular_iva_rechaza_negativo():
+      with pytest.raises(ValueError):
+          calcular_iva(-100.0)
+  ```

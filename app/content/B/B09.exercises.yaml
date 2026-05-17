@@ -1,0 +1,247 @@
+- slug: integration-pattern-selector
+  title: "Selecciona el patrón de integración correcto"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `select_integration_pattern(case: dict) -> str` que dado un dict
+    con las características del caso, devuelva el patrón de integración correcto.
+
+    Patrones posibles: `"pull_sync"`, `"pull_async"`, `"webhook"`, `"streaming"`
+
+    Reglas (en orden):
+    1. Si `case["event_source"] == "external"` → `"webhook"` (el evento viene de fuera)
+    2. Si `case.get("realtime_output", False)` es True → `"streaming"` (el cliente necesita tokens en tiempo real)
+    3. Si `case.get("duration_seconds", 0) > 10` → `"pull_async"` (el agente tarda demasiado para sync)
+    4. En otro caso → `"pull_sync"`
+
+    Prueba con estos casos de ACME:
+    ```python
+    casos = [
+        {"name": "alerta factura duplicada", "event_source": "external"},
+        {"name": "chat con asistente de análisis", "realtime_output": True},
+        {"name": "auditoría mensual completa", "duration_seconds": 480},
+        {"name": "clasificar una factura", "duration_seconds": 3},
+    ]
+    ```
+  hint: |
+    Las reglas son `if/elif` en orden. La primera que matchea es la respuesta.
+    Un agente que "habla mientras piensa" necesita streaming, no pull.
+  starter: |
+    def select_integration_pattern(case: dict) -> str:
+        if case.get("event_source") == "external":
+            return "webhook"
+        # completa las demás reglas
+        ...
+
+    casos = [
+        {"name": "alerta factura duplicada", "event_source": "external"},
+        {"name": "chat con asistente de análisis", "realtime_output": True},
+        {"name": "auditoría mensual completa", "duration_seconds": 480},
+        {"name": "clasificar una factura", "duration_seconds": 3},
+    ]
+    for c in casos:
+        print(f"{c['name']!r:45s} → {select_integration_pattern(c)}")
+  test: |
+    def select_integration_pattern(case: dict) -> str:
+        if case.get("event_source") == "external":
+            return "webhook"
+        if case.get("realtime_output", False):
+            return "streaming"
+        if case.get("duration_seconds", 0) > 10:
+            return "pull_async"
+        return "pull_sync"
+
+    cases = [
+        ({"event_source": "external"}, "webhook"),
+        ({"realtime_output": True}, "streaming"),
+        ({"duration_seconds": 480}, "pull_async"),
+        ({"duration_seconds": 3}, "pull_sync"),
+        ({"duration_seconds": 11}, "pull_async"),
+        ({"duration_seconds": 10}, "pull_sync"),
+        ({"event_source": "external", "realtime_output": True}, "webhook"),
+    ]
+    for case, expected in cases:
+        got = select_integration_pattern(case)
+        assert got == expected, f"case={case} → esperaba {expected!r}, obtuve {got!r}"
+    print("ok")
+  solution: |
+    def select_integration_pattern(case: dict) -> str:
+        if case.get("event_source") == "external":
+            return "webhook"
+        if case.get("realtime_output", False):
+            return "streaming"
+        if case.get("duration_seconds", 0) > 10:
+            return "pull_async"
+        return "pull_sync"
+
+    casos = [
+        {"name": "alerta factura duplicada", "event_source": "external"},
+        {"name": "chat con asistente de análisis", "realtime_output": True},
+        {"name": "auditoría mensual completa", "duration_seconds": 480},
+        {"name": "clasificar una factura", "duration_seconds": 3},
+    ]
+    for c in casos:
+        print(f"{c['name']!r:45s} → {select_integration_pattern(c)}")
+
+- slug: webhook-handler-logic
+  title: "Implementa el flujo completo de un webhook handler"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `handle_webhook(payload: dict, seen_ids: set) -> dict` que
+    procesa un webhook de Siigo. El handler debe:
+
+    1. Validar que el payload tiene los campos `"event_id"`, `"event_type"` y `"data"`.
+       Si falta alguno → devolver `{"status": 400, "action": "rejected", "reason": "missing field: {campo}"}`
+
+    2. Verificar idempotencia: si `event_id` ya está en `seen_ids` →
+       devolver `{"status": 200, "action": "duplicate_ignored"}`
+
+    3. Verificar que `event_type` es `"invoice.created"` o `"invoice.updated"`.
+       Si no → devolver `{"status": 422, "action": "rejected", "reason": "unknown event_type"}`
+
+    4. Si todo está bien: añadir el `event_id` a `seen_ids` y devolver
+       `{"status": 200, "action": "enqueued", "event_id": payload["event_id"]}`
+
+    El parámetro `seen_ids` es el registro de eventos ya procesados (persistido entre llamadas).
+  hint: |
+    Recuerda: en un webhook handler real, el paso 4 sería encolar en Temporal o
+    BackgroundTasks y responder 200 inmediatamente. Aquí lo simulamos con un dict.
+  starter: |
+    def handle_webhook(payload: dict, seen_ids: set) -> dict:
+        # 1. validar campos requeridos
+        for field in ["event_id", "event_type", "data"]:
+            if field not in payload:
+                return {"status": 400, "action": "rejected", "reason": f"missing field: {field}"}
+
+        # 2. idempotencia
+        # 3. validar event_type
+        # 4. encolar y responder
+        ...
+
+    seen = set()
+    p1 = {"event_id": "evt-001", "event_type": "invoice.created", "data": {"id": "inv-042"}}
+    print(handle_webhook(p1, seen))  # enqueued
+    print(handle_webhook(p1, seen))  # duplicate_ignored
+  test: |
+    def handle_webhook(payload: dict, seen_ids: set) -> dict:
+        for field in ["event_id", "event_type", "data"]:
+            if field not in payload:
+                return {"status": 400, "action": "rejected", "reason": f"missing field: {field}"}
+        if payload["event_id"] in seen_ids:
+            return {"status": 200, "action": "duplicate_ignored"}
+        if payload["event_type"] not in {"invoice.created", "invoice.updated"}:
+            return {"status": 422, "action": "rejected", "reason": "unknown event_type"}
+        seen_ids.add(payload["event_id"])
+        return {"status": 200, "action": "enqueued", "event_id": payload["event_id"]}
+
+    seen = set()
+    p1 = {"event_id": "evt-001", "event_type": "invoice.created", "data": {"id": "inv-042"}}
+    r = handle_webhook(p1, seen)
+    assert r == {"status": 200, "action": "enqueued", "event_id": "evt-001"}, f"primera vez: {r}"
+
+    r = handle_webhook(p1, seen)
+    assert r == {"status": 200, "action": "duplicate_ignored"}, f"duplicado: {r}"
+
+    p_missing = {"event_id": "evt-002", "data": {}}
+    r = handle_webhook(p_missing, seen)
+    assert r["status"] == 400 and "event_type" in r["reason"], f"campo faltante: {r}"
+
+    p_bad_type = {"event_id": "evt-003", "event_type": "invoice.deleted", "data": {}}
+    r = handle_webhook(p_bad_type, seen)
+    assert r["status"] == 422 and r["action"] == "rejected", f"event_type inválido: {r}"
+
+    p2 = {"event_id": "evt-004", "event_type": "invoice.updated", "data": {"id": "inv-043"}}
+    r = handle_webhook(p2, seen)
+    assert r["action"] == "enqueued", f"segunda factura: {r}"
+    assert "evt-004" in seen, "evt-004 debe quedar en seen_ids"
+    print("ok")
+  solution: |
+    def handle_webhook(payload: dict, seen_ids: set) -> dict:
+        for field in ["event_id", "event_type", "data"]:
+            if field not in payload:
+                return {"status": 400, "action": "rejected", "reason": f"missing field: {field}"}
+        if payload["event_id"] in seen_ids:
+            return {"status": 200, "action": "duplicate_ignored"}
+        if payload["event_type"] not in {"invoice.created", "invoice.updated"}:
+            return {"status": 422, "action": "rejected", "reason": "unknown event_type"}
+        seen_ids.add(payload["event_id"])
+        return {"status": 200, "action": "enqueued", "event_id": payload["event_id"]}
+
+    seen = set()
+    p1 = {"event_id": "evt-001", "event_type": "invoice.created", "data": {"id": "inv-042"}}
+    print(handle_webhook(p1, seen))
+    print(handle_webhook(p1, seen))
+
+- slug: sse-event-formatter
+  title: "Formatea eventos SSE para un stream de análisis de auditoría"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El agente de auditoría de ACME genera tres tipos de eventos durante el análisis:
+    - `"token"`: fragmento de texto del LLM → evento SSE `delta` con `{"text": "..."}`
+    - `"finding"`: hallazgo estructurado → evento SSE `finding` con el dato completo
+    - `"done"`: fin del análisis → evento SSE `done` con `{"audit_id": "...", "total_findings": N}`
+
+    Implementa `format_sse_event(event_type: str, data: dict) -> str` que devuelva
+    el string SSE correcto (con `\n\n` al final).
+
+    Formato esperado:
+    ```
+    event: {event_type}\ndata: {json_data}\n\n
+    ```
+
+    Prueba con:
+    ```python
+    print(format_sse_event("delta", {"text": "Analizando facturas"}))
+    print(format_sse_event("finding", {"type": "duplicate", "amount": 4820.0, "tenant": "acme"}))
+    print(format_sse_event("done", {"audit_id": "aud-2026-04", "total_findings": 3}))
+    ```
+  hint: |
+    Usa `json.dumps(data, ensure_ascii=False)` para serializar el dict.
+    El formato exacto es `f"event: {event_type}\ndata: {json_str}\n\n"`.
+  starter: |
+    import json
+
+    def format_sse_event(event_type: str, data: dict) -> str:
+        json_str = json.dumps(data, ensure_ascii=False)
+        # construye el string SSE con el formato correcto
+        ...
+
+    print(repr(format_sse_event("delta", {"text": "Analizando"})))
+  test: |
+    import json
+
+    def format_sse_event(event_type: str, data: dict) -> str:
+        json_str = json.dumps(data, ensure_ascii=False)
+        return f"event: {event_type}\ndata: {json_str}\n\n"
+
+    e1 = format_sse_event("delta", {"text": "Analizando facturas"})
+    assert e1.startswith("event: delta\n"), f"debe empezar con 'event: delta\\n', obtuve {e1[:30]!r}"
+    assert e1.endswith("\n\n"), "debe terminar con doble salto de línea"
+    assert '"text": "Analizando facturas"' in e1 or '"text":"Analizando facturas"' in e1
+
+    e2 = format_sse_event("finding", {"type": "duplicate", "amount": 4820.0, "tenant": "acme"})
+    assert "event: finding" in e2
+    assert "4820" in e2
+    assert "acme" in e2
+
+    e3 = format_sse_event("done", {"audit_id": "aud-2026-04", "total_findings": 3})
+    parsed_data = json.loads(e3.split("\ndata: ")[1].strip())
+    assert parsed_data["audit_id"] == "aud-2026-04"
+    assert parsed_data["total_findings"] == 3
+
+    # verificar que texto en español no se escapa
+    e4 = format_sse_event("delta", {"text": "Análisis completo"})
+    assert "Análisis" in e4, "ensure_ascii=False debe preservar caracteres especiales"
+    print("ok")
+  solution: |
+    import json
+
+    def format_sse_event(event_type: str, data: dict) -> str:
+        json_str = json.dumps(data, ensure_ascii=False)
+        return f"event: {event_type}\ndata: {json_str}\n\n"
+
+    print(format_sse_event("delta", {"text": "Analizando facturas"}))
+    print(format_sse_event("finding", {"type": "duplicate", "amount": 4820.0, "tenant": "acme"}))
+    print(format_sse_event("done", {"audit_id": "aud-2026-04", "total_findings": 3}))

@@ -1,0 +1,28 @@
+slug: cd-staging
+title: "Si CI pasa, despliega auto a staging"
+kind: order_steps
+phase: PH02
+ord: 33
+trains_skill: cd-deploy
+xp: 20
+est_seconds: 120
+scenario_md: |
+  ACME quiere que cada merge a `main` que pase CI se despliegue
+  automáticamente a staging. Ordena los pasos del pipeline CD
+  incluyendo el rollback si algo falla en staging.
+payload:
+  steps:
+    - "El health-check de staging falla: el nuevo contenedor no responde `/health`"
+    - "Coolify detecta la nueva imagen y despliega el contenedor en staging"
+    - "CI pasa en verde — la imagen Docker se publica en el registry (ghcr.io)"
+    - "Coolify hace rollback automático al contenedor anterior"
+    - "El merge a `main` dispara el workflow de CD"
+    - "El equipo recibe alerta: 'staging rollback to sha-abc123 — investigar logs'"
+  correct_order: [4, 2, 1, 0, 3, 5]
+hint_md: |
+  El trigger es el merge. Luego se publica la imagen. Luego se despliega.
+  Si el health-check falla, el rollback ocurre antes de notificar al equipo.
+solution_md: |
+  CD solo ocurre si CI pasa — nunca desplegamos código roto. El rollback
+  automático protege staging. Producción tiene un gate manual (aprobación
+  en GitHub Actions) para que un humano valide antes de afectar clientes reales.

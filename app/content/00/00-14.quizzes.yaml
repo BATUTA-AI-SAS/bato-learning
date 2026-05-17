@@ -1,0 +1,84 @@
+- slug: traceback-reading
+  question: |
+    Ves este mensaje en la terminal:
+
+    ```
+    Traceback (most recent call last):
+      File "audit.py", line 8, in process
+        ratio = total / count
+    ZeroDivisionError: division by zero
+    ```
+
+    ¿Cuál es la causa del error y en qué línea ocurrió?
+  explanation: |
+    El traceback se lee de abajo hacia arriba. La última línea indica el tipo
+    de error (`ZeroDivisionError`) y la descripción. La línea inmediatamente
+    anterior en el traceback indica el archivo y la línea de código: `audit.py`,
+    línea 8.
+  options:
+    - text: "Error en línea 8: se dividió por cero."
+      correct: true
+      feedback: "Correcto. `ZeroDivisionError` en `audit.py` línea 8: `total / count` cuando `count` es 0."
+    - text: "Error en línea 1: la función `process` no existe."
+      correct: false
+      feedback: "No. `NameError` indicaría que un nombre no existe. Aquí el error es `ZeroDivisionError`, que ocurre en la división, no en la definición."
+    - text: "El error ocurrió al importar `audit.py`, antes de ejecutar nada."
+      correct: false
+      feedback: "No. Los errores de import serían `ImportError` o `ModuleNotFoundError`. Este `ZeroDivisionError` ocurre durante la ejecución del cálculo."
+
+- slug: except-specificity
+  question: |
+    ¿Cuál de estas dos versiones es más segura y por qué?
+
+    **A:**
+    ```python
+    try:
+        amount = float(text)
+    except Exception:
+        amount = 0.0
+    ```
+
+    **B:**
+    ```python
+    try:
+        amount = float(text)
+    except ValueError:
+        amount = 0.0
+    ```
+  explanation: |
+    La versión B es más segura porque solo captura `ValueError`, el error específico
+    que lanza `float()` cuando el texto no es un número. La versión A captura cualquier
+    excepción, incluyendo errores de programación (como `NameError` o `TypeError`)
+    que indican bugs en tu propio código. Si captures esos errores, se silencian
+    y el bug se vuelve invisible.
+  options:
+    - text: "B es más segura: captura solo el error esperado y deja visibles los bugs del código."
+      correct: true
+      feedback: "Exacto. Capturar el error específico es la práctica correcta en Python."
+    - text: "A es más segura: captura cualquier error y evita que el programa se detenga."
+      correct: false
+      feedback: "No. Capturar todo silencia errores que son señales de bugs. Un programa que continúa con datos malos sin avisar es más peligroso que uno que para y explica qué falló."
+    - text: "Son equivalentes: ambas hacen lo mismo cuando `float(text)` falla."
+      correct: false
+      feedback: "No son equivalentes. Si dentro del `try` hay un `NameError` (typo en una variable), la versión A lo silencia y asigna `0.0`. La versión B lo deja pasar y lo verás en el traceback."
+
+- slug: none-vs-zero
+  question: |
+    Una función `parse_amount` devuelve `None` cuando el texto no es un número.
+    ¿Por qué es mejor devolver `None` que devolver `0.0`?
+  explanation: |
+    `None` es un sentinel explícito que significa «no tengo valor». `0.0` es un
+    monto real: cero euros. Si devuelves `0.0` por error y luego calculas un total,
+    ese `0.0` se incluye en la suma sin aviso. Si devuelves `None`, el llamador
+    debe decidir qué hacer con el dato inválido antes de usarlo, lo cual fuerza
+    un tratamiento explícito.
+  options:
+    - text: "`None` señala que el dato es inválido; `0.0` contaminaría sumas y promedios haciéndolos incorrectos."
+      correct: true
+      feedback: "Correcto. `None` fuerza al llamador a decidir qué hacer; `0.0` se mezcla con datos válidos en silencio."
+    - text: "`None` es más rápido de ejecutar que `0.0`."
+      correct: false
+      feedback: "La velocidad no es la razón. La claridad semántica sí: `None` significa ausencia de valor, `0.0` significa cero."
+    - text: "Es solo una convención: ambos funcionan igual en la práctica."
+      correct: false
+      feedback: "No funcionan igual. `sum([4820.0, 0.0, 1500.0])` da `6320.0` aunque el segundo dato era inválido. `sum([4820.0, 1500.0])` da `6320.0` también, pero si filtras `None` primero obtienes el resultado correcto sin contaminar el promedio."

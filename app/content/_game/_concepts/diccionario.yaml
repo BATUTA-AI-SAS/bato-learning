@@ -1,0 +1,10 @@
+slug: diccionario
+title: "¿Qué es un diccionario?"
+analogy_md: |
+  En Excel, una fila con encabezados (ID, Cliente, Monto) es básicamente un diccionario:
+  cada columna tiene nombre y valor. En Python, un dict hace exactamente eso.
+example_md: |
+  ```python
+  factura = {"id": "F-001", "cliente": "ACME", "monto": 4200.0}
+  print(factura["cliente"])  # "ACME"
+  ```

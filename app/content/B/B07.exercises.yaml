@@ -1,0 +1,263 @@
+- slug: render-cycle-classify
+  title: "Clasifica cada paso del ciclo de render"
+  runner: pyodide
+  kind: code
+  prompt: |
+    El ciclo de render tiene cuatro pasos: `state`, `render`, `event`, `update`.
+
+    Dada la siguiente descripción de acciones en una pantalla de auditoría de ACME,
+    implementa `classify_step(description: str) -> str` que devuelva el nombre del paso.
+
+    Reglas de clasificación:
+    - Si la descripción menciona "usuario" + una acción (click, tecla, submit, scroll) → `"event"`
+    - Si la descripción menciona "servidor" o "Python" o "Jinja" + "genera" o "renderiza" → `"render"`
+    - Si la descripción menciona "base de datos" o "lista de" o "valor de" → `"state"`
+    - Si la descripción menciona "actualiza" o "modifica" o "cambia" → `"update"`
+    - Si no matchea ninguna, devuelve `"unknown"`
+
+    Prueba con estas descripciones:
+    ```python
+    steps = [
+        "El servidor genera el HTML con Jinja2",
+        "El usuario hace click en 'Aprobar factura'",
+        "La base de datos devuelve la lista de facturas del período 2026-04",
+        "El estado cambia: la factura INV-001 queda marcada como aprobada",
+        "Python renderiza la plantilla module.html con el contexto",
+    ]
+    ```
+  hint: |
+    Usa `in` para buscar palabras clave en la descripción. El orden importa:
+    comprueba "event" antes que "update" porque "usuario" puede aparecer en frases de update.
+  starter: |
+    def classify_step(description: str) -> str:
+        desc = description.lower()
+        # comprueba cada categoría y devuelve la correspondiente
+        ...
+
+    steps = [
+        "El servidor genera el HTML con Jinja2",
+        "El usuario hace click en 'Aprobar factura'",
+        "La base de datos devuelve la lista de facturas del período 2026-04",
+        "El estado cambia: la factura INV-001 queda marcada como aprobada",
+        "Python renderiza la plantilla module.html con el contexto",
+    ]
+    for s in steps:
+        print(classify_step(s))
+  test: |
+    def classify_step(description: str) -> str:
+        desc = description.lower()
+        if ("usuario" in desc and
+                any(a in desc for a in ["click", "tecla", "submit", "scroll", "hace"])):
+            return "event"
+        if (any(s in desc for s in ["servidor", "python", "jinja"]) and
+                any(a in desc for a in ["genera", "renderiza"])):
+            return "render"
+        if any(s in desc for s in ["base de datos", "lista de", "valor de"]):
+            return "state"
+        if any(s in desc for s in ["actualiza", "modifica", "cambia", "queda marcada"]):
+            return "update"
+        return "unknown"
+
+    cases = [
+        ("El servidor genera el HTML con Jinja2", "render"),
+        ("El usuario hace click en 'Aprobar factura'", "event"),
+        ("La base de datos devuelve la lista de facturas del período 2026-04", "state"),
+        ("El estado cambia: la factura INV-001 queda marcada como aprobada", "update"),
+        ("Python renderiza la plantilla module.html con el contexto", "render"),
+    ]
+    for desc, expected in cases:
+        got = classify_step(desc)
+        assert got == expected, f"'{desc[:40]}...' → esperaba '{expected}', obtuve '{got}'"
+    print("ok")
+  solution: |
+    def classify_step(description: str) -> str:
+        desc = description.lower()
+        if ("usuario" in desc and
+                any(a in desc for a in ["click", "tecla", "submit", "scroll", "hace"])):
+            return "event"
+        if (any(s in desc for s in ["servidor", "python", "jinja"]) and
+                any(a in desc for a in ["genera", "renderiza"])):
+            return "render"
+        if any(s in desc for s in ["base de datos", "lista de", "valor de"]):
+            return "state"
+        if any(s in desc for s in ["actualiza", "modifica", "cambia", "queda marcada"]):
+            return "update"
+        return "unknown"
+
+    steps = [
+        "El servidor genera el HTML con Jinja2",
+        "El usuario hace click en 'Aprobar factura'",
+        "La base de datos devuelve la lista de facturas del período 2026-04",
+        "El estado cambia: la factura INV-001 queda marcada como aprobada",
+        "Python renderiza la plantilla module.html con el contexto",
+    ]
+    for s in steps:
+        print(classify_step(s))
+
+- slug: jinja-render-invoices
+  title: "Renderiza una tabla de facturas con Jinja2"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `render_invoice_table(invoices: list[dict]) -> str` usando
+    Jinja2 (disponible en Pyodide). La función debe devolver una cadena de texto
+    con una fila por factura en este formato exacto:
+
+    ```
+    | INV-001 | Proveedor A | 4820.00 EUR | pendiente |
+    | INV-002 | Proveedor B | 1200.00 EUR | pagada |
+    ```
+
+    Cada fila sigue el patrón: `| {id} | {vendor} | {amount:.2f} EUR | {status} |`
+
+    Datos de prueba:
+    ```python
+    invoices = [
+        {"id": "INV-001", "vendor": "Proveedor A", "amount": 4820.0, "status": "pendiente"},
+        {"id": "INV-002", "vendor": "Proveedor B", "amount": 1200.0, "status": "pagada"},
+        {"id": "INV-003", "vendor": "Proveedor C", "amount": 350.5, "status": "pendiente"},
+    ]
+    ```
+  hint: |
+    La plantilla Jinja2 puede usar `{{ "%.2f" | format(inv.amount) }}` o
+    el filtro `{{ inv.amount | round(2) }}`. Importa `from jinja2 import Environment`.
+  starter: |
+    from jinja2 import Environment
+
+    TEMPLATE_STR = """{% for inv in invoices %}
+    | {{ inv.id }} | {{ inv.vendor }} | {{ "%.2f" % inv.amount }} EUR | {{ inv.status }} |
+    {%- endfor %}"""
+
+    def render_invoice_table(invoices: list[dict]) -> str:
+        env = Environment()
+        template = env.from_string(TEMPLATE_STR)
+        # completa: renderiza la plantilla con los datos
+        ...
+
+    invoices = [
+        {"id": "INV-001", "vendor": "Proveedor A", "amount": 4820.0, "status": "pendiente"},
+        {"id": "INV-002", "vendor": "Proveedor B", "amount": 1200.0, "status": "pagada"},
+    ]
+    print(render_invoice_table(invoices))
+  test: |
+    from jinja2 import Environment
+
+    TEMPLATE_STR = """{% for inv in invoices %}
+    | {{ inv.id }} | {{ inv.vendor }} | {{ "%.2f" % inv.amount }} EUR | {{ inv.status }} |
+    {%- endfor %}"""
+
+    def render_invoice_table(invoices: list[dict]) -> str:
+        env = Environment()
+        template = env.from_string(TEMPLATE_STR)
+        return template.render(invoices=invoices).strip()
+
+    invoices = [
+        {"id": "INV-001", "vendor": "Proveedor A", "amount": 4820.0, "status": "pendiente"},
+        {"id": "INV-002", "vendor": "Proveedor B", "amount": 1200.0, "status": "pagada"},
+        {"id": "INV-003", "vendor": "Proveedor C", "amount": 350.5, "status": "pendiente"},
+    ]
+    result = render_invoice_table(invoices)
+    lines = [l.strip() for l in result.strip().split("\n") if l.strip()]
+    assert len(lines) == 3, f"Esperaba 3 líneas, obtuve {len(lines)}"
+    assert "INV-001" in lines[0] and "4820.00" in lines[0], f"Línea 1 incorrecta: {lines[0]}"
+    assert "INV-002" in lines[1] and "pagada" in lines[1], f"Línea 2 incorrecta: {lines[1]}"
+    assert "350.50" in lines[2], f"Línea 3 incorrecta: {lines[2]}"
+    print("ok")
+  solution: |
+    from jinja2 import Environment
+
+    TEMPLATE_STR = """{% for inv in invoices %}
+    | {{ inv.id }} | {{ inv.vendor }} | {{ "%.2f" % inv.amount }} EUR | {{ inv.status }} |
+    {%- endfor %}"""
+
+    def render_invoice_table(invoices: list[dict]) -> str:
+        env = Environment()
+        template = env.from_string(TEMPLATE_STR)
+        return template.render(invoices=invoices).strip()
+
+    invoices = [
+        {"id": "INV-001", "vendor": "Proveedor A", "amount": 4820.0, "status": "pendiente"},
+        {"id": "INV-002", "vendor": "Proveedor B", "amount": 1200.0, "status": "pagada"},
+        {"id": "INV-003", "vendor": "Proveedor C", "amount": 350.5, "status": "pendiente"},
+    ]
+    print(render_invoice_table(invoices))
+
+- slug: ui-type-selector
+  title: "Elige el tipo de UI correcto para cada caso"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `choose_ui(user_type: str, interaction: str) -> str` que dado
+    el tipo de usuario y el tipo de interacción, devuelva el tipo de UI más adecuado.
+
+    Reglas:
+    - `user_type="developer"` + cualquier `interaction` → `"cli"`
+    - `user_type="manager"` + `interaction="dashboard"` → `"web_server_rendered"`
+    - `user_type="manager"` + `interaction="report"` → `"email_pdf"`
+    - `user_type="operator"` + `interaction="realtime"` → `"web_spa"`
+    - `user_type="operator"` + `interaction="form"` → `"web_server_rendered"`
+    - cualquier otro caso → `"web_server_rendered"`
+
+    Prueba con 5 casos distintos cubriendo cada regla.
+  hint: |
+    Un `if/elif` con condiciones compuestas (`and`) es suficiente.
+    Comprueba `user_type="developer"` primero — su regla es independiente de `interaction`.
+  starter: |
+    def choose_ui(user_type: str, interaction: str) -> str:
+        # implementa las reglas en orden
+        ...
+
+    # prueba los 5 casos
+    print(choose_ui("developer", "script"))
+    print(choose_ui("manager", "dashboard"))
+    print(choose_ui("manager", "report"))
+    print(choose_ui("operator", "realtime"))
+    print(choose_ui("operator", "form"))
+  test: |
+    def choose_ui(user_type: str, interaction: str) -> str:
+        if user_type == "developer":
+            return "cli"
+        if user_type == "manager" and interaction == "dashboard":
+            return "web_server_rendered"
+        if user_type == "manager" and interaction == "report":
+            return "email_pdf"
+        if user_type == "operator" and interaction == "realtime":
+            return "web_spa"
+        if user_type == "operator" and interaction == "form":
+            return "web_server_rendered"
+        return "web_server_rendered"
+
+    cases = [
+        (("developer", "script"), "cli"),
+        (("developer", "dashboard"), "cli"),
+        (("manager", "dashboard"), "web_server_rendered"),
+        (("manager", "report"), "email_pdf"),
+        (("operator", "realtime"), "web_spa"),
+        (("operator", "form"), "web_server_rendered"),
+        (("client", "anything"), "web_server_rendered"),
+    ]
+    for (ut, inter), expected in cases:
+        got = choose_ui(ut, inter)
+        assert got == expected, (
+            f"choose_ui({ut!r}, {inter!r}) → esperaba {expected!r}, obtuve {got!r}"
+        )
+    print("ok")
+  solution: |
+    def choose_ui(user_type: str, interaction: str) -> str:
+        if user_type == "developer":
+            return "cli"
+        if user_type == "manager" and interaction == "dashboard":
+            return "web_server_rendered"
+        if user_type == "manager" and interaction == "report":
+            return "email_pdf"
+        if user_type == "operator" and interaction == "realtime":
+            return "web_spa"
+        if user_type == "operator" and interaction == "form":
+            return "web_server_rendered"
+        return "web_server_rendered"
+
+    print(choose_ui("developer", "script"))
+    print(choose_ui("manager", "dashboard"))
+    print(choose_ui("manager", "report"))
+    print(choose_ui("operator", "realtime"))
+    print(choose_ui("operator", "form"))

@@ -1,0 +1,351 @@
+- slug: cost-calculator
+  title: "Calcular el costo de una sesión con y sin caching"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Implementa `estimate_cost(usage: dict) -> float` que calcula el costo en USD
+    para una llamada al SDK de Anthropic usando los precios de `claude-sonnet-4-6`.
+
+    Precios por millón de tokens:
+    - `input_tokens`: 3.00 USD
+    - `output_tokens`: 15.00 USD
+    - `cache_read_input_tokens`: 0.30 USD
+    - `cache_creation_input_tokens`: 3.75 USD
+
+    El dict `usage` puede tener cualquier subconjunto de esas keys (o ninguna).
+    Si una key no está, trátala como 0.
+
+    Ejemplo:
+    ```python
+    estimate_cost({
+        "input_tokens": 3200,
+        "output_tokens": 180,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 3000,
+    })
+    # → 0.013725  (aprox)
+    ```
+  hint: |
+    `usage.get("input_tokens", 0)` devuelve 0 si la key no existe.
+    Divide el total por 1_000_000 al final.
+  starter: |
+    def estimate_cost(usage: dict) -> float:
+        """Calcula costo en USD para una llamada a claude-sonnet-4-6."""
+        PRICE_PER_M = {
+            "input": 3.00,
+            "output": 15.00,
+            "cache_read": 0.30,
+            "cache_write": 3.75,
+        }
+        # implementa aquí
+        ...
+
+    # turno 1 (sin cache aún)
+    turno1 = {
+        "input_tokens": 3200,
+        "output_tokens": 180,
+        "cache_creation_input_tokens": 3000,
+    }
+    print(f"Turno 1: ${estimate_cost(turno1):.6f}")
+
+    # turno 2 (con cache hit)
+    turno2 = {
+        "input_tokens": 380,
+        "output_tokens": 210,
+        "cache_read_input_tokens": 3000,
+    }
+    print(f"Turno 2: ${estimate_cost(turno2):.6f}")
+  test: |
+    # turno 1: input 3200 + cache_write 3000 + output 180
+    # costo = (3200*3 + 3000*3.75 + 180*15) / 1_000_000
+    # = (9600 + 11250 + 2700) / 1_000_000 = 23550 / 1_000_000 = 0.02355
+    t1 = estimate_cost({
+        "input_tokens": 3200,
+        "output_tokens": 180,
+        "cache_creation_input_tokens": 3000,
+    })
+    assert abs(t1 - 0.02355) < 1e-6, f"Turno 1: esperaba 0.02355, obtuve {t1:.8f}"
+
+    # turno 2: input 380 + cache_read 3000 + output 210
+    # costo = (380*3 + 3000*0.30 + 210*15) / 1_000_000
+    # = (1140 + 900 + 3150) / 1_000_000 = 5190 / 1_000_000 = 0.00519
+    t2 = estimate_cost({
+        "input_tokens": 380,
+        "output_tokens": 210,
+        "cache_read_input_tokens": 3000,
+    })
+    assert abs(t2 - 0.00519) < 1e-6, f"Turno 2: esperaba 0.00519, obtuve {t2:.8f}"
+
+    # sin ningún token → 0
+    t_empty = estimate_cost({})
+    assert t_empty == 0.0, f"Sin tokens debe ser 0, obtuve {t_empty}"
+
+    # solo output
+    t_out = estimate_cost({"output_tokens": 1000})
+    expected_out = 15.00 / 1000
+    assert abs(t_out - expected_out) < 1e-9, f"Solo output: {t_out} != {expected_out}"
+
+    print("ok")
+  solution: |
+    def estimate_cost(usage: dict) -> float:
+        PRICE_PER_M = {
+            "input": 3.00,
+            "output": 15.00,
+            "cache_read": 0.30,
+            "cache_write": 3.75,
+        }
+        total = (
+            usage.get("input_tokens", 0) * PRICE_PER_M["input"]
+            + usage.get("output_tokens", 0) * PRICE_PER_M["output"]
+            + usage.get("cache_read_input_tokens", 0) * PRICE_PER_M["cache_read"]
+            + usage.get("cache_creation_input_tokens", 0) * PRICE_PER_M["cache_write"]
+        )
+        return total / 1_000_000.0
+
+    turno1 = {"input_tokens": 3200, "output_tokens": 180, "cache_creation_input_tokens": 3000}
+    print(f"Turno 1: ${estimate_cost(turno1):.6f}")
+    turno2 = {"input_tokens": 380, "output_tokens": 210, "cache_read_input_tokens": 3000}
+    print(f"Turno 2: ${estimate_cost(turno2):.6f}")
+
+- slug: caching-savings-analysis
+  title: "Calcular el ahorro real del prompt caching en una sesión"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Dada una lista de turnos de una sesión (cada turno es un dict con los campos de
+    usage del SDK de Anthropic), implementa:
+
+    1. `session_cost(turns: list[dict]) -> float` — costo total real de la sesión.
+    2. `session_cost_without_cache(turns: list[dict]) -> float` — costo hipotético
+       si NO hubiera caching: los `cache_read_input_tokens` se cobran como
+       `input_tokens` (precio 3.00/M), y los `cache_creation_input_tokens` también
+       como `input_tokens`. El `output_tokens` no cambia.
+    3. `cache_savings(turns: list[dict]) -> dict` — devuelve:
+       `{"real_usd": float, "no_cache_usd": float, "saved_usd": float, "pct": float}`
+       donde `pct` es el porcentaje de ahorro redondeado a 1 decimal.
+
+    Usa los precios de `estimate_cost` (el ejercicio anterior).
+  hint: |
+    Para `session_cost_without_cache`, suma todos los tokens que SÍ se cobran como
+    input (input + cache_read + cache_write) y los output. La fórmula cambia solo
+    los precios de cache, no la cantidad de tokens.
+  starter: |
+    def estimate_cost(usage: dict) -> float:
+        PRICE_PER_M = {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_write": 3.75}
+        total = (
+            usage.get("input_tokens", 0) * PRICE_PER_M["input"]
+            + usage.get("output_tokens", 0) * PRICE_PER_M["output"]
+            + usage.get("cache_read_input_tokens", 0) * PRICE_PER_M["cache_read"]
+            + usage.get("cache_creation_input_tokens", 0) * PRICE_PER_M["cache_write"]
+        )
+        return total / 1_000_000.0
+
+
+    def session_cost(turns: list[dict]) -> float:
+        ...
+
+
+    def session_cost_without_cache(turns: list[dict]) -> float:
+        ...
+
+
+    def cache_savings(turns: list[dict]) -> dict:
+        ...
+
+
+    # sesión de 6 turnos del módulo (ver tabla del módulo D04)
+    session = [
+        {"input_tokens": 3200, "output_tokens": 180, "cache_creation_input_tokens": 3000},
+        {"input_tokens": 380, "output_tokens": 210, "cache_read_input_tokens": 3000},
+        {"input_tokens": 590, "output_tokens": 195, "cache_read_input_tokens": 3000},
+        {"input_tokens": 785, "output_tokens": 220, "cache_read_input_tokens": 3000},
+        {"input_tokens": 1005, "output_tokens": 200, "cache_read_input_tokens": 3000},
+        {"input_tokens": 1205, "output_tokens": 160, "cache_read_input_tokens": 3000},
+    ]
+    result = cache_savings(session)
+    print(f"Real:     ${result['real_usd']:.4f}")
+    print(f"Sin cache: ${result['no_cache_usd']:.4f}")
+    print(f"Ahorro:   ${result['saved_usd']:.4f} ({result['pct']}%)")
+  test: |
+    simple_session = [
+        {"input_tokens": 1000, "output_tokens": 100, "cache_creation_input_tokens": 1000},
+        {"input_tokens": 100, "output_tokens": 100, "cache_read_input_tokens": 1000},
+    ]
+    # turno 1 real: (1000*3 + 1000*3.75 + 100*15)/1M = (3000+3750+1500)/1M = 8250/1M
+    # turno 2 real: (100*3 + 1000*0.30 + 100*15)/1M = (300+300+1500)/1M = 2100/1M
+    # total real = 10350/1M = 0.01035
+    real = session_cost(simple_session)
+    assert abs(real - 0.01035) < 1e-6, f"Real: {real:.8f} != 0.01035"
+
+    # sin cache:
+    # turno 1: todos como input: (1000+1000)*3 + 100*15 = 6000+1500 = 7500/1M
+    # turno 2: (100+1000)*3 + 100*15 = 3300+1500 = 4800/1M
+    # total sin cache = 12300/1M = 0.012300
+    no_cache = session_cost_without_cache(simple_session)
+    assert abs(no_cache - 0.0123) < 1e-6, f"Sin cache: {no_cache:.8f} != 0.0123"
+
+    savings = cache_savings(simple_session)
+    assert abs(savings["saved_usd"] - (no_cache - real)) < 1e-6
+    assert savings["pct"] == round((no_cache - real) / no_cache * 100, 1)
+    assert "real_usd" in savings and "no_cache_usd" in savings
+
+    print("ok")
+  solution: |
+    def estimate_cost(usage: dict) -> float:
+        PRICE_PER_M = {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_write": 3.75}
+        total = (
+            usage.get("input_tokens", 0) * PRICE_PER_M["input"]
+            + usage.get("output_tokens", 0) * PRICE_PER_M["output"]
+            + usage.get("cache_read_input_tokens", 0) * PRICE_PER_M["cache_read"]
+            + usage.get("cache_creation_input_tokens", 0) * PRICE_PER_M["cache_write"]
+        )
+        return total / 1_000_000.0
+
+
+    def session_cost(turns: list[dict]) -> float:
+        return sum(estimate_cost(t) for t in turns)
+
+
+    def session_cost_without_cache(turns: list[dict]) -> float:
+        total = 0.0
+        for t in turns:
+            all_input = (
+                t.get("input_tokens", 0)
+                + t.get("cache_read_input_tokens", 0)
+                + t.get("cache_creation_input_tokens", 0)
+            )
+            cost = (all_input * 3.00 + t.get("output_tokens", 0) * 15.00) / 1_000_000.0
+            total += cost
+        return total
+
+
+    def cache_savings(turns: list[dict]) -> dict:
+        real = session_cost(turns)
+        no_cache = session_cost_without_cache(turns)
+        saved = no_cache - real
+        pct = round(saved / no_cache * 100, 1) if no_cache > 0 else 0.0
+        return {"real_usd": real, "no_cache_usd": no_cache, "saved_usd": saved, "pct": pct}
+
+    session = [
+        {"input_tokens": 3200, "output_tokens": 180, "cache_creation_input_tokens": 3000},
+        {"input_tokens": 380, "output_tokens": 210, "cache_read_input_tokens": 3000},
+        {"input_tokens": 590, "output_tokens": 195, "cache_read_input_tokens": 3000},
+        {"input_tokens": 785, "output_tokens": 220, "cache_read_input_tokens": 3000},
+        {"input_tokens": 1005, "output_tokens": 200, "cache_read_input_tokens": 3000},
+        {"input_tokens": 1205, "output_tokens": 160, "cache_read_input_tokens": 3000},
+    ]
+    result = cache_savings(session)
+    print(f"Real:     ${result['real_usd']:.4f}")
+    print(f"Sin cache: ${result['no_cache_usd']:.4f}")
+    print(f"Ahorro:   ${result['saved_usd']:.4f} ({result['pct']}%)")
+
+- slug: trace-reading-design
+  title: "Leer una traza e identificar el cuello de botella"
+  runner: pyodide
+  kind: code
+  prompt: |
+    Una traza de Phoenix es un árbol de spans. Cada span tiene `name`, `duration_ms`,
+    `parent` (nombre del span padre, o None si es raíz) y `attributes`.
+
+    Implementa `find_bottleneck(spans: list[dict]) -> dict` que devuelve el span
+    con mayor `duration_ms`. Si hay empate, devuelve el primero en la lista.
+
+    Implementa también `latency_report(spans: list[dict]) -> list[dict]` que
+    devuelve los spans ordenados de mayor a menor `duration_ms`, con solo las
+    keys `name`, `duration_ms` y `pct_of_root`, donde `pct_of_root` es el
+    porcentaje del tiempo total del span raíz (el que tiene `parent=None`).
+    Redondea `pct_of_root` a 1 decimal.
+
+    Ejemplo de entrada:
+    ```python
+    spans = [
+        {"name": "chat_turn", "duration_ms": 4200, "parent": None, "attributes": {"tenant": "acme"}},
+        {"name": "anthropic.messages.stream", "duration_ms": 3900, "parent": "chat_turn", "attributes": {}},
+        {"name": "tool_call.sql_query", "duration_ms": 280, "parent": "anthropic.messages.stream", "attributes": {}},
+    ]
+    ```
+  hint: |
+    El span raíz es el que tiene `parent=None`. Para `pct_of_root`, usa
+    `duration_ms / root_duration * 100`.
+  starter: |
+    def find_bottleneck(spans: list[dict]) -> dict:
+        """Devuelve el span con mayor duration_ms."""
+        ...
+
+
+    def latency_report(spans: list[dict]) -> list[dict]:
+        """Spans ordenados por latencia, con porcentaje del tiempo raíz."""
+        ...
+
+
+    spans = [
+        {"name": "chat_turn", "duration_ms": 4200, "parent": None, "attributes": {"tenant": "acme"}},
+        {"name": "anthropic.messages.stream", "duration_ms": 3900, "parent": "chat_turn", "attributes": {}},
+        {"name": "tool_call.sql_query", "duration_ms": 280, "parent": "anthropic.messages.stream", "attributes": {}},
+    ]
+
+    bottleneck = find_bottleneck(spans)
+    print(f"Cuello de botella: {bottleneck['name']} ({bottleneck['duration_ms']} ms)")
+
+    print("\nReporte de latencia:")
+    for row in latency_report(spans):
+        print(f"  {row['name']}: {row['duration_ms']} ms ({row['pct_of_root']}%)")
+  test: |
+    spans = [
+        {"name": "chat_turn", "duration_ms": 4200, "parent": None, "attributes": {"tenant": "acme"}},
+        {"name": "anthropic.messages.stream", "duration_ms": 3900, "parent": "chat_turn", "attributes": {}},
+        {"name": "tool_call.sql_query", "duration_ms": 280, "parent": "anthropic.messages.stream", "attributes": {}},
+    ]
+
+    # find_bottleneck
+    bn = find_bottleneck(spans)
+    assert bn["name"] == "chat_turn", f"El bottleneck es chat_turn (4200ms), obtuve: {bn['name']}"
+
+    # con empate → primero en lista
+    tied = [
+        {"name": "span_a", "duration_ms": 500, "parent": None, "attributes": {}},
+        {"name": "span_b", "duration_ms": 500, "parent": "span_a", "attributes": {}},
+    ]
+    assert find_bottleneck(tied)["name"] == "span_a", "Empate: devuelve el primero"
+
+    # latency_report
+    report = latency_report(spans)
+    assert report[0]["name"] == "chat_turn", "Primero debe ser el más lento"
+    assert report[0]["pct_of_root"] == 100.0, "La raíz es el 100%"
+    # anthropic.messages.stream: 3900/4200*100 = 92.9%
+    assert report[1]["pct_of_root"] == round(3900/4200*100, 1), (
+        f"Span hijo: {report[1]['pct_of_root']} != {round(3900/4200*100, 1)}"
+    )
+    # sin key "attributes" en el output
+    assert "attributes" not in report[0], "El report no debe incluir 'attributes'"
+    assert "parent" not in report[0], "El report no debe incluir 'parent'"
+
+    print("ok")
+  solution: |
+    def find_bottleneck(spans: list[dict]) -> dict:
+        return max(spans, key=lambda s: s["duration_ms"])
+
+
+    def latency_report(spans: list[dict]) -> list[dict]:
+        root = next(s for s in spans if s["parent"] is None)
+        root_ms = root["duration_ms"]
+        sorted_spans = sorted(spans, key=lambda s: s["duration_ms"], reverse=True)
+        return [
+            {
+                "name": s["name"],
+                "duration_ms": s["duration_ms"],
+                "pct_of_root": round(s["duration_ms"] / root_ms * 100, 1),
+            }
+            for s in sorted_spans
+        ]
+
+    spans = [
+        {"name": "chat_turn", "duration_ms": 4200, "parent": None, "attributes": {"tenant": "acme"}},
+        {"name": "anthropic.messages.stream", "duration_ms": 3900, "parent": "chat_turn", "attributes": {}},
+        {"name": "tool_call.sql_query", "duration_ms": 280, "parent": "anthropic.messages.stream", "attributes": {}},
+    ]
+    bottleneck = find_bottleneck(spans)
+    print(f"Cuello de botella: {bottleneck['name']} ({bottleneck['duration_ms']} ms)")
+    print("\nReporte de latencia:")
+    for row in latency_report(spans):
+        print(f"  {row['name']}: {row['duration_ms']} ms ({row['pct_of_root']}%)")

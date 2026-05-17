@@ -1,0 +1,72 @@
+- slug: equals-vs-assign
+  question: |
+    ¿Cuál de estas líneas comprueba si `amount` es igual a `4820`?
+  explanation: |
+    En Python `=` asigna y `==` compara. En un `if`, siempre usas `==`.
+    Si escribes `if amount = 4820:`, Python lanza `SyntaxError` inmediatamente.
+  options:
+    - text: "`if amount = 4820:`"
+      correct: false
+      feedback: "`=` es asignación, no comparación. Python lanza `SyntaxError` aquí."
+    - text: "`if amount == 4820:`"
+      correct: true
+      feedback: "Correcto. `==` compara dos valores y devuelve `True` o `False`."
+    - text: "`if amount === 4820:`"
+      correct: false
+      feedback: "`===` no existe en Python. Es de JavaScript. Python solo tiene `==` e `is`."
+    - text: "`if amount.equals(4820):`"
+      correct: false
+      feedback: "Los números en Python no tienen método `.equals()`. Usa `==`."
+
+- slug: elif-order
+  question: |
+    Dado este código:
+
+    ```python
+    amount = 500.0
+    if amount >= 0:
+        level = "positivo"
+    elif amount > 100:
+        level = "medio"
+    else:
+        level = "negativo"
+    ```
+
+    ¿Qué valor tiene `level` al final?
+  explanation: |
+    Python entra en el **primer** bloque cuya condición sea `True` y salta los demás.
+    `amount >= 0` es `True` para `amount=500`, así que `level` queda en `"positivo"`.
+    El `elif amount > 100` nunca se evalúa para este valor, aunque también sería `True`.
+  options:
+    - text: "`\"positivo\"`"
+      correct: true
+      feedback: "Sí. La primera condición `amount >= 0` es verdadera para 500. Python no evalúa las siguientes ramas."
+    - text: "`\"medio\"`"
+      correct: false
+      feedback: "Python nunca llega a `elif amount > 100` porque la primera condición ya fue verdadera."
+    - text: "`\"negativo\"`"
+      correct: false
+      feedback: "`else` solo se ejecuta si **ninguna** condición anterior fue verdadera."
+    - text: "Error de ejecución"
+      correct: false
+      feedback: "El código es válido. Compila y corre sin problemas."
+
+- slug: and-or-logic
+  question: |
+    ¿Cuál condición devuelve `True` para `amount = 300` y `vendor = "acme_global"`?
+  explanation: |
+    `and` requiere que ambas sean verdaderas. `or` requiere que al menos una lo sea.
+    Para amount=300 y vendor="acme_global": `amount > 100` es True, y `vendor == "acme_global"` es True.
+  options:
+    - text: "`amount > 500 and vendor == \"acme_global\"`"
+      correct: false
+      feedback: "`amount > 500` es `False` para 300. Con `and`, basta que una sea falsa para que todo sea `False`."
+    - text: "`amount > 100 and vendor == \"acme_global\"`"
+      correct: true
+      feedback: "Correcto. Ambas son `True` para amount=300 y vendor='acme_global'."
+    - text: "`amount > 500 or vendor == \"globex_log\"`"
+      correct: false
+      feedback: "`amount > 500` es False y `vendor == 'globex_log'` es False. Con `or`, las dos tienen que ser falsas para dar False."
+    - text: "`not amount > 100`"
+      correct: false
+      feedback: "`amount > 100` es `True` para 300, así que `not True` es `False`."

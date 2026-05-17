@@ -1,0 +1,24 @@
+slug: terminal-mkdir
+title: "Tu jefe dice: crea la carpeta audit-abril"
+kind: order_steps
+trains_skill: terminal
+concepts_introduced: [terminal, mkdir, cd, pwd]
+concepts_reinforced: []
+scenario_md: |
+  El director financiero de ACME Manufacturing necesita que organices los
+  documentos de la auditoría de abril. Aún no tienes ninguna carpeta.
+  ¿En qué orden haces los cuatro pasos para tenerla lista?
+payload:
+  steps:
+    - "Abrir la terminal"
+    - "Ver en qué carpeta estás con pwd"
+    - "Navegar a la carpeta de trabajo con cd documentos"
+    - "Crear la carpeta con mkdir audit-abril"
+  correct_order: [0, 1, 2, 3]
+hint_md: "¿Puedes crear algo en un lugar que aún no has abierto?"
+solution_md: |
+  Primero abres la terminal, confirmas dónde estás con pwd, navegas al
+  destino con cd y solo entonces creas la carpeta con mkdir. El orden
+  importa: no puedes crear dentro de algo que no existe todavía.
+xp: 10
+est_seconds: 60

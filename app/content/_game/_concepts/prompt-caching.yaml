@@ -1,0 +1,11 @@
+slug: prompt-caching
+title: "¿Qué es prompt caching?"
+analogy_md: |
+  Cada vez que llamas al LLM con el mismo sistema de instrucciones pagas por procesarlo de
+  nuevo. El prompt caching guarda ese contexto en el servidor por 1 hora, reduciendo costo y latencia
+  hasta en 90%.
+example_md: |
+  ```python
+  {"type": "text", "text": reglas_sistema,
+   "cache_control": {"type": "ephemeral", "ttl": "1h"}}
+  ```
