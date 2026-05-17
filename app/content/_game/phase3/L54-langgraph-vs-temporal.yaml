@@ -1,0 +1,54 @@
+slug: langgraph-vs-temporal
+title: "LangGraph, Temporal u OpenAI Agents SDK: ¿cuál para ACME?"
+kind: decision
+phase: PH03
+ord: 54
+trains_skill: framework-tradeoffs
+xp: 10
+est_seconds: 90
+scenario_md: |
+  ACME necesita un workflow que: (1) puede tardar hasta 5 días esperando
+  aprobaciones del CFO, (2) tiene branches condicionales basados en el monto,
+  (3) el equipo ya conoce Python y SQLAlchemy pero no Go ni Java.
+payload:
+  prompt_md: |
+    El workflow de aprobación de facturas de ACME tiene estas características:
+    - Duración: 0 horas (auto-aprobación) hasta 5 días (revisión manual)
+    - Branches: amount < 10K auto, 10K-50K manager, > 50K CFO
+    - I/O: Slack, email, base de datos Postgres
+    - Team: 3 devs Python, sin experiencia en workflows distribuidos
+    ¿Qué framework eliges?
+  options:
+    - label: "Temporal"
+      tradeoff_md: |
+        + Diseñado para procesos de días/semanas con durabilidad garantizada.
+        + Retry automático en actividades. + Signals para recibir aprobaciones.
+        − Curva de aprendizaje alta: modelo de programación distinto.
+        − Infra adicional: servidor Temporal que mantener.
+        − Overkill si el workflow nunca dura más de minutos.
+      consequence_skill: temporal-durability
+    - label: "LangGraph"
+      tradeoff_md: |
+        + Grafos condicionales declarativos: ideal para branches por monto.
+        + Checkpointing incluido (SQLite o Postgres). + Familiar para devs Python.
+        − Durabilidad de días/semanas requiere configuración extra del checkpointer.
+        − Sin retry automático de actividades — lo implementas tú.
+        − Mejor para workflows de minutos, no días.
+      consequence_skill: langgraph-graphs
+    - label: "OpenAI Agents SDK (handoffs)"
+      tradeoff_md: |
+        + DX excelente: pocas líneas para multi-agent con handoffs.
+        + Guardrails integrados. + Tracing incluido.
+        − No diseñado para esperas de días: sin durabilidad nativa.
+        − Vendor lock-in a OpenAI (aunque hay alternativas de proveedor).
+        − Branches complejos son menos declarativos que LangGraph.
+      consequence_skill: openai-agents
+hint_md: |
+  Pregunta clave: ¿cuánto puede durar el proceso? Si es minutos → LangGraph.
+  Si son días y toleras cero pérdidas de estado → Temporal. Para prototipos
+  rápidos con DX prioritaria → OpenAI Agents SDK.
+solution_md: |
+  Para 5 días con aprobaciones manuales: Temporal es la elección correcta.
+  LangGraph es mejor para workflows de IA con branches complejos pero duración
+  corta. OpenAI Agents SDK brilla en multi-agent simple con DX prioritaria.
+  No existe el framework perfecto para todos los casos — el contexto manda.

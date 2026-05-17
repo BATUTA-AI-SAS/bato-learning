@@ -1,0 +1,38 @@
+slug: system-design-multi-agent
+title: "Diseña la arquitectura para 3 agentes que cooperan"
+kind: multi_choice
+phase: PH04
+ord: 74
+trains_skill: system-design
+concepts_introduced: [system-design, component-diagrams, failure-modes, interfaces]
+concepts_reinforced: [multi-agent, temporal, clean-architecture]
+xp: 10
+est_seconds: 120
+scenario_md: |
+  ACME necesita 3 agentes cooperando: uno extrae datos de facturas (OCR),
+  uno valida contra contratos (RAG), uno aprueba o rechaza con HITL.
+  ¿Cuál es el diseño correcto para que el sistema sea resiliente a fallos?
+payload:
+  options:
+    - text: "Los 3 agentes corren en el mismo proceso Python. Se llaman directamente como funciones. Si uno falla, el proceso entero falla."
+      correct: false
+      feedback: "Acoplamiento total. Un fallo del agente OCR tumba también la validación y la aprobación. Sin aislamiento, sin resiliencia."
+    - text: "Cada agente es un servicio independiente. Un workflow Temporal los orquesta: llama a cada uno como Activity con retry y timeout. Si OCR falla, Temporal reintenta sin perder el progreso de los otros."
+      correct: true
+      feedback: "Correcto. Aislamiento por proceso + orquestación durable. Temporal reintenta actividades fallidas sin reiniciar el workflow completo. El HITL del tercer agente puede esperar días si el CFO está de viaje."
+    - text: "Los 3 agentes se llaman entre sí directamente vía HTTP (cadena: OCR → Validación → Aprobación). Si el segundo cae, el primero recibe error y lanza excepción al usuario."
+      correct: false
+      feedback: "Cadena directa crea dependencias frágiles. Un fallo en el agente de validación bloquea todo. Sin durabilidad, una factura grande puede perderse por un timeout de red."
+    - text: "Usar una cola de mensajes (Kafka) entre los 3 agentes sin orquestador. Cada agente consume eventos del anterior."
+      correct: false
+      feedback: "Colas dan desacoplamiento pero no observabilidad del estado del workflow completo. ¿Cómo sabes si una factura específica completó los 3 pasos? Temporal resuelve esto con historial de eventos."
+hint_md: |
+  Para workflows multi-paso donde cada paso puede fallar, la pregunta es:
+  ¿quién conoce el estado global? Con colas, nadie. Con Temporal, el workflow
+  tiene visibilidad completa. El HITL requiere esperas de días — Temporal
+  es el único que maneja eso con durabilidad.
+solution_md: |
+  Sistema multi-agente resiliente: cada agente aislado (proceso/servicio separado),
+  orquestador durable que conoce el estado global y puede reintentar pasos
+  individuales. El HITL del agente de aprobación puede esperar 5 días sin
+  perder el contexto de los pasos anteriores. Ese es el valor de Temporal.

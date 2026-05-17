@@ -1,0 +1,75 @@
+slug: sdk-design
+title: "Dale a un dev externo un SDK para integrar tu agente"
+kind: code
+phase: PH04
+ord: 69
+trains_skill: sdk-design
+concepts_introduced: [sdk-design, developer-experience, breaking-changes, semver]
+concepts_reinforced: [api-design, pydantic, async]
+xp: 20
+est_seconds: 180
+scenario_md: |
+  Constructora Andina quiere integrar el agente de ACME en su sistema de
+  compras. En vez de dar la URL del API, les das un SDK Python. Diseña
+  el cliente SDK con buena experiencia de desarrollo.
+payload:
+  starter: |
+    from pydantic import BaseModel
+    import httpx
+
+    class AgentResponse(BaseModel):
+        answer: str
+        tenant_id: str
+        tokens_used: int
+
+    class AcmeAgentClient:
+        """SDK cliente para el agente de ACME Manufacturing."""
+
+        def __init__(self, api_key: str, base_url: str = "https://agent.acme.com"):
+            self.api_key = api_key
+            self.base_url = base_url
+            self._client = httpx.AsyncClient(
+                base_url=base_url,
+                headers={"x-api-key": api_key},
+                timeout=30.0,
+            )
+
+        async def query(self, question: str, context: str | None = None) -> AgentResponse:
+            """Envía una pregunta al agente y retorna la respuesta tipada."""
+            ...
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            await self._client.aclose()
+  tests: |
+    import asyncio
+    import respx
+    import httpx
+
+    @respx.mock
+    async def test_client():
+        respx.post("https://agent.acme.com/v1/agent/query").mock(
+            return_value=httpx.Response(200, json={
+                "answer": "Total: $48500",
+                "tenant_id": "constructora-andina",
+                "tokens_used": 150,
+            })
+        )
+        async with AcmeAgentClient("key-test") as client:
+            result = await client.query("¿Cuál es el total de facturas?")
+            assert isinstance(result, AgentResponse)
+            assert result.answer == "Total: $48500"
+            assert result.tokens_used == 150
+
+    asyncio.run(test_client())
+hint_md: |
+  `client.query` hace `POST /v1/agent/query` con el JSON correcto y
+  parsea la respuesta con `AgentResponse.model_validate(response.json())`.
+  El context manager `__aenter__/__aexit__` cierra el cliente HTTP al final.
+solution_md: |
+  Un buen SDK oculta la complejidad HTTP y da tipos. El dev externo escribe
+  `await client.query("pregunta")` en vez de construir requests a mano.
+  Semver es crítico: una rotura de interfaz en v1.x destruye integraciones.
+  El changelog documenta qué cambió entre versiones para que el dev sepa cuándo actualizar.

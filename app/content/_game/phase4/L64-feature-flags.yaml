@@ -1,0 +1,57 @@
+slug: feature-flags-rollout
+title: "Activa el nuevo skill solo para 3 clientes piloto"
+kind: code
+phase: PH04
+ord: 64
+trains_skill: feature-flags
+concepts_introduced: [feature-flags, gradual-rollout, kill-switch]
+concepts_reinforced: [multitenancy, async, api]
+xp: 20
+est_seconds: 180
+scenario_md: |
+  ACME va a activar el nuevo agente de análisis de contratos solo para
+  Clínica San Rafael, Cooperativa Cafetera y Logística Express como piloto.
+  Implementa un sistema de feature flags por tenant.
+payload:
+  starter: |
+    from typing import Any
+
+    # Flags de producción (en prod vendrían de LaunchDarkly/Unleash/DB)
+    FEATURE_FLAGS: dict[str, dict[str, Any]] = {
+        "contract-analysis-agent": {
+            "enabled_globally": False,
+            "enabled_tenants": ["clinica-san-rafael", "cooperativa-cafetera", "logistica-express"],
+            "rollout_percentage": 0,  # 0 = solo tenants explícitos
+        }
+    }
+
+    def is_feature_enabled(feature: str, tenant_id: str) -> bool:
+        """Retorna True si el feature está activo para este tenant."""
+        ...
+
+    def enable_globally(feature: str) -> None:
+        """Activa el feature para todos los tenants (kill switch inverso)."""
+        ...
+
+    def disable_globally(feature: str) -> None:
+        """Kill switch: desactiva el feature para todos."""
+        ...
+  tests: |
+    assert is_feature_enabled("contract-analysis-agent", "clinica-san-rafael") is True
+    assert is_feature_enabled("contract-analysis-agent", "acme-manufacturing") is False
+    assert is_feature_enabled("nonexistent-feature", "clinica-san-rafael") is False
+
+    enable_globally("contract-analysis-agent")
+    assert is_feature_enabled("contract-analysis-agent", "acme-manufacturing") is True
+
+    disable_globally("contract-analysis-agent")
+    assert is_feature_enabled("contract-analysis-agent", "acme-manufacturing") is False
+hint_md: |
+  Verifica primero si el feature existe. Luego `enabled_globally`. Si no,
+  comprueba si `tenant_id` está en `enabled_tenants`. El kill switch solo
+  cambia `enabled_globally` a False sin tocar la lista de tenants piloto.
+solution_md: |
+  Feature flags permiten desacoplar el deploy del release. Deployaste la
+  feature en producción pero está "apagada". La activas para 3 clientes,
+  mides, y si funciona, activas para todos. Si explota, el kill switch la
+  apaga en segundos sin redeploy. Imprescindible para producción seria.

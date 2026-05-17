@@ -1,0 +1,57 @@
+slug: code-review-pr
+title: "Lee este PR de 400 líneas y haz code review"
+kind: multi_choice
+phase: PH04
+ord: 70
+trains_skill: code-review
+concepts_introduced: [code-review, naming, antipatterns, approve-request-changes]
+concepts_reinforced: [clean-architecture, testing, security]
+xp: 10
+est_seconds: 120
+scenario_md: |
+  Un dev de ACME abrió este PR. Es tu primer code review como senior.
+  Lee los fragmentos clave e identifica el problema principal que deberías
+  pedir que corrijan antes de aprobar.
+payload:
+  code: |
+    # PR: "feat: add invoice export endpoint"
+    # services/api/routers/invoices.py
+
+    @app.get("/export")
+    async def export_all_invoices(db: SessionDep):
+        """Exporta todas las facturas del sistema."""
+        # Obtener TODAS las facturas de todos los tenants
+        result = await db.execute(
+            select(Invoice).order_by(Invoice.created_at.desc())
+        )
+        invoices = result.scalars().all()
+        return invoices  # lista de todos los objetos ORM
+
+    # tests/test_invoices.py
+    def test_export_endpoint():
+        response = client.get("/export")
+        assert response.status_code == 200
+        assert len(response.json()) > 0
+  question_md: "¿Cuál es el problema de seguridad/arquitectura más crítico que bloquearía la aprobación de este PR?"
+  options:
+    - text: "El endpoint no filtra por `tenant_id`: devuelve facturas de TODOS los tenants. Un usuario de Logística Express vería facturas de Clínica San Rafael."
+      correct: true
+      feedback: "Correcto. Es una violación crítica de multitenancy. Este PR debería bloquearse hasta añadir el filtro de tenant y un test que verifique el aislamiento."
+    - text: "El nombre del endpoint `/export` es demasiado genérico. Debería ser `/invoices/export`."
+      correct: false
+      feedback: "El naming es un comment menor ('nit'), no un bloqueador. El problema de seguridad es crítico y debe resolverse antes de preocuparte por el nombre."
+    - text: "El test no verifica el contenido exacto de las facturas, solo que haya más de cero."
+      correct: false
+      feedback: "El test tiene un problema, pero es secundario. El problema principal es que el endpoint expone datos de todos los tenants sin filtro."
+    - text: "El endpoint usa GET en vez de POST para una operación de exportación."
+      correct: false
+      feedback: "GET es aceptable para exportar datos (es una lectura). El verbo HTTP correcto es una discusión válida pero no es el bloqueador principal."
+hint_md: |
+  En un code review siempre busca primero: seguridad (¿expone datos que no debe?),
+  corrección (¿hace lo que dice?), tests (¿prueban lo importante?).
+  Los nits (naming, style) van al final como comentarios opcionales.
+solution_md: |
+  El filtro `WHERE tenant_id = :current_tenant` es la regla de oro que nunca
+  debe faltar en endpoints que devuelven datos de la DB. Un code reviewer
+  senior lo ve en segundos. La falta de este filtro en ACME expone datos de
+  todos los clientes — es un fallo de multitenancy crítico.

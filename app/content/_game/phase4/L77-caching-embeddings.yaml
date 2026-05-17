@@ -1,0 +1,83 @@
+slug: caching-embeddings-redis
+title: "Redis para cachear embeddings vs recalcular cada vez"
+kind: code
+phase: PH04
+ord: 77
+trains_skill: caching
+concepts_introduced: [redis-caching, cache-invalidation, ttl, cost-benefit]
+concepts_reinforced: [rag, cost-engineering, async]
+xp: 20
+est_seconds: 180
+scenario_md: |
+  El pipeline RAG de ACME calcula embeddings para cada pregunta del CFO.
+  Algunas preguntas se repiten: "¿Total de abril?" aparece 50 veces al día.
+  Implementa un caché de embeddings con TTL de 1 hora.
+payload:
+  starter: |
+    import json
+    import hashlib
+    from typing import Any
+
+    # Simula Redis con un diccionario en memoria
+    class FakeRedis:
+        def __init__(self):
+            self._store: dict[str, tuple[Any, float]] = {}
+            self._time = 0.0
+
+        def get(self, key: str) -> str | None:
+            if key in self._store:
+                value, expires_at = self._store[key]
+                if self._time < expires_at:
+                    return value
+                del self._store[key]
+            return None
+
+        def setex(self, key: str, ttl_seconds: int, value: str) -> None:
+            self._store[key] = (value, self._time + ttl_seconds)
+
+        def advance_time(self, seconds: float) -> None:
+            self._time += seconds
+
+    redis = FakeRedis()
+    EMBEDDING_TTL = 3600  # 1 hora
+
+    def embedding_cache_key(text: str) -> str:
+        """Genera una clave de caché determinística para el texto."""
+        ...
+
+    def get_cached_embedding(text: str) -> list[float] | None:
+        """Retorna el embedding del caché si existe y no expiró."""
+        ...
+
+    def cache_embedding(text: str, embedding: list[float]) -> None:
+        """Guarda el embedding en el caché con TTL."""
+        ...
+  tests: |
+    # Cache miss
+    assert get_cached_embedding("¿Total de abril?") is None
+
+    # Cache write
+    emb = [0.1, 0.2, 0.3]
+    cache_embedding("¿Total de abril?", emb)
+
+    # Cache hit
+    cached = get_cached_embedding("¿Total de abril?")
+    assert cached == emb
+
+    # TTL expiry
+    redis.advance_time(3601)
+    assert get_cached_embedding("¿Total de abril?") is None
+
+    # La clave es determinística: mismo texto = misma clave
+    k1 = embedding_cache_key("¿Total de abril?")
+    k2 = embedding_cache_key("¿Total de abril?")
+    assert k1 == k2
+hint_md: |
+  La clave de caché puede ser `"emb:" + hashlib.md5(text.encode()).hexdigest()`.
+  `redis.get()` retorna None si no existe o expiró. Serializa la lista float
+  con `json.dumps` para almacenar en Redis (que guarda strings).
+solution_md: |
+  Cachear embeddings da dos beneficios: latencia (0ms vs 50-200ms) y costo
+  (0 tokens vs el precio del modelo de embeddings). Invalida cuando el texto
+  fuente cambia — la clave MD5 del texto asegura que textos distintos tengan
+  claves distintas. El TTL evita que embeddings obsoletos vivan para siempre.

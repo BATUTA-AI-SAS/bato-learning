@@ -1,0 +1,32 @@
+slug: incident-response
+title: "El agente se rompió a las 3am — investiga sin pánico"
+kind: order_steps
+phase: PH04
+ord: 65
+trains_skill: incident-response
+concepts_introduced: [incident-response, runbook, postmortem, rollback]
+concepts_reinforced: [observability, logs, deploy]
+xp: 10
+est_seconds: 120
+scenario_md: |
+  Monitoreo de ACME alertó: error rate 45%, latencia p99 > 30 segundos.
+  El agente financiero lleva 20 minutos degradado. Ordena los pasos del
+  proceso de respuesta a incidentes correcto.
+payload:
+  steps:
+    - "Abrir el postmortem: documentar timeline, causa raíz y acciones preventivas"
+    - "Revisar los logs y trazas de los últimos 30 minutos para identificar el cambio disparador"
+    - "Confirmar que el servicio está recuperado y el error rate volvió a < 1%"
+    - "Ejecutar rollback al último deploy estable si el cambio reciente es la causa"
+    - "Activar el runbook de incidentes: notificar al equipo y abrir un canal de guerra"
+    - "Identificar el blast radius: ¿qué tenants están afectados? ¿hay pérdida de datos?"
+  correct_order: [4, 5, 1, 3, 2, 0]
+hint_md: |
+  El orden es: (1) comunicar primero para coordinar, (2) entender el impacto,
+  (3) diagnosticar, (4) mitigar/rollback, (5) confirmar recuperación, (6)
+  aprender. El postmortem es siempre lo último, nunca lo primero.
+solution_md: |
+  En un incidente: comunica antes de corregir (el equipo necesita saber).
+  Luego entiende el impacto (¿quién sufre?). Luego diagnostica (logs, trazas).
+  Luego mitiga (rollback suele ser lo más rápido). Luego confirma. Luego aprende
+  (postmortem blameless). El runbook escrito en calma salva vidas a las 3am.

@@ -1,0 +1,33 @@
+slug: technical-communication
+title: "Presenta al CTO: por qué tu diseño es el correcto"
+kind: order_steps
+phase: PH04
+ord: 75
+trains_skill: technical-communication
+concepts_introduced: [executive-summary, tradeoffs-presentation, risk-communication]
+concepts_reinforced: [adr, system-design, build-vs-buy]
+xp: 10
+est_seconds: 120
+scenario_md: |
+  El CTO de ACME tiene 10 minutos para escuchar tu propuesta de arquitectura
+  multi-agente. Ordena los bloques de la presentación técnica correcta
+  para máximo impacto y claridad.
+payload:
+  steps:
+    - "Detalle técnico: diagrama de componentes, flujo de datos, APIs entre agentes"
+    - "Resumen ejecutivo en 2 frases: qué problema resuelve y qué resultado se espera"
+    - "Próximos pasos: qué aprobas, qué equipo lo implementa, fecha estimada"
+    - "Riesgos y mitigaciones: qué puede salir mal y cómo lo manejarías"
+    - "Alternativas consideradas y por qué se descartaron (contexto de la decisión)"
+    - "Impacto en el negocio: cuánto tiempo/dinero ahorra, KPI afectados"
+  correct_order: [1, 5, 0, 4, 3, 2]
+hint_md: |
+  Un CTO quiere saber primero: ¿qué problema resuelvo y vale la pena?
+  Luego el impacto en negocio (habla su idioma). Luego el detalle técnico
+  (para el equipo que lo implementa). Luego las alternativas (para confiar en
+  la decisión). Luego los riesgos. Siempre cierra con próximos pasos claros.
+solution_md: |
+  La estructura ejecutiva es: problema → valor → solución → contexto → riesgos → acción.
+  El error más común: empezar con el diagrama técnico. El CTO no puede evaluar
+  el diagrama si no sabe qué problema resuelve. Primero convence, luego explica.
+  Los próximos pasos concretos convierten una presentación en decisión.

@@ -1,0 +1,55 @@
+slug: read-ai-generated-code
+title: "Claude Code generó este refactor — ¿tiene bugs?"
+kind: predict
+phase: PH04
+ord: 71
+trains_skill: ai-code-reading
+concepts_introduced: [ai-code-review, bug-detection, off-by-one]
+concepts_reinforced: [code-review, testing, pydantic]
+xp: 15
+est_seconds: 150
+scenario_md: |
+  Claude Code refactorizó la función de cálculo de IVA de ACME. Antes
+  funcionaba correctamente. El PR dice "no hay cambios de comportamiento".
+  Lee el código generado y encuentra el bug sutil.
+payload:
+  code: |
+    # Código ORIGINAL (correcto)
+    def calculate_total_original(amount: float, iva_rate: float = 0.19) -> float:
+        return round(amount * (1 + iva_rate), 2)
+
+    # Código GENERADO por IA (refactorizado)
+    def calculate_total(amount: float, iva_rate: float = 0.19) -> float:
+        """
+        Calcula el total con IVA.
+        Refactorizado para mayor claridad por Claude Code.
+        """
+        iva_amount = round(amount * iva_rate, 2)
+        total = amount + iva_amount
+        return round(total, 2)
+
+    # Tests del dev (pasan en verde con la versión original)
+    assert calculate_total(1000.0) == 1190.0
+    assert calculate_total(1000.0, 0.10) == 1100.0
+    assert calculate_total(100.0) == 119.0
+  question_md: "Todos los tests del dev pasan con la versión nueva. ¿Hay un bug real? Si sí, ¿en qué input se manifiesta?"
+  options:
+    - text: "Sí, hay un bug de redondeo. `calculate_total(0.1)` retorna `0.12` en vez de `0.12` — en realidad ambas versiones lo manejan igual."
+      correct: false
+      feedback: "Los tests de redondeo pasan igual. El bug no está en el redondeo del total sino en algo más sutil con el redondeo intermedio."
+    - text: "Sí, hay un bug. `calculate_total(99.99)` retorna un resultado diferente a la versión original porque se redondea `iva_amount` antes de sumarlo, acumulando error."
+      correct: true
+      feedback: "Correcto. Original: `round(99.99 * 1.19, 2) = 118.99`. Nueva: `iva = round(99.99 * 0.19, 2) = 19.0` → `total = round(99.99 + 19.0, 2) = 118.99`. En este caso coincide, pero con `99.995` o amounts en los que el redondeo intermedio pierde precisión, divergen. El bug es el doble redondeo."
+    - text: "No hay bug. La refactorización es equivalente matemáticamente."
+      correct: false
+      feedback: "No es equivalente. Redondear `iva_amount` antes de sumar introduce error de redondeo intermedio. `round(a * b, 2)` != `round(round(a, 2) * b, 2)` en general."
+hint_md: |
+  El problema es el redondeo intermedio. Prueba con `amount = 33.33`:
+  Original: `round(33.33 * 1.19, 2) = round(39.6627, 2) = 39.66`.
+  Nueva: `iva = round(33.33 * 0.19, 2) = round(6.3327, 2) = 6.33` →
+  `total = round(33.33 + 6.33, 2) = 39.66`. Coincide aquí pero no siempre.
+solution_md: |
+  La IA generó código más "legible" pero sutilmente incorrecto: el doble
+  redondeo acumula error en operaciones financieras. El skill meta es saber
+  que el código IA pasa los tests que el humano escribió — no los que el
+  humano no escribió. Siempre testea con valores límite y precisión decimal.

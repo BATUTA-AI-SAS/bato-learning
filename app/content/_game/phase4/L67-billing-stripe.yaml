@@ -1,0 +1,61 @@
+slug: billing-metering
+title: "El cliente quiere pagar $0.02 por request del agente"
+kind: code
+phase: PH04
+ord: 67
+trains_skill: billing
+concepts_introduced: [billing, usage-based-pricing, metering, stripe-webhooks]
+concepts_reinforced: [multitenancy, async, api]
+xp: 20
+est_seconds: 200
+scenario_md: |
+  ACME cobra a sus clientes por uso del agente: $0.02 por request. Implementa
+  el contador de uso por tenant que alimentará el billing mensual de Stripe.
+payload:
+  starter: |
+    from dataclasses import dataclass, field
+    from datetime import date
+
+    @dataclass
+    class UsageRecord:
+        tenant_id: str
+        date: date
+        request_count: int = 0
+        total_cost_usd: float = 0.0
+
+    # En producción esto sería una tabla SQL con índice (tenant_id, date)
+    USAGE_STORE: dict[tuple[str, date], UsageRecord] = {}
+
+    PRICE_PER_REQUEST = 0.02
+
+    def record_request(tenant_id: str, request_date: date | None = None) -> UsageRecord:
+        """Registra un request del tenant y actualiza el costo acumulado."""
+        if request_date is None:
+            request_date = date.today()
+        # implementa el upsert en USAGE_STORE
+        ...
+
+    def get_monthly_bill(tenant_id: str, year: int, month: int) -> dict:
+        """Retorna el total de requests y costo para el tenant en el mes."""
+        ...
+  tests: |
+    from datetime import date
+
+    d = date(2024, 4, 15)
+    record_request("logistica-express", d)
+    record_request("logistica-express", d)
+    record_request("logistica-express", date(2024, 4, 16))
+
+    bill = get_monthly_bill("logistica-express", 2024, 4)
+    assert bill["request_count"] == 3
+    assert abs(bill["total_cost_usd"] - 0.06) < 0.001
+    assert get_monthly_bill("clinica-san-rafael", 2024, 4)["request_count"] == 0
+hint_md: |
+  La clave del upsert: `(tenant_id, date)` como clave del diccionario.
+  Si existe, incrementa `request_count` y suma el precio. Si no existe, crea
+  un nuevo `UsageRecord`. Para el bill mensual filtra por tenant_id y año/mes.
+solution_md: |
+  Usage-based billing es el modelo estándar para APIs: pagas lo que usas.
+  El metering registra cada request con su metadata. Al final del mes, Stripe
+  recibe el total vía Usage Records API y genera la factura automáticamente.
+  Tenant aislamiento es crítico: Logística Express no ve el bill de Clínica.

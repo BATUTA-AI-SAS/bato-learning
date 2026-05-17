@@ -1,0 +1,54 @@
+slug: multi-agent-handoffs
+title: "Un agente planifica y otros dos ejecutan subtareas"
+kind: code
+phase: PH03
+ord: 55
+trains_skill: multi-agent
+concepts_introduced: [multi-agent, handoffs, supervisor, parallel-agents]
+concepts_reinforced: [agent-loop, tool-calling, llm-api]
+xp: 20
+est_seconds: 200
+scenario_md: |
+  El CFO de ACME pide un reporte que requiere: (1) consultar facturas de la DB,
+  (2) buscar en documentos de contratos via RAG. Implementa un supervisor
+  que delega a dos sub-agentes especializados.
+payload:
+  starter: |
+    from anthropic import AsyncAnthropic
+    from typing import Callable
+
+    client = AsyncAnthropic()
+
+    async def invoice_agent(query: str) -> str:
+        """Sub-agente especializado en DB de facturas."""
+        return f"Facturas para '{query}': INV-042 ($4820), INV-043 ($9100)"
+
+    async def contract_agent(query: str) -> str:
+        """Sub-agente especializado en contratos via RAG."""
+        return f"Contratos relevantes para '{query}': Constructora Andina, penalidad 2%"
+
+    AGENTS: dict[str, Callable] = {
+        "invoice_agent": invoice_agent,
+        "contract_agent": contract_agent,
+    }
+
+    async def supervisor(user_request: str) -> str:
+        """Usa el LLM para decidir qué agentes llamar y combina resultados."""
+        # Paso 1: pregunta al LLM qué agentes necesita y con qué query
+        # Paso 2: ejecuta los agentes seleccionados
+        # Paso 3: pasa los resultados al LLM para la respuesta final
+        ...
+  tests: |
+    import asyncio
+    result = asyncio.run(supervisor("Dame el estado de las facturas de Constructora Andina"))
+    assert isinstance(result, str)
+    assert len(result) > 20
+hint_md: |
+  El supervisor puede usar tool_use para pedir al LLM que "llame" a los
+  sub-agentes como herramientas. Define tools para `invoice_agent` y
+  `contract_agent` y ejecuta el loop normal.
+solution_md: |
+  El patrón supervisor + worker es el más común en multi-agent. El supervisor
+  descompone la tarea, los workers la ejecutan, el supervisor sintetiza.
+  CrewAI y ADK SequentialAgent/ParallelAgent abstraen este patrón. LangGraph
+  lo hace explícito como grafo.

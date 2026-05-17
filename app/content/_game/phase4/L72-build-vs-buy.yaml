@@ -1,0 +1,54 @@
+slug: build-vs-buy
+title: "¿Construir o comprar esta feature?"
+kind: decision
+phase: PH04
+ord: 72
+trains_skill: product-engineering
+xp: 10
+est_seconds: 90
+scenario_md: |
+  ACME necesita tres nuevas capacidades. Para cada una, el equipo debate
+  si construirla internamente o comprar/integrar una solución existente.
+  La decisión afecta velocidad, costo, mantenimiento y vendor lock-in.
+payload:
+  prompt_md: |
+    ACME necesita:
+    (A) Sistema de autenticación con OAuth2 (Google/GitHub login) y 2FA.
+    (B) Lógica de aprobación de facturas específica a las reglas del CFO de ACME
+        (monto, proveedor, categoría, historial de pagos).
+    (C) Pipeline de embeddings para el sistema RAG (chunking, embed, almacenamiento en pgvector).
+    ¿Qué construyes y qué compras/integras?
+  options:
+    - label: "A: comprar (Auth0/Clerk); B: construir; C: comprar (plataforma de embeddings)"
+      tradeoff_md: |
+        + Auth0/Clerk son especialistas en auth: OWASP, 2FA, compliance. Construir
+          auth seguro desde cero es arriesgado y lento.
+        + La lógica de aprobación de ACME es el diferenciador de negocio: nadie
+          externo conoce las reglas del CFO mejor que el equipo de ACME.
+        + Los pipelines de embeddings son commodity: Cohere, OpenAI Embeddings,
+          pgvector en Supabase. Construirlos desde cero no aporta ventaja competitiva.
+        − Dependencia de proveedores (mitiga con abstracción de interfaz).
+      consequence_skill: pragmatic-engineering
+    - label: "Todo construido internamente para máximo control"
+      tradeoff_md: |
+        − Auth seguro desde cero tarda meses y es un vector de vulnerabilidades.
+        − Reinventar embeddings pipeline cuando OpenAI/Cohere ya lo resuelven bien.
+        + Control total de cada componente.
+        − El equipo se distrae del diferenciador: la lógica de aprobación de ACME.
+      consequence_skill: not-invented-here
+    - label: "Todo comprado/integrado para máxima velocidad"
+      tradeoff_md: |
+        + Velocidad de lanzamiento máxima.
+        − La lógica de aprobación del CFO de ACME es diferenciadora: tercerizarla
+          a un sistema genérico pierde el valor específico del negocio.
+        − Vendor lock-in en componentes core que cambian frecuentemente.
+      consequence_skill: vendor-dependency
+hint_md: |
+  La regla: compra lo que es commodity y está bien resuelto (auth, pagos,
+  storage). Construye lo que es diferenciador de tu negocio específico.
+  La lógica de negocio de ACME no existe en ningún SaaS.
+solution_md: |
+  Build vs buy: compra commodities, construye diferenciadores. Auth es un
+  problema resuelto con vulnerabilidades conocidas — los expertos en auth son
+  Auth0, Clerk, Supabase Auth. La lógica de aprobación con reglas específicas
+  del CFO de ACME nadie la tiene resuelta: ahí está el valor que construyes.

@@ -1,0 +1,36 @@
+slug: horizontal-scaling
+title: "Tu agente debe pasar de 1 a 100 usuarios"
+kind: multi_choice
+phase: PH04
+ord: 61
+trains_skill: scaling
+concepts_introduced: [horizontal-scaling, replicas, load-balancing, auto-scale]
+concepts_reinforced: [docker, async, observability]
+xp: 10
+est_seconds: 90
+scenario_md: |
+  ACME escala de 10 a 100 usuarios concurrentes en una semana. La instancia
+  única del agente empieza a saturarse. ¿Cuál es la primera acción correcta?
+payload:
+  options:
+    - text: "Escalar verticalmente: duplicar la RAM y CPU del servidor antes de tocar el código."
+      correct: false
+      feedback: "Escalar vertical es caro, tiene techo y no mejora la tolerancia a fallos. Es la opción de último recurso, no la primera."
+    - text: "Añadir réplicas stateless del servicio detrás de un load balancer y mover el estado (sesiones, caché) a Redis."
+      correct: true
+      feedback: "Correcto. El patrón: servicio stateless × N réplicas + balanceador. Si el estado está en la app, las réplicas no pueden servirlo — Redis o la DB es el store compartido."
+    - text: "Reescribir el servicio en Go para mayor rendimiento."
+      correct: false
+      feedback: "Cambiar de lenguaje es el cambio más costoso con menor retorno inmediato. Primero escala horizontal con lo que tienes."
+    - text: "Activar threading en FastAPI cambiando Uvicorn por Gunicorn con múltiples workers."
+      correct: false
+      feedback: "Múltiples workers en el mismo proceso es escala vertical disfrazada. No resuelve el cuello de botella de llamadas externas al LLM (I/O bound)."
+hint_md: |
+  Las apps async (FastAPI + asyncio) ya manejan muchas conexiones concurrentes
+  en un solo proceso. El cuello de botella en agentes LLM es casi siempre la
+  API externa, no la CPU. Mide antes de escalar.
+solution_md: |
+  Escalar horizontal = añadir instancias idénticas. El prerequisito es que el
+  servicio sea stateless: sin estado en memoria que no esté en un store externo.
+  El load balancer distribuye las requests. Redis maneja sesiones y caché.
+  Prometheus + Grafana miden si la escala resolvió el problema.

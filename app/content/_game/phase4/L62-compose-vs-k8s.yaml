@@ -1,0 +1,50 @@
+slug: compose-vs-kubernetes
+title: "¿Compose en VPS, Coolify o Kubernetes para ACME?"
+kind: decision
+phase: PH04
+ord: 62
+trains_skill: infrastructure-tradeoffs
+xp: 10
+est_seconds: 90
+scenario_md: |
+  ACME tiene 100 usuarios, un agente IA, una DB Postgres y un worker de Temporal.
+  El equipo son 3 devs con experiencia Docker básica. Budget: $200/mes. ¿Dónde despliegan?
+payload:
+  prompt_md: |
+    El stack de producción de ACME: FastAPI app, Postgres, Redis, worker Temporal,
+    Nginx reverse proxy. 100 usuarios activos, picos de 10 req/s. El equipo
+    conoce Docker Compose pero nunca administró Kubernetes.
+  options:
+    - label: "Docker Compose en un VPS (Hetzner/DigitalOcean $40/mes)"
+      tradeoff_md: |
+        + Operación simple: `docker compose up -d`. + Toda la infra en un YAML.
+        + $40/mes vs $200+/mes de K8s managed. + Zero curva de aprendizaje extra.
+        − Sin auto-scaling ni self-healing automático.
+        − Si el VPS falla, todo cae (mitigable con backups y failover manual).
+        − Un solo nodo: no hay HA sin configuración extra.
+      consequence_skill: compose-ops
+    - label: "Coolify (PaaS self-hosted sobre un VPS)"
+      tradeoff_md: |
+        + UI para deploy, SSL automático, backups, monitoring básico.
+        + Compose bajo el capó: familiar. + Actualizaciones automáticas de la app.
+        − Abstracción que puede ocultar problemas reales.
+        − Si Coolify tiene un bug, tú y el VPS lo sufren.
+        + Precio similar a VPS bare: $40-80/mes.
+      consequence_skill: coolify-ops
+    - label: "Kubernetes (EKS/GKE managed ~$200/mes)"
+      tradeoff_md: |
+        + Auto-scaling, self-healing, rolling updates, multi-zona.
+        + Estándar de la industria: contratas cualquier DevOps.
+        − Curva de aprendizaje alta: meses para operar bien.
+        − Sobre-engineering para 100 usuarios y 3 devs.
+        − $200+/mes mínimo en managed K8s.
+      consequence_skill: kubernetes-ops
+hint_md: |
+  Escala antes de complejidad. Para 100 usuarios y 3 devs sin experiencia K8s,
+  Compose o Coolify dan 95% del valor con 10% de la complejidad. Migra a K8s
+  cuando tengas el problema de escala que K8s resuelve.
+solution_md: |
+  Compose en VPS o Coolify es la respuesta correcta para ACME en este punto.
+  K8s no es una aspiración — es una herramienta para un tamaño específico de
+  problema. El error más común: adoptar K8s por prestige antes de tener el
+  problema que justifica su complejidad operativa.

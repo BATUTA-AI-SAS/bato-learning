@@ -1,0 +1,82 @@
+slug: public-api-design
+title: "Expón tu agente como API pública con docs automáticas"
+kind: code
+phase: PH04
+ord: 68
+trains_skill: api-design
+concepts_introduced: [openapi-spec, api-keys, versioning, rate-limiting]
+concepts_reinforced: [fastapi, pydantic, multitenancy, async]
+xp: 20
+est_seconds: 180
+scenario_md: |
+  Logística Express quiere integrar el agente de ACME en su sistema propio.
+  Diseña el endpoint público `/v1/agent/query` con API key auth, rate limiting
+  básico y documentación automática vía OpenAPI.
+payload:
+  starter: |
+    from fastapi import FastAPI, Header, HTTPException, Request
+    from pydantic import BaseModel
+    import time
+
+    app = FastAPI(title="ACME Agent API", version="1.0.0")
+
+    # API keys simuladas (en prod: DB o Redis)
+    API_KEYS = {
+        "key-logistica-express": "logistica-express",
+        "key-clinica-san-rafael": "clinica-san-rafael",
+    }
+    RATE_LIMIT: dict[str, list[float]] = {}  # tenant_id → lista de timestamps
+
+    class QueryRequest(BaseModel):
+        question: str
+        context: str | None = None
+
+    class QueryResponse(BaseModel):
+        answer: str
+        tenant_id: str
+        tokens_used: int
+
+    def get_tenant(api_key: str) -> str:
+        """Valida el API key y retorna el tenant_id."""
+        ...
+
+    def check_rate_limit(tenant_id: str, max_per_minute: int = 10) -> bool:
+        """Retorna True si el tenant está dentro del límite."""
+        ...
+
+    @app.post("/v1/agent/query", response_model=QueryResponse)
+    async def query_agent(
+        body: QueryRequest,
+        x_api_key: str = Header(...),
+    ) -> QueryResponse:
+        ...
+  tests: |
+    from fastapi.testclient import TestClient
+
+    client = TestClient(app)
+
+    # Request válido
+    response = client.post(
+        "/v1/agent/query",
+        json={"question": "¿Total de facturas?"},
+        headers={"x-api-key": "key-logistica-express"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tenant_id"] == "logistica-express"
+
+    # Request sin key
+    response_noauth = client.post(
+        "/v1/agent/query",
+        json={"question": "test"},
+    )
+    assert response_noauth.status_code == 422  # header requerido
+hint_md: |
+  `get_tenant` busca en `API_KEYS` y lanza `HTTPException(401)` si no existe.
+  `check_rate_limit` filtra los timestamps del último minuto y compara con
+  `max_per_minute`. FastAPI genera OpenAPI automáticamente — ve `/docs`.
+solution_md: |
+  Una API pública necesita tres capas: autenticación (¿quién eres?), autorización
+  (¿qué puedes hacer?) y rate limiting (¿cuánto puedes pedir?). OpenAPI / Swagger
+  es documentación ejecutable: el cliente puede probar el endpoint en `/docs`.
+  Versioning (`/v1/`) permite evolucionar sin romper integraciones existentes.

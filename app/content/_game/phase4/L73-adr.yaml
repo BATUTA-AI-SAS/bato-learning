@@ -1,0 +1,53 @@
+slug: architecture-decision-record
+title: "Escribe el ADR: por qué Temporal y no cron para aprobaciones"
+kind: code
+phase: PH04
+ord: 73
+trains_skill: adr-writing
+concepts_introduced: [adr, architecture-decision-records, documentation]
+concepts_reinforced: [temporal, build-vs-buy, communication]
+xp: 20
+est_seconds: 180
+scenario_md: |
+  El equipo de ACME necesita dejar documentada la decisión de usar Temporal
+  para el workflow de aprobaciones. Escribe el ADR usando la estructura
+  estándar: contexto, decisión, consecuencias.
+payload:
+  starter: |
+    # Genera el ADR como un diccionario Python con los campos requeridos.
+    # En producción sería un archivo Markdown en docs/adr/0003-temporal.md
+
+    def generate_adr() -> dict:
+        """
+        Genera el ADR para la decisión de usar Temporal.
+        Campos: title, status, context, decision, consequences_positive,
+        consequences_negative, alternatives_considered.
+        """
+        return {
+            "title": "...",
+            "status": "accepted",  # proposed | accepted | deprecated | superseded
+            "context": "...",      # ≥ 20 palabras describiendo el problema
+            "decision": "...",     # ≥ 15 palabras explicando qué se decidió y por qué
+            "consequences_positive": [...],  # lista de ≥ 2 strings
+            "consequences_negative": [...],  # lista de ≥ 1 string
+            "alternatives_considered": [...], # lista de ≥ 2 strings
+        }
+  tests: |
+    adr = generate_adr()
+    assert adr["status"] in ["proposed", "accepted", "deprecated", "superseded"]
+    assert len(adr["context"].split()) >= 20
+    assert len(adr["decision"].split()) >= 15
+    assert len(adr["consequences_positive"]) >= 2
+    assert len(adr["consequences_negative"]) >= 1
+    assert len(adr["alternatives_considered"]) >= 2
+    assert "temporal" in adr["title"].lower() or "Temporal" in adr["title"]
+hint_md: |
+  El contexto explica el problema: aprobaciones que pueden durar días, el
+  servidor puede reiniciarse, los crons no mantienen estado. La decisión
+  explica por qué Temporal resuelve exactamente eso. Las alternativas son
+  al menos cron jobs y LangGraph.
+solution_md: |
+  Un ADR es una decisión arquitectónica escrita con contexto y consecuencias.
+  Sirve para que el dev que llega en 6 meses entienda POR QUÉ se tomó la
+  decisión, no solo QUÉ se decidió. Sin ADRs, las decisiones se toman de
+  nuevo — con los mismos argumentos y sin la experiencia acumulada.

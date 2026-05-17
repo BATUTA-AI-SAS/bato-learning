@@ -1,0 +1,58 @@
+slug: human-in-the-loop
+title: "El usuario no confía — pide aprobación antes de actuar"
+kind: code
+phase: PH03
+ord: 56
+trains_skill: hitl
+concepts_introduced: [hitl, interrupts, approval-ux]
+concepts_reinforced: [agent-loop, multi-agent, async]
+xp: 20
+est_seconds: 180
+scenario_md: |
+  El agente de ACME puede emitir pagos. El CFO no quiere que lo haga sin
+  aprobación manual para montos > $10 000. Implementa el mecanismo de
+  interrupción que pausa el agente y espera confirmación.
+payload:
+  starter: |
+    from anthropic import AsyncAnthropic
+    from typing import Awaitable, Callable
+
+    client = AsyncAnthropic()
+
+    async def emit_payment(invoice_id: str, amount: float) -> str:
+        """Efecto real: emite un pago. Requiere aprobación si amount > 10000."""
+        return f"Pago emitido: {invoice_id} por ${amount}"
+
+    async def agent_with_hitl(
+        user_request: str,
+        approval_fn: Callable[[str, float], Awaitable[bool]],
+    ) -> str:
+        """Agente que pausa y llama a approval_fn antes de emitir pagos altos."""
+        # cuando el LLM quiere llamar emit_payment con amount > 10000,
+        # llama a approval_fn(invoice_id, amount) primero
+        # si retorna False, no ejecuta y responde al usuario que se rechazó
+        ...
+  tests: |
+    import asyncio
+
+    approved_calls = []
+
+    async def always_approve(invoice_id: str, amount: float) -> bool:
+        approved_calls.append((invoice_id, amount))
+        return True
+
+    result = asyncio.run(agent_with_hitl(
+        "Emite el pago de INV-200 por $75000",
+        always_approve
+    ))
+    assert isinstance(result, str)
+    assert len(approved_calls) >= 1  # la aprobación fue solicitada
+hint_md: |
+  Antes de ejecutar una tool que requiere aprobación, llama a `approval_fn`.
+  Si retorna False, añade el resultado `tool_result` como "rechazado por el
+  usuario" y deja que el LLM responda en consecuencia.
+solution_md: |
+  HITL es el mecanismo de confianza para agentes que tienen efectos reales.
+  En Temporal se implementa con Signals. En LangGraph con interrupts.
+  En un loop manual, es un `await approval_fn()` antes de ejecutar la tool.
+  Nunca des autonomía total a un agente que puede mover dinero.

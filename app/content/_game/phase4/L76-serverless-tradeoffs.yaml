@@ -1,0 +1,47 @@
+slug: serverless-tradeoffs
+title: "¿Lambda/serverless o siempre-encendido para el webhook?"
+kind: decision
+phase: PH04
+ord: 76
+trains_skill: infrastructure-tradeoffs
+concepts_introduced: [serverless, cold-start, statelessness, lambda]
+concepts_reinforced: [scaling, compose-vs-k8s, cost-engineering]
+xp: 10
+est_seconds: 90
+scenario_md: |
+  ACME recibe webhooks de Stripe cuando un cliente paga. El webhook llega
+  en promedio 200 veces al día con picos de 20/minuto en horario laboral.
+  El equipo debate entre Lambda y un servicio siempre activo.
+payload:
+  prompt_md: |
+    Webhook de Stripe para ACME: procesa pagos recibidos, actualiza la DB,
+    envía email de confirmación. Características: stateless, ~500ms por evento,
+    picos de 20/min de 9am-6pm, casi cero eventos de 11pm-6am.
+  options:
+    - label: "AWS Lambda / Cloud Functions (serverless)"
+      tradeoff_md: |
+        + Pagas solo por invocación (~$0.0002/invocación): costo casi cero para 200/día.
+        + Auto-scale automático a los picos. + Zero ops: no gestionas servidores.
+        + Ideal para workloads intermitentes y stateless como webhooks.
+        − Cold start de 200-500ms en Python (mitigable con provisioned concurrency).
+        − Más complejo de testear localmente.
+        − Timeouts de 15 min máximo (no aplica aquí: 500ms por evento).
+      consequence_skill: serverless-ops
+    - label: "FastAPI siempre encendido en el mismo VPS de ACME"
+      tradeoff_md: |
+        + Zero cold start: responde en < 10ms. + Mismo stack que el resto de ACME.
+        + Más fácil de testear localmente con el setup existente.
+        − Pagas el VPS 24/7 aunque no haya eventos de 11pm a 6am.
+        − Si el VPS cae, los webhooks de Stripe fallan (necesitas retry de Stripe).
+        + Para 200 eventos/día con un VPS existente, el costo incremental es ~$0.
+      consequence_skill: always-on-webhook
+hint_md: |
+  Si ya tienes un VPS y el workload es moderado (200/día), el servicio
+  siempre-encendido en el VPS existente tiene costo incremental cero y
+  menor complejidad. Lambda brilla cuando el workload es muy intermitente
+  y no quieres gestionar infra adicional.
+solution_md: |
+  Serverless es óptimo para workloads muy intermitentes, no para 200 req/día
+  en un equipo que ya tiene VPS. El cold start de Lambda en Python puede ser
+  mayor que la latencia aceptable de un webhook (Stripe reintenta en 5s).
+  La regla: optimiza la complejidad operativa primero, el costo después.

@@ -1,0 +1,37 @@
+slug: zero-downtime-deploy
+title: "Deploy sin downtime: nadie nota el cambio"
+kind: multi_choice
+phase: PH04
+ord: 78
+trains_skill: deployment
+concepts_introduced: [blue-green, canary, rolling-update, health-checks]
+concepts_reinforced: [ci-cd, kubernetes, feature-flags]
+xp: 10
+est_seconds: 90
+scenario_md: |
+  ACME desplegará la nueva versión del agente (v2.2.0) un lunes a las 9am.
+  El CFO usa el sistema en tiempo real. Un reinicio en frío bajaría el servicio
+  30 segundos. El equipo debate la estrategia de deploy.
+payload:
+  options:
+    - text: "Rolling update: reemplaza las réplicas de una en una. Siempre hay al menos una réplica v2.1.0 sirviendo mientras se levanta v2.2.0."
+      correct: true
+      feedback: "Correcto. Rolling update es el patrón estándar para zero-downtime en K8s. El load balancer deja de enviar tráfico a la réplica que se está actualizando. Requiere que v2.1.0 y v2.2.0 sean compatibles con la misma DB."
+    - text: "Parar todo el servicio, desplegar v2.2.0, volver a levantar. Total ~2 minutos de downtime."
+      correct: false
+      feedback: "Downtime planificado es evitable con las técnicas modernas. Un lunes a las 9am con el CFO conectado es el peor momento para 2 minutos de caída."
+    - text: "Blue-green: levantar un entorno paralelo v2.2.0 completo y cambiar el DNS cuando está listo. Si falla, revertir el DNS en segundos."
+      correct: false
+      feedback: "Blue-green es válido pero más caro (el doble de infra durante el deploy). Para la escala de ACME, rolling update es suficiente. Blue-green brilla cuando el cambio de DB es incompatible entre versiones."
+    - text: "Canary: enviar 5% del tráfico a v2.2.0 primero y aumentar gradualmente. Si el error rate sube, revertir automáticamente."
+      correct: false
+      feedback: "Canary es la estrategia más cautelosa y es correcta para features de alto riesgo. Pero requiere más configuración (métricas automatizadas para decisión de rollout). Para esta empresa, rolling update es más pragmático."
+hint_md: |
+  Rolling update = reemplaza N réplicas de forma gradual. El prerequisito
+  es que tu app maneje `SIGTERM` limpiamente (termina requests en vuelo antes
+  de cerrar) — esto se llama graceful shutdown.
+solution_md: |
+  Zero-downtime deploy requiere: múltiples réplicas, health checks para saber
+  cuándo una réplica está lista, y graceful shutdown para terminar requests en
+  vuelo. Blue-green cuesta más pero es más seguro para cambios de DB. Canary
+  es el más cauteloso — para features que afectan datos financieros de ACME.

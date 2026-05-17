@@ -1,0 +1,101 @@
+slug: k8s-manifest-read
+title: "Lee este YAML de K8s y explica pods, services, ingress"
+kind: predict
+phase: PH04
+ord: 63
+trains_skill: kubernetes-reading
+concepts_introduced: [kubernetes, pods, deployments, services, ingress]
+concepts_reinforced: [docker, networking, scaling]
+xp: 15
+est_seconds: 150
+scenario_md: |
+  El equipo de infraestructura de ACME envió este manifiesto K8s. El CTO
+  pide que lo leas y expliques qué expone al exterior y cuántas instancias
+  del agente corren por defecto.
+payload:
+  code: |
+    # deployment.yaml
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: acme-agent
+      namespace: production
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: acme-agent
+      template:
+        metadata:
+          labels:
+            app: acme-agent
+        spec:
+          containers:
+            - name: acme-agent
+              image: registry.acme.com/agent:v2.1.0
+              ports:
+                - containerPort: 8080
+              env:
+                - name: ANTHROPIC_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: acme-secrets
+                      key: anthropic-api-key
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "250m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: acme-agent-svc
+    spec:
+      selector:
+        app: acme-agent
+      ports:
+        - port: 80
+          targetPort: 8080
+      type: ClusterIP
+    ---
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: acme-ingress
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /
+    spec:
+      rules:
+        - host: agent.acme.com
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: acme-agent-svc
+                    port:
+                      number: 80
+  question_md: "¿Cuántas instancias del agente corren? ¿Qué URL expone al exterior? ¿Cómo llega el tráfico desde internet hasta un pod?"
+  options:
+    - text: "3 réplicas. Expone `agent.acme.com`. El tráfico: internet → Ingress (nginx) → Service (ClusterIP) → uno de los 3 pods en el puerto 8080."
+      correct: true
+      feedback: "Correcto. replicas: 3. El Ingress es el punto de entrada desde internet; el Service balancea entre pods; los pods escuchan en containerPort 8080."
+    - text: "1 instancia. Expone el puerto 80 directamente. No necesita Ingress porque el Service es ClusterIP."
+      correct: false
+      feedback: "ClusterIP solo es accesible dentro del cluster. El Ingress es quien expone al exterior. Y replicas: 3 significa 3 pods simultáneos."
+    - text: "3 réplicas. Expone el puerto 8080 directamente desde cada pod. El Service no se usa."
+      correct: false
+      feedback: "Los pods no se exponen directamente. El Service abstrae los pods y balancea. El Ingress lleva el tráfico externo al Service, no a los pods."
+hint_md: |
+  Traza el flujo de abajo hacia arriba: `containerPort: 8080` → Service
+  `targetPort: 8080` → Ingress apunta al Service en puerto 80 → host externo.
+  `replicas: 3` es el número de pods que Kubernetes mantiene vivos.
+solution_md: |
+  K8s separa capas: Pods corren el contenedor, Services balancean entre pods,
+  Ingress maneja el routing externo (hostname, paths). La ventaja: K8s
+  reinicia pods caídos automáticamente (self-healing) y el Service siempre
+  apunta a pods sanos. Los secrets no están hardcodeados: vienen de secretKeyRef.

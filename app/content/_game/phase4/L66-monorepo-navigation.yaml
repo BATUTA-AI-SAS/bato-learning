@@ -1,0 +1,64 @@
+slug: monorepo-navigation
+title: "Lee este monorepo con 5 servicios y navega sin perderte"
+kind: predict
+phase: PH04
+ord: 66
+trains_skill: monorepo
+concepts_introduced: [monorepo, workspace-deps, selective-ci]
+concepts_reinforced: [clean-architecture, ci-cd, git]
+xp: 15
+est_seconds: 120
+scenario_md: |
+  ACME creció: el repositorio ahora tiene 5 servicios. Un nuevo dev pregunta
+  dónde está la lógica de aprobación de facturas. Lee la estructura y responde.
+payload:
+  code: |
+    # Estructura del monorepo de ACME
+    acme/
+    ├── pyproject.toml          # workspace root — define todos los packages
+    ├── packages/
+    │   ├── core/               # modelos Pydantic compartidos, no tiene deps de servicios
+    │   │   ├── models.py       # Invoice, Tenant, User
+    │   │   └── pyproject.toml
+    │   └── db/                 # repos SQLAlchemy, depende de core
+    │       ├── repos/
+    │       │   ├── invoices.py
+    │       │   └── tenants.py
+    │       └── pyproject.toml
+    ├── services/
+    │   ├── api/                # FastAPI app, depende de core + db
+    │   │   ├── routers/
+    │   │   │   ├── invoices.py
+    │   │   │   └── auth.py
+    │   │   └── pyproject.toml
+    │   ├── agent/              # agente IA, depende de core + db
+    │   │   ├── agent_loop.py
+    │   │   ├── tools.py
+    │   │   └── pyproject.toml
+    │   └── worker/             # Temporal worker, depende de core + db + agent
+    │       ├── workflows.py
+    │       ├── activities.py
+    │       └── pyproject.toml
+    └── .github/
+        └── workflows/
+            └── ci.yml          # CI selectivo: solo corre tests del servicio modificado
+  question_md: "¿Dónde está la función que aprueba facturas y notifica al CFO? ¿Qué archivos cambiarías para añadir un campo nuevo al modelo Invoice?"
+  options:
+    - text: "La aprobación está en `services/worker/workflows.py` (orquesta el proceso). El modelo Invoice está en `packages/core/models.py` — cambiar ahí actualiza todos los servicios que dependen de core."
+      correct: true
+      feedback: "Correcto. Los workflows de Temporal orquestan las aprobaciones largas. El modelo Invoice en core es la única fuente de verdad — todos los servicios dependen de él."
+    - text: "La aprobación está en `services/api/routers/invoices.py`. El modelo Invoice está en `services/api/routers/invoices.py` también."
+      correct: false
+      feedback: "El router API expone endpoints HTTP, no lógica de negocio compleja. Un proceso de aprobación multi-día vive en el worker de Temporal, no en el router."
+    - text: "No hay lógica de aprobación — la estructura es solo de datos. Habría que crearla desde cero."
+      correct: false
+      feedback: "services/worker/workflows.py y activities.py son exactamente donde vive la lógica de aprobación durable."
+hint_md: |
+  En un monorepo bien estructurado: `core` no depende de nadie, `db` depende
+  de `core`, servicios dependen de `core` y `db`. La lógica durable (días)
+  va en el worker, la lógica de request/response va en la API.
+solution_md: |
+  Navegar un monorepo es una skill meta: entender la arquitectura de dependencias.
+  `core` es el vocabulario común. Cambiar un modelo ahí requiere actualizar todos
+  los servicios que lo usan. CI selectivo: si cambias solo `packages/db`, solo
+  corren los tests de `db` y los servicios que dependen de él.

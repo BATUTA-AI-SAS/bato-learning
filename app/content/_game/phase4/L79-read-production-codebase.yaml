@@ -1,0 +1,75 @@
+slug: read-production-codebase
+title: "Lee el código completo del agente de producción"
+kind: predict
+phase: PH04
+ord: 79
+trains_skill: codebase-navigation
+concepts_introduced: [dependency-injection, repository-pattern, service-layer]
+concepts_reinforced: [clean-architecture, langgraph, temporal, fastapi]
+xp: 15
+est_seconds: 150
+scenario_md: |
+  Eres nuevo en el equipo de ACME. Te piden arreglar un bug: el agente a veces
+  responde con datos de otro tenant. Lee los archivos clave del codebase y
+  localiza dónde debería estar el filtro de tenant.
+payload:
+  code: |
+    # app/routers/agent.py
+    from fastapi import APIRouter, Depends
+    from app.services.agent_service import AgentService
+    from app.deps import get_agent_service, current_user
+
+    router = APIRouter(prefix="/v1/agent")
+
+    @router.post("/query")
+    async def query_agent(body: QueryRequest, service: AgentService = Depends(get_agent_service), user = Depends(current_user)):
+        return await service.handle_query(body.question, user.tenant_id)
+
+    # app/services/agent_service.py
+    from app.repos.invoice_repo import InvoiceRepo
+    from app.services.anthropic_client import AnthropicClient
+
+    class AgentService:
+        def __init__(self, repo: InvoiceRepo, llm: AnthropicClient):
+            self.repo = repo
+            self.llm = llm
+
+        async def handle_query(self, question: str, tenant_id: str) -> dict:
+            context = await self.repo.get_recent_invoices()  # <-- aqui
+            response = await self.llm.ask_with_context(question, context)
+            return {"answer": response, "tenant_id": tenant_id}
+
+    # app/repos/invoice_repo.py
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from app.models import Invoice
+    from sqlalchemy import select
+
+    class InvoiceRepo:
+        def __init__(self, db: AsyncSession, tenant_id: str):
+            self.db = db
+            self.tenant_id = tenant_id
+
+        async def get_recent_invoices(self) -> list[Invoice]:
+            result = await self.db.execute(
+                select(Invoice).order_by(Invoice.created_at.desc()).limit(20)
+            )
+            return result.scalars().all()
+  question_md: "¿En qué archivo y en qué línea aproximada está el bug? ¿Qué cambio de una línea lo corrige?"
+  options:
+    - text: "Bug en `invoice_repo.py`, en `get_recent_invoices`: falta `WHERE tenant_id = self.tenant_id`. Corrección: añadir `.where(Invoice.tenant_id == self.tenant_id)` a la query."
+      correct: true
+      feedback: "Correcto. El repo tiene `self.tenant_id` inyectado en `__init__` pero no lo usa en la query. El filtro falta. El service pasa `tenant_id` pero el repo lo ignora en la consulta a DB."
+    - text: "Bug en `agent.py`: el router no pasa `tenant_id` al service correctamente."
+      correct: false
+      feedback: "El router sí pasa `user.tenant_id` a `service.handle_query`. El service lo recibe. El problema es más abajo en la cadena."
+    - text: "Bug en `agent_service.py`: `handle_query` no pasa `tenant_id` al repo."
+      correct: false
+      feedback: "Efectivamente el service no pasa tenant_id al repo, pero el repo ya lo tiene en `self.tenant_id` (inyectado en `__init__`). El problema es que el repo no usa ese `self.tenant_id` en la query SQL."
+hint_md: |
+  Traza el flujo de `tenant_id`: router → service.handle_query → repo.get_recent_invoices.
+  El repo tiene `self.tenant_id` disponible desde el `__init__`. ¿Lo usa en el SELECT?
+solution_md: |
+  Navegar un codebase es una skill meta: seguir el flujo de datos capa por capa
+  (router → service → repo → DB). El bug está en la capa más profunda (repo),
+  donde el filtro de tenant debería aplicarse. La arquitectura limpia hace esto
+  trazable en minutos, no horas.

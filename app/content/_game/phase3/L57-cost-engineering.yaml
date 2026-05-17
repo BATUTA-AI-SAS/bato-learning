@@ -1,0 +1,38 @@
+slug: cost-engineering
+title: "El agente gasta $50/día — recórtalo a $10"
+kind: multi_choice
+phase: PH03
+ord: 57
+trains_skill: cost-engineering
+concepts_introduced: [model-routing, token-budget, cost-per-request]
+concepts_reinforced: [prompt-caching, llm-api, evals]
+xp: 10
+est_seconds: 90
+scenario_md: |
+  El agente financiero de ACME procesa 500 requests/día. Cada uno usa
+  claude-3-5-sonnet con un prompt de 2000 tokens y respuesta de 500 tokens.
+  El costo es $50/día. El objetivo es $10/día sin degradar calidad notablemente.
+  ¿Cuál combinación de técnicas logra el mayor ahorro?
+payload:
+  options:
+    - text: "Prompt caching en el system prompt (800 tokens) + routing a claude-3-5-haiku para consultas simples de clasificación."
+      correct: true
+      feedback: "Correcto. Caching elimina el costo de los 800 tokens de system prompt en hits (90% descuento). Haiku cuesta 25x menos que Sonnet para clasificaciones simples. Combinados logran >75% de reducción."
+    - text: "Reducir max_tokens de 500 a 100 en todas las respuestas."
+      correct: false
+      feedback: "max_tokens limita la longitud de la respuesta, no garantiza que sea más corta. El costo viene principalmente de los tokens de entrada (2000), no de los de salida (500)."
+    - text: "Cambiar completamente a claude-3-5-haiku para todos los requests."
+      correct: false
+      feedback: "Haiku es mucho más barato pero puede degradar calidad en preguntas complejas del CFO. Routing inteligente (Haiku para simple, Sonnet para complejo) es mejor que un cambio global."
+    - text: "Batching: acumular 100 requests y procesarlos juntos una vez al día."
+      correct: false
+      feedback: "Batching reduce latencia administrativa pero no el costo por token. El Message Batches API de Anthropic da 50% de descuento pero no llega al objetivo de 80% de reducción."
+hint_md: |
+  El mayor costo es el system prompt repetido en cada request. Caching lo
+  convierte en un gasto único por hora. El segundo apalancamiento es model
+  routing: clasifica la complejidad de la pregunta antes de elegir el modelo.
+solution_md: |
+  Cost engineering para LLMs tiene tres palancas: (1) caching del contexto
+  estático, (2) routing por complejidad al modelo más barato adecuado, (3)
+  prompts más cortos. En orden de impacto: caching > routing > recortar texto.
+  Los evals son imprescindibles para verificar que el ahorro no destruye calidad.

@@ -1,0 +1,87 @@
+slug: boss-final
+title: "BOSS FINAL: Despliega el agente de ACME — producción real, clientes reales"
+kind: boss
+phase: PH04
+ord: 80
+trains_skill: production-engineer
+xp: 50
+est_seconds: 600
+scenario_md: |
+  Has llegado al final. El agente de auditoría de ACME está listo para producción.
+  Clientes reales, dinero real, CFO que depende de él. Demuestra que integras
+  todo: seguridad, billing, deploy, observabilidad, comunicación técnica.
+payload:
+  steps:
+    - kind: multi_choice
+      title: "Checklist de producción"
+      scenario_md: |
+        Antes del deploy a producción del agente de ACME, el equipo hace el
+        checklist final. ¿Cuál de estos puntos es el más crítico para omitir
+        si el tiempo apremia, y por qué?
+      payload:
+        options:
+          - text: "Omitir la documentación del API en OpenAPI — los clientes pueden descubrir los endpoints experimentando."
+            correct: false
+            feedback: "Documentación es importante pero no crítica para seguridad inmediata. Prioriza los elementos de seguridad primero."
+          - text: "Omitir el rate limiting — si los clientes abusan, aumentamos el límite después."
+            correct: false
+            feedback: "Rate limiting es crítico en producción: sin él, un cliente con bug puede generar miles de requests y una factura de Anthropic de miles de dólares en minutos."
+          - text: "Omitir los health checks del contenedor — el servicio está en verde en staging."
+            correct: true
+            feedback: "Correcto: de los tres, los health checks son el menos crítico inmediatamente. Sin health checks el load balancer no puede retirar réplicas enfermas, pero el servicio funciona. Rate limiting y HITL son más urgentes para proteger dinero."
+          - text: "Omitir el HITL para pagos > $10K — el agente fue probado extensamente en staging."
+            correct: false
+            feedback: "HITL es lo menos omitible: un agente que puede mover dinero sin aprobación humana en producción es un riesgo financiero inmediato. Staging nunca replica todos los casos edge de producción."
+
+    - kind: order_steps
+      title: "Proceso de go-live"
+      scenario_md: |
+        El equipo va a hacer el go-live del agente de ACME esta tarde.
+        Ordena los pasos del proceso correcto de lanzamiento a producción.
+      payload:
+        steps:
+          - "Monitorear métricas y error rate durante las primeras 2 horas"
+          - "Activar el feature flag solo para Clínica San Rafael (tenant piloto)"
+          - "Verificar que el CI/CD pipeline pasó en verde con todos los tests"
+          - "Comunicar al CFO y al equipo que el sistema está live"
+          - "Hacer el deploy a producción con rolling update"
+          - "Confirmar que el health check del nuevo servicio responde 200"
+        correct_order: [2, 4, 5, 1, 3, 0]
+
+    - kind: code
+      title: "Triage de producción"
+      scenario_md: |
+        30 minutos después del go-live, el error rate del agente sube al 8%.
+        Los logs muestran: `ValidationError: tenant_id field required`.
+        Implementa `diagnose_error` que retorna la causa raíz probable.
+      payload:
+        starter: |
+          ERROR_SAMPLES = [
+              {"error": "ValidationError: tenant_id field required", "endpoint": "/v1/agent/query", "count": 47},
+              {"error": "ValidationError: tenant_id field required", "endpoint": "/v1/agent/query", "count": 12},
+          ]
+
+          def diagnose_error(error_samples: list[dict]) -> dict:
+              """
+              Retorna {"cause": str, "likely_fix": str, "priority": str}.
+              priority: "critical" | "high" | "medium" | "low"
+              """
+              ...
+        tests: |
+          result = diagnose_error(ERROR_SAMPLES)
+          assert result["priority"] == "critical"
+          assert "tenant_id" in result["cause"].lower()
+          assert isinstance(result["likely_fix"], str)
+          assert len(result["likely_fix"]) > 10
+
+hint_md: |
+  Para el boss: (1) HITL y rate limiting son los más críticos en producción,
+  (2) el orden go-live: CI verde → deploy → health check → feature flag →
+  comunicar → monitorear, (3) `ValidationError: tenant_id field required`
+  indica que el contexto del usuario no llega al modelo de request.
+solution_md: |
+  Llegaste. Fase 4 completa. El agente de ACME está en producción: seguro,
+  medido, con billing activo, observable y con HITL para acciones irreversibles.
+  La skill más valiosa no es saber todas las APIs — es saber leer código que
+  no escribiste, entender tradeoffs sin pánico, y tomar decisiones con evidencia.
+  Eso es lo que hace un ingeniero IA. Bienvenido al equipo.
