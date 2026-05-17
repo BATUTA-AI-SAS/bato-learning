@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}bato-learning{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/site.css" />
+  <link rel="stylesheet" href="/static/css/game.css" />
   <script>
     /* Restore "Excel mode" preference before paint to avoid flicker. */
     (function () {
@@ -101,6 +102,7 @@
   window.__BL_NEAR_UNLOCKS = {{ ((gam.near_unlocks if gam else []) | tojson) }};
 </script>
 <script src="/static/js/app.js" type="module"></script>
+<script src="/static/js/game.js" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -2,47 +2,89 @@
 {% block title %}bato-learning · {{ level.title }}{% endblock %}
 
 {% block main %}
-<header class="hero">
-  <div class="breadcrumb">
-    <a href="/game">arena</a> &rsaquo;
-    <a href="/game/{{ phase.slug }}">{{ phase.title }}</a> &rsaquo;
-    {{ level.title }}
-  </div>
-  <h1>{{ level.title }}</h1>
-  <p class="muted">{{ level.kind }} &middot; {{ level.xp }} XP &middot; ~{{ level.est_seconds }}s</p>
-</header>
 
-{% if new_concepts %}
-<div class="concept-popups" id="concept-popups">
-  {% for popup in new_concepts %}
-  <div class="concept-popup" data-slug="{{ popup.slug }}">
-    <strong>{{ popup.title }}</strong>
-    <div class="analogy">{{ popup.analogy_md }}</div>
+{# ===== Concept popup overlay ===== #}
+<div id="concept-overlay" class="concept-modal-overlay hidden">
+  <div class="concept-modal">
+    <div class="concept-tag">Nuevo concepto</div>
+    <h2></h2>
+    <div class="concept-analogy"></div>
+    <pre class="concept-example"></pre>
+    <div class="concept-progress"></div>
+    <button type="button" class="btn-verify btn-concept-done">Entendido</button>
   </div>
-  {% endfor %}
 </div>
-{% endif %}
 
-<section class="level-scenario">
-  <div class="scenario-body">{{ level.scenario_md }}</div>
-</section>
+{# ===== Main two-column grid ===== #}
+<div class="level-player-grid">
 
-<section class="level-widget" id="level-widget"
+  {# ---- Left column: scenario + puzzle ---- #}
+  <div>
+
+    {# Scenario card #}
+    <div class="scenario-card">
+      <div class="level-breadcrumb">
+        <a href="/game">arena</a> &rsaquo;
+        <a href="/game/{{ phase.slug }}">{{ phase.title }}</a> &rsaquo;
+        Nivel {{ level.ord }}
+      </div>
+      <h1>{{ level.title }}</h1>
+      <div class="level-stats">
+        <span class="xp-badge">{{ level.xp }} XP</span>
+        <span>~{{ (level.est_seconds / 60) | round(0, "ceil") | int }} min</span>
+        <span>{{ level.kind | replace("_", " ") }}</span>
+      </div>
+      <div class="scenario-body">
+        {{ level.scenario_md }}
+      </div>
+    </div>
+
+    {# Puzzle widget — JS mounts content here #}
+    <div class="puzzle-widget" id="level-widget"
          data-level-slug="{{ level.slug }}"
-         data-kind="{{ level.kind }}"
-         data-payload="{{ level.payload | tojson | e }}">
-  <p class="muted">[Widget de ejercicio — pendiente tarea 5]</p>
-  <button type="button" id="hint-btn" class="btn-secondary">Ver pista</button>
-  <div id="hint-panel" hidden>{{ level.hint_md }}</div>
-</section>
+         data-kind="{{ level.kind }}">
+      <p style="color:var(--muted);font-size:13px;">Cargando puzzle...</p>
+    </div>
 
-<section class="mentor-panel">
-  <p class="muted">Panel del mentor — pendiente integración con tutor IA.</p>
-</section>
+    {# Hint strip — always below widget, JS wires toggle #}
+    <div class="hint-strip">
+      <button type="button" id="hint-btn">Ver pista</button>
+      <div id="hint-panel" class="hint-content">{{ level.hint_md }}</div>
+    </div>
+
+  </div>{# end left column #}
+
+  {# ---- Right column: mentor chat ---- #}
+  <div class="mentor-panel">
+    <div class="mentor-panel-header">
+      Mentor IA
+      <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:11px;">(no da respuestas)</span>
+    </div>
+    <div class="mentor-messages" id="mentor-messages">
+      <div class="mentor-msg assistant">
+        Hola. Estoy aquí para ayudarte a pensar, no para darte la respuesta.
+        ¿Qué parte del problema no te queda clara?
+      </div>
+    </div>
+    <form id="mentor-form" class="mentor-input-row">
+      <textarea
+        id="mentor-input"
+        class="mentor-input"
+        placeholder="Pregunta al mentor... (Ctrl+Enter)"
+        rows="2"></textarea>
+      <button type="submit" class="btn-mentor-send">Enviar</button>
+    </form>
+  </div>
+
+</div>{# end grid #}
 {% endblock %}
 
 {% block scripts %}
 <script>
+  window.__BL_LEVEL_SLUG    = {{ level.slug | tojson }};
+  window.__BL_LEVEL_KIND    = {{ level.kind | tojson }};
   window.__BL_LEVEL_PAYLOAD = {{ level.payload | tojson }};
+  window.__BL_NEXT_LEVEL_URL = {{ next_level_url | tojson }};
+  window.__BL_CONCEPTS_TO_SHOW = {{ new_concepts_json | safe }};
 </script>
 {% endblock %}

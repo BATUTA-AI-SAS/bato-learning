@@ -2,52 +2,68 @@
 {% block title %}bato-learning · diario{% endblock %}
 
 {% block main %}
-<header class="hero">
-  <h1>Diario</h1>
-  <p class="lede">Lore desbloqueado, recetas y decisiones tomadas.</p>
+<header style="padding:20px 24px 0;">
+  <h1 style="font-size:22px;font-weight:800;margin:0 0 4px;">Diario</h1>
+  <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">
+    Recetas desbloqueadas, lore y decisiones de arquitectura.
+  </p>
 </header>
 
-<section class="journal-section">
-  <h2>Lore desbloqueado</h2>
-  {% if lore_unlocks %}
-  <ul class="lore-list">
-    {% for unlock in lore_unlocks %}
-    <li>
-      <strong>{{ unlock.lore_drop.title }}</strong>
-      <span class="muted">— {{ unlock.unlocked_at.strftime('%Y-%m-%d') }}</span>
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="muted">Nada desbloqueado aún. Pasa niveles para obtener lore.</p>
-  {% endif %}
-</section>
+<div class="game-tabs">
+  <button class="game-tab active" data-panel="tab-recipes">Recetas</button>
+  <button class="game-tab" data-panel="tab-decisions">Decisiones</button>
+  <button class="game-tab" data-panel="tab-lore">Lore</button>
+</div>
 
-<section class="journal-section">
-  <h2>Recetas</h2>
+{# Recipes tab #}
+<div id="tab-recipes" class="tab-panel active">
   {% if recipes %}
-  <ul class="recipe-list">
     {% for recipe in recipes %}
-    <li><strong>{{ recipe.title }}</strong></li>
+    <div class="recipe-card">
+      <h3>{{ recipe.title }}</h3>
+      {% if recipe.body_md %}
+      <p style="font-size:13px;color:var(--fg-soft);margin:0 0 10px;">{{ recipe.body_md }}</p>
+      {% endif %}
+      {% if recipe.yields_md %}
+      <pre class="recipe-code">{{ recipe.yields_md }}</pre>
+      {% endif %}
+    </div>
     {% endfor %}
-  </ul>
   {% else %}
-  <p class="muted">Sin recetas todavía.</p>
+  <p style="color:var(--muted);font-size:13px;">Sin recetas desbloqueadas aún. Completa niveles para obtenerlas.</p>
   {% endif %}
-</section>
+</div>
 
-<section class="journal-section">
-  <h2>Decisiones</h2>
+{# Decisions tab #}
+<div id="tab-decisions" class="tab-panel">
   {% if decisions %}
-  <ul class="decision-list">
     {% for choice in decisions %}
-    <li>
-      Decisión #{{ choice.decision_id }} &rarr; opción {{ choice.option_index }}
-    </li>
+    <div class="decision-history-card">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Decisión #{{ choice.decision_id }}</div>
+      <div class="dh-chosen">Opción {{ choice.option_index + 1 }} elegida</div>
+    </div>
     {% endfor %}
-  </ul>
   {% else %}
-  <p class="muted">No has tomado decisiones aún.</p>
+  <p style="color:var(--muted);font-size:13px;">No has tomado decisiones de arquitectura aún.</p>
   {% endif %}
-</section>
+</div>
+
+{# Lore tab #}
+<div id="tab-lore" class="tab-panel">
+  {% if lore_unlocks %}
+    {% for unlock in lore_unlocks %}
+    <div class="recipe-card">
+      <h3>{{ unlock.lore_drop.title }}</h3>
+      {% if unlock.lore_drop.summary_md %}
+      <p style="font-size:13px;color:var(--fg-soft);margin:0;">{{ unlock.lore_drop.summary_md }}</p>
+      {% endif %}
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+        Desbloqueado el {{ unlock.unlocked_at.strftime('%Y-%m-%d') }}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+  <p style="color:var(--muted);font-size:13px;">Sin lore desbloqueado. Pasa niveles para desbloquear.</p>
+  {% endif %}
+</div>
 {% endblock %}

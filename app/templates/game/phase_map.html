@@ -2,24 +2,55 @@
 {% block title %}bato-learning · {{ phase.title }}{% endblock %}
 
 {% block main %}
-<header class="hero">
-  <h1>{{ phase.title }}</h1>
-  <p class="lede">{{ phase.setting }}</p>
-  <a href="/game" class="btn-secondary">&larr; Todas las fases</a>
-</header>
 
-<section class="level-map">
+<div class="phase-header">
+  <a href="/game" style="font-size:12px;color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-bottom:12px;">
+    &larr; Todas las fases
+  </a>
+  <h1>{{ phase.title }}</h1>
+  {% if phase.setting %}
+  <p>{{ phase.setting }}</p>
+  {% endif %}
+  <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">
+    {% set passed_count = levels_state | selectattr("passed") | list | length %}
+    {{ passed_count }}/{{ levels_state | length }} niveles completados
+  </div>
+</div>
+
+<div class="level-path">
   {% for item in levels_state %}
   {% set lv = item.level %}
-  <a class="level-card {% if item.passed %}passed{% endif %}"
-     href="/game/{{ phase.slug }}/{{ lv.slug }}">
-    <span class="level-ord">{{ lv.ord }}</span>
-    <span class="level-title">{{ lv.title }}</span>
-    <span class="level-kind muted">{{ lv.kind }}</span>
-    {% if item.passed %}<span class="level-check">&#10003;</span>{% endif %}
+  {% set is_passed    = item.passed %}
+  {% set prev_passed  = loop.index0 == 0 or levels_state[loop.index0 - 1].passed %}
+  {% set is_available = not is_passed and prev_passed %}
+  {% set is_locked    = not is_passed and not prev_passed %}
+
+  <a class="level-node {% if is_passed %}passed{% elif is_available %}available{% else %}locked{% endif %}"
+     href="{% if not is_locked %}/game/{{ phase.slug }}/{{ lv.slug }}{% else %}#{% endif %}"
+     title="{{ lv.title }}"
+     {% if is_locked %}tabindex="-1" aria-disabled="true"{% endif %}>
+
+    <div class="node-bullet">
+      {% if is_passed %}
+      {# check mark rendered via CSS ::after #}
+      {% else %}
+      <span>{{ lv.ord }}</span>
+      {% endif %}
+    </div>
+
+    <div class="node-info">
+      <div class="node-title">{{ lv.title }}</div>
+      <div class="node-meta">
+        {{ lv.kind | replace("_", " ") }}
+        &middot; ~{{ (lv.est_seconds / 60) | round(0, "ceil") | int }} min
+        {% if is_locked %}&middot; bloqueado{% endif %}
+      </div>
+    </div>
+
+    <span class="node-xp">{{ lv.xp }} XP</span>
   </a>
   {% else %}
-  <p class="muted">Esta fase no tiene niveles todavía.</p>
+  <p style="padding:20px;color:var(--muted);">Esta fase no tiene niveles todavía.</p>
   {% endfor %}
-</section>
+</div>
 {% endblock %}

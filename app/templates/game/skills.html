@@ -2,37 +2,35 @@
 {% block title %}bato-learning · habilidades{% endblock %}
 
 {% block main %}
-<header class="hero">
-  <h1>Habilidades</h1>
-  <p class="lede">Tu mapa de dominio por skill.</p>
+<header style="padding:20px 24px 16px;">
+  <h1 style="font-size:22px;font-weight:800;margin:0 0 4px;">Habilidades</h1>
+  <p style="color:var(--muted);font-size:13px;margin:0;">
+    Dominio por skill. Cada nivel que completas sin pista suma a "Sin pista".
+  </p>
 </header>
 
-<section class="skills-heatmap">
-  {% if skills %}
-  <table class="skills-table">
-    <thead>
-      <tr>
-        <th>Skill</th>
-        <th>Niveles</th>
-        <th>Sin pista</th>
-        <th>Último paso</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for s in skills %}
-      <tr>
-        <td><code>{{ s.skill }}</code></td>
-        <td>{{ s.level_count }}</td>
-        <td>{{ s.unaided_count }}</td>
-        <td class="muted">
-          {% if s.last_passed_at %}{{ s.last_passed_at.strftime('%Y-%m-%d') }}{% else %}—{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="muted">Aún no has completado ningún nivel. ¡Empieza en la <a href="/game">arena</a>!</p>
-  {% endif %}
-</section>
+{% if skills %}
+<div class="skill-grid">
+  {% for s in skills %}
+  {% set pct = [((s.unaided_count / s.level_count) * 100) | round | int, 100] | min if s.level_count > 0 else 0 %}
+  <div class="skill-tile">
+    <div class="sk-name">{{ s.skill }}</div>
+    <div class="sk-bar">
+      <div class="sk-bar-fill" style="width:{{ pct }}%"></div>
+    </div>
+    <div class="sk-meta">
+      {{ s.level_count }} nivel{% if s.level_count != 1 %}es{% endif %}
+      &middot; {{ s.unaided_count }} sin pista
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div style="padding:24px;">
+  <p style="color:var(--muted);font-size:13px;">
+    No has completado ningún nivel todavía.
+    <a href="/game" style="color:var(--g-amber);">Empieza en la arena.</a>
+  </p>
+</div>
+{% endif %}
 {% endblock %}

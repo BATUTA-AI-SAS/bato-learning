@@ -2,9 +2,25 @@
 {% block title %}bato-learning · arena{% endblock %}
 
 {% block main %}
-<header class="hero">
-  <h1>Arena de práctica</h1>
-  <p class="lede">Elige una fase y empieza a jugar.</p>
+
+<!-- Player strip -->
+{% if current_user %}
+<div class="game-player-strip">
+  <span class="player-name">
+    {% if current_user.display_name %}{{ current_user.display_name }}{% else %}Jugador{% endif %}
+  </span>
+  {% if gam %}
+  <span class="player-xp">{{ gam.xp }} XP</span>
+  <span class="player-streak">{{ gam.streak_days }} días al hilo</span>
+  {% endif %}
+</div>
+{% endif %}
+
+<header style="padding:24px 24px 8px;max-width:960px;margin:0 auto;">
+  <h1 style="font-size:24px;font-weight:800;margin:0 0 6px;">Arena de práctica</h1>
+  <p style="color:var(--muted);font-size:14px;margin:0;">
+    Cuatro fases. Ochenta niveles. Cada nivel es un problema real de LATAM SMBs.
+  </p>
 </header>
 
 <section class="game-phases">
@@ -15,11 +31,24 @@
      href="/game/{{ phase.slug }}">
     <div class="phase-code">{{ phase.code }}</div>
     <div class="phase-title">{{ phase.title }}</div>
-    <div class="phase-meta">{{ prog.levels_passed }}/{{ prog.total }} niveles · {{ prog.percent }}%</div>
-    <div class="phase-bar"><div class="fill" style="width: {{ prog.percent }}%"></div></div>
+    <div class="phase-meta">
+      {{ prog.levels_passed }}/{{ prog.total }} niveles
+      &middot;
+      <span style="color:var(--xp);font-weight:600;">{{ prog.percent }}%</span>
+    </div>
+    <div class="phase-bar">
+      <div class="fill" style="width:{{ prog.percent }}%"></div>
+    </div>
+    {% if phase.setting %}
+    <div style="font-size:11px;color:var(--muted-2);margin-top:6px;line-height:1.5;">
+      {{ phase.setting | truncate(80) }}
+    </div>
+    {% endif %}
   </a>
   {% else %}
-  <p class="muted">Aún no hay fases cargadas. Ejecuta <code>make seed</code>.</p>
+  <p class="muted" style="grid-column:1/-1;padding:24px;">
+    Sin fases cargadas. Ejecuta <code>make seed</code>.
+  </p>
   {% endfor %}
 </section>
 {% endblock %}

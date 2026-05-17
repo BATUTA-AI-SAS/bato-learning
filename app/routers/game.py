@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from ..db import SessionDep
@@ -113,6 +113,29 @@ async def level_player(
         if slug not in seen_concepts and slug in all_popups:
             new_concepts.append(all_popups[slug])
 
+    # JSON-serializable list for JS
+    import json as _json
+    new_concepts_json = _json.dumps([
+        {
+            "slug":       p.slug,
+            "title":      p.title,
+            "analogy_md": p.analogy_md,
+            "example_md": p.example_md,
+        }
+        for p in new_concepts
+    ])
+
+    # Next level in this phase (or back to phase map if last)
+    all_levels = await game_repo.list_levels_for_phase(session, phase.id)
+    next_level = None
+    for idx, lv in enumerate(all_levels):
+        if lv.id == level.id and idx + 1 < len(all_levels):
+            next_level = all_levels[idx + 1]
+            break
+    next_level_url = (
+        f"/game/{phase.slug}/{next_level.slug}" if next_level else f"/game/{phase.slug}"
+    )
+
     return templates.TemplateResponse(
         request,
         "game/level_player.html",
@@ -122,6 +145,9 @@ async def level_player(
             "phase": phase,
             "level": level,
             "new_concepts": new_concepts,
+            "new_concepts_json": new_concepts_json,
+            "next_level": next_level,
+            "next_level_url": next_level_url,
             "gam": None,
             "current": None,
         },
@@ -280,3 +306,49 @@ async def get_game_progress(request: Request, session: SessionDep) -> dict:
             for d in decisions
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Game mentor chat (SSE) — minimal system prompt, no module context needed
+# ---------------------------------------------------------------------------
+
+_GAME_TUTOR_SYSTEM = """Eres un mentor de programación Socrático para una app de aprendizaje.
+Tu rol es ayudar al alumno a pensar, no darle la respuesta directa.
+Haz preguntas que los guíen a descubrir la solución por sí mismos.
+Sé breve, directo y cálido. Responde siempre en español.
+Nunca reveles la solución completa ni el código final correcto.
+Máximo 3 oraciones por respuesta."""
+
+
+class GameChatBody(BaseModel):
+    message: str
+    context: str | None = None
+    level_slug: str | None = None
+
+
+@router.post("/api/game/chat")
+async def game_chat(body: GameChatBody, request: Request, session: SessionDep):
+    """SSE stream for the game-level mentor panel. No module_id required."""
+    import json as _json
+    from ..services.deepseek_client import stream_chat
+
+    extra = ""
+    if body.level_slug:
+        extra = f"\nNivel activo: {body.level_slug}"
+    if body.context:
+        extra += f"\nContexto: {body.context}"
+
+    system = _GAME_TUTOR_SYSTEM + extra
+    messages = [{"role": "user", "content": body.message}]
+
+    def _sse(event: str, payload: dict) -> bytes:
+        return f"event: {event}\ndata: {_json.dumps(payload, ensure_ascii=False)}\n\n".encode()
+
+    async def gen():
+        async for chunk in stream_chat(system=system, messages=messages):
+            if chunk.text:
+                yield _sse("delta", {"text": chunk.text})
+            if chunk.done:
+                yield _sse("done", {"usage": chunk.usage or {}})
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
