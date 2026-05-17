@@ -148,14 +148,13 @@ export class Renderer {
   }
 
   resize() {
-    const parent = this.canvas.parentElement || document.body;
-    const maxW = parent.clientWidth;
-    const maxH = parent.clientHeight || window.innerHeight;
+    const maxW = window.innerWidth;
+    const maxH = window.innerHeight;
     const scaleX = maxW / VIRTUAL_W;
     const scaleY = maxH / VIRTUAL_H;
-    const scale = Math.max(1, Math.floor(Math.min(scaleX, scaleY)));
-    this.canvas.style.width = `${VIRTUAL_W * scale}px`;
-    this.canvas.style.height = `${VIRTUAL_H * scale}px`;
+    const scale = Math.min(scaleX, scaleY);
+    this.canvas.style.width = `${Math.floor(VIRTUAL_W * scale)}px`;
+    this.canvas.style.height = `${Math.floor(VIRTUAL_H * scale)}px`;
     this.scale = scale;
   }
 

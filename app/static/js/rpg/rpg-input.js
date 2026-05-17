@@ -23,6 +23,9 @@ export class InputManager {
     this._onKeyUp = this._onKeyUp.bind(this);
     window.addEventListener("keydown", this._onKeyDown);
     window.addEventListener("keyup", this._onKeyUp);
+
+    this._touchDpad = null;
+    if ("ontouchstart" in window) this._createTouchControls();
   }
 
   onMove(callback) { this._moveCallback = callback; }
@@ -42,6 +45,62 @@ export class InputManager {
     window.removeEventListener("keydown", this._onKeyDown);
     window.removeEventListener("keyup", this._onKeyUp);
     this._stopRepeat();
+    if (this._touchDpad) { this._touchDpad.remove(); this._touchDpad = null; }
+  }
+
+  simulateMove(dx, dy) {
+    if (!this._enabled || !this._moveCallback) return;
+    this._moveCallback(dx, dy);
+  }
+
+  simulateInteract() {
+    if (!this._enabled || !this._interactCallback) return;
+    this._interactCallback();
+  }
+
+  _createTouchControls() {
+    const pad = document.createElement("div");
+    pad.id = "touch-dpad";
+    pad.innerHTML = `
+      <button class="dpad-btn dpad-up" data-dx="0" data-dy="-1">&#9650;</button>
+      <button class="dpad-btn dpad-left" data-dx="-1" data-dy="0">&#9664;</button>
+      <button class="dpad-btn dpad-action" id="dpad-action">A</button>
+      <button class="dpad-btn dpad-right" data-dx="1" data-dy="0">&#9654;</button>
+      <button class="dpad-btn dpad-down" data-dx="0" data-dy="1">&#9660;</button>
+    `;
+    document.body.appendChild(pad);
+    this._touchDpad = pad;
+
+    const self = this;
+    pad.querySelectorAll("[data-dx]").forEach(btn => {
+      let interval = null;
+      let timeout = null;
+      const dx = parseInt(btn.dataset.dx);
+      const dy = parseInt(btn.dataset.dy);
+
+      const start = (e) => {
+        e.preventDefault();
+        self.simulateMove(dx, dy);
+        timeout = setTimeout(() => {
+          interval = setInterval(() => self.simulateMove(dx, dy), REPEAT_INTERVAL);
+        }, INITIAL_DELAY);
+      };
+      const stop = (e) => {
+        e.preventDefault();
+        if (timeout) { clearTimeout(timeout); timeout = null; }
+        if (interval) { clearInterval(interval); interval = null; }
+      };
+
+      btn.addEventListener("touchstart", start, { passive: false });
+      btn.addEventListener("touchend", stop, { passive: false });
+      btn.addEventListener("touchcancel", stop, { passive: false });
+    });
+
+    const actionBtn = pad.querySelector("#dpad-action");
+    actionBtn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      self.simulateInteract();
+    }, { passive: false });
   }
 
   _onKeyDown(e) {
