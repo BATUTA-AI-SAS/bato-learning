@@ -7,6 +7,13 @@ const MOVE_DURATION = 120;
 const FACING_DX = [0, 0, -1, 1];
 const FACING_DY = [1, -1, 0, 0];
 
+const FACING_MAP = { down: Facing.DOWN, up: Facing.UP, left: Facing.LEFT, right: Facing.RIGHT };
+
+function resolveFacing(val) {
+  if (typeof val === "number") return val;
+  return FACING_MAP[val] ?? Facing.DOWN;
+}
+
 function facingFromDelta(dx, dy) {
   if (dy > 0) return Facing.DOWN;
   if (dy < 0) return Facing.UP;
@@ -21,10 +28,23 @@ export class RPGEngine {
     this.input = new InputManager();
     this.dialogue = dialogueSystem || null;
 
-    this.gameState = gameState;
     this.rooms = rooms;
     this.currentRoom = null;
+    this.currentRoomSlug = null;
     this.collisionMap = null;
+
+    // Build a flat Set of all completed level slugs from gameState
+    this.completedSlugs = new Set();
+    this.totalXp = 0;
+    if (gameState) {
+      this.totalXp = gameState.total_xp || 0;
+      for (const roomInfo of Object.values(gameState.rooms || {})) {
+        for (const slug of (roomInfo.levels_passed || [])) {
+          this.completedSlugs.add(slug);
+        }
+      }
+    }
+    this.gameState = gameState;
 
     this.player = { x: 0, y: 0, facing: Facing.DOWN };
     this.animFrame = 0;
@@ -67,6 +87,7 @@ export class RPGEngine {
     if (!room) return;
 
     this.currentRoom = room;
+    this.currentRoomSlug = roomSlug;
     const palette = room.palette || { floor: "#3a3a5c", wall: "#1a1a2e", accent: "#e07020" };
     this.renderer.setRoom(room.tiles, palette);
     this._buildCollisionMap(room);
@@ -74,7 +95,7 @@ export class RPGEngine {
     if (room.spawn) {
       this.player.x = room.spawn.x;
       this.player.y = room.spawn.y;
-      this.player.facing = room.spawn.facing ?? Facing.DOWN;
+      this.player.facing = resolveFacing(room.spawn.facing);
     }
 
     this._state = State.IDLE;
@@ -87,22 +108,22 @@ export class RPGEngine {
   setPlayerPosition(x, y, facing) {
     this.player.x = x;
     this.player.y = y;
-    this.player.facing = facing ?? this.player.facing;
+    if (facing !== undefined) this.player.facing = resolveFacing(facing);
   }
 
   onPuzzleTrigger(callback) { this._onPuzzleTrigger = callback; }
   onRoomChange(callback) { this._onRoomChange = callback; }
   onNPCChat(callback) { this._onNPCChat = callback; }
 
+  // --- Game loop ---
+
   _tick() {
     if (!this._running) return;
     const now = performance.now();
     const dt = now - this._lastTime;
     this._lastTime = now;
-
     this._update(dt, now);
     this._render();
-
     this._rafId = requestAnimationFrame(() => this._tick());
   }
 
@@ -112,7 +133,6 @@ export class RPGEngine {
       this._animFrameTimer = 0;
       this.animFrame = (this.animFrame + 1) % 2;
     }
-
     if (this._state === State.MOVING) {
       const elapsed = now - this._moveStart;
       if (elapsed >= MOVE_DURATION) {
@@ -124,42 +144,43 @@ export class RPGEngine {
   }
 
   _render() {
-    let playerPos = { x: this.player.x, y: this.player.y };
-
+    let px = this.player.x, py = this.player.y;
     if (this._state === State.MOVING) {
-      const elapsed = performance.now() - this._moveStart;
-      const t = Math.min(1, elapsed / MOVE_DURATION);
-      playerPos = {
-        x: this._moveFrom.x + (this._moveTo.x - this._moveFrom.x) * t,
-        y: this._moveFrom.y + (this._moveTo.y - this._moveFrom.y) * t,
-      };
+      const t = Math.min(1, (performance.now() - this._moveStart) / MOVE_DURATION);
+      px = this._moveFrom.x + (this._moveTo.x - this._moveFrom.x) * t;
+      py = this._moveFrom.y + (this._moveTo.y - this._moveFrom.y) * t;
     }
 
     const room = this.currentRoom;
+    const objStates = (room?.objects || []).map(obj => {
+      const nextLevel = this._nextLevelForObject(obj);
+      return {
+        x: obj.x, y: obj.y,
+        hasPuzzle: obj.type === "puzzle_cluster" || obj.type === "boss",
+        completed: nextLevel === null && (obj.levels?.length > 0),
+        locked: obj.type === "door" && !this._isDoorUnlocked(obj),
+      };
+    });
+
     this.renderer.drawFrame({
-      playerPos,
+      playerPos: { x: px, y: py },
       facing: this.player.facing,
       animFrame: this.animFrame,
-      objects: room?.objects || [],
-      completedSlugs: this.gameState?.completedSlugs || new Set(),
-      npc: room?.npc || null,
-      hudData: {
-        roomName: room?.name || "",
-        xp: this.gameState?.xp ?? 0,
-      },
+      objects: objStates,
+      completedSlugs: this.completedSlugs,
+      hudData: { roomName: room?.name || "", xp: this.totalXp },
     });
   }
 
+  // --- Input handlers ---
+
   _handleMove(dx, dy) {
     if (this._state !== State.IDLE) return;
-
     this.player.facing = facingFromDelta(dx, dy);
     const nx = this.player.x + dx;
     const ny = this.player.y + dy;
-
     if (nx < 0 || nx >= 20 || ny < 0 || ny >= 15) return;
     if (this.collisionMap && this.collisionMap[ny][nx]) return;
-
     this._state = State.MOVING;
     this._moveStart = performance.now();
     this._moveFrom = { x: this.player.x, y: this.player.y };
@@ -168,23 +189,17 @@ export class RPGEngine {
 
   _handleInteract() {
     if (this._state === State.DIALOGUE) {
-      if (this.dialogue && this.dialogue.advance) {
-        this.dialogue.advance();
-      }
+      if (this.dialogue) this.dialogue.advance();
       return;
     }
-
     if (this._state !== State.IDLE) return;
 
     const tx = this.player.x + FACING_DX[this.player.facing];
     const ty = this.player.y + FACING_DY[this.player.facing];
-    const room = this.currentRoom;
-    if (!room) return;
-
     const obj = this._findObjectAt(tx, ty);
     if (!obj) return;
 
-    if (obj.type === "puzzle_cluster") {
+    if (obj.type === "puzzle_cluster" || obj.type === "boss") {
       this._triggerPuzzle(obj);
     } else if (obj.type === "npc") {
       this._triggerNPC(obj);
@@ -194,74 +209,103 @@ export class RPGEngine {
   }
 
   _handleCancel() {
-    if (this._state === State.DIALOGUE && this.dialogue && this.dialogue.skip) {
+    if (this._state === State.DIALOGUE && this.dialogue) {
       this.dialogue.skip();
     }
   }
 
+  // --- Interaction logic ---
+
   _triggerPuzzle(obj) {
-    this._state = State.DIALOGUE;
-    this.input.disable();
-
-    const finish = () => {
-      this._state = State.TRANSITION;
-      this.renderer.flashWhite(200).then(() => {
-        this.input.enable();
-        this._state = State.IDLE;
-        if (this._onPuzzleTrigger) {
-          this._onPuzzleTrigger({ phaseSlug: obj.phaseSlug, levelSlug: obj.levelSlug });
-        }
-      });
-    };
-
-    if (this.dialogue && obj.introLines) {
-      this.dialogue.show(obj.introLines, () => finish());
-    } else {
-      finish();
-    }
-  }
-
-  _triggerNPC(obj) {
-    this._state = State.DIALOGUE;
-    this.input.disable();
-
-    const finish = () => {
-      this.input.enable();
-      this._state = State.IDLE;
-      if (this._onNPCChat) this._onNPCChat();
-    };
-
-    if (this.dialogue && obj.lines) {
-      this.dialogue.show(obj.lines, () => finish());
-    } else {
-      finish();
-    }
-  }
-
-  _triggerDoor(obj) {
-    if (obj.locked) {
-      this._state = State.DIALOGUE;
-      this.input.disable();
-      const msg = obj.lockedMessage || ["Locked."];
-      if (this.dialogue) {
-        this.dialogue.show(msg, () => {
-          this.input.enable();
-          this._state = State.IDLE;
-        });
-      } else {
-        this.input.enable();
-        this._state = State.IDLE;
-      }
+    const nextLevel = this._nextLevelForObject(obj);
+    if (!nextLevel) {
+      this._showDialogue("NARRADOR", ["Ya completaste todos los desafíos de esta estación."], () => {});
       return;
     }
 
-    this._state = State.TRANSITION;
-    this.input.disable();
-    this.renderer.fadeToBlack(300).then(() => {
-      this.input.enable();
-      this._state = State.IDLE;
-      if (this._onRoomChange) this._onRoomChange(obj.targetRoom);
+    const lines = obj.intro_dialogue?.lines || [`Desafío: ${obj.label || nextLevel}`];
+    this._showDialogue(
+      obj.intro_dialogue?.speaker || "NARRADOR",
+      lines,
+      () => {
+        this._state = State.TRANSITION;
+        this.renderer.fadeToBlack(300).then(() => {
+          this._state = State.IDLE;
+          if (this._onPuzzleTrigger) {
+            this._onPuzzleTrigger({
+              phaseSlug: this.currentRoomSlug,
+              levelSlug: nextLevel,
+            });
+          }
+        });
+      }
+    );
+  }
+
+  _triggerNPC(obj) {
+    const progress = this._roomProgressPercent();
+    let dialogueData;
+    if (obj.dialogues) {
+      if (progress >= 100 && obj.dialogues.progress_100) dialogueData = obj.dialogues.progress_100;
+      else if (progress >= 50 && obj.dialogues.progress_50) dialogueData = obj.dialogues.progress_50;
+      else dialogueData = obj.dialogues.progress_0;
+    }
+    const lines = dialogueData?.lines || ["..."];
+    const speaker = dialogueData?.speaker || obj.label || "NPC";
+
+    this._showDialogue(speaker, lines, () => {
+      if (this._onNPCChat) this._onNPCChat();
     });
+  }
+
+  _triggerDoor(obj) {
+    if (!this._isDoorUnlocked(obj)) {
+      const lines = obj.locked_dialogue?.lines || ["La puerta está cerrada. Necesitas completar más tareas."];
+      const speaker = obj.locked_dialogue?.speaker || "NARRADOR";
+      this._showDialogue(speaker, lines, () => {});
+      return;
+    }
+
+    const lines = obj.unlocked_dialogue?.lines || ["La puerta se abre."];
+    const speaker = obj.unlocked_dialogue?.speaker || "NARRADOR";
+    this._showDialogue(speaker, lines, () => {
+      this._state = State.TRANSITION;
+      this.renderer.fadeToBlack(300).then(() => {
+        this._state = State.IDLE;
+        if (this._onRoomChange) this._onRoomChange(obj.target_room);
+      });
+    });
+  }
+
+  _showDialogue(speaker, lines, onDone) {
+    if (!this.dialogue) { onDone(); return; }
+    this._state = State.DIALOGUE;
+    // Don't disable input — _handleInteract checks state and delegates to dialogue.advance()
+    this.dialogue.onComplete(() => {
+      if (this._state === State.DIALOGUE) this._state = State.IDLE;
+      onDone();
+    });
+    this.dialogue.show(lines, speaker);
+  }
+
+  // --- Helpers ---
+
+  _nextLevelForObject(obj) {
+    if (!obj.levels || obj.levels.length === 0) return null;
+    for (const slug of obj.levels) {
+      if (!this.completedSlugs.has(slug)) return slug;
+    }
+    return null;
+  }
+
+  _isDoorUnlocked(obj) {
+    const pct = obj.requires_percent || 70;
+    return this._roomProgressPercent() >= pct;
+  }
+
+  _roomProgressPercent() {
+    const roomState = this.gameState?.rooms?.[this.currentRoomSlug];
+    return roomState?.percent || 0;
   }
 
   _findObjectAt(x, y) {
@@ -271,21 +315,20 @@ export class RPGEngine {
   }
 
   _buildCollisionMap(room) {
-    const WALL_TILES = new Set([1, 3, 4, 5, 6, 7, 8, 13]);
+    const SOLID_TILES = new Set([1, 3, 4, 5, 6, 7, 8, 12, 13]);
     this.collisionMap = [];
-
     for (let y = 0; y < 15; y++) {
       const row = [];
       for (let x = 0; x < 20; x++) {
         const tileId = room.tiles[y]?.[x] ?? 0;
-        row.push(WALL_TILES.has(tileId));
+        row.push(SOLID_TILES.has(tileId));
       }
       this.collisionMap.push(row);
     }
-
+    // NPC tiles are walkable-adjacent but not walkable-on
     if (room.objects) {
       for (const obj of room.objects) {
-        if (obj.solid !== false && obj.type !== "door") {
+        if (obj.type === "npc") {
           this.collisionMap[obj.y][obj.x] = true;
         }
       }

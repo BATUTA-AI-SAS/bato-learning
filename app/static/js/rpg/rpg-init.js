@@ -1,11 +1,6 @@
-/**
- * rpg-init.js — Bootstrap module for the RPG game world.
- * Reads server-injected game state, wires up all subsystems, and starts the engine.
- */
-
 import { RPGEngine } from "./rpg-engine.js";
 import { DialogueSystem } from "./rpg-dialogue.js";
-import { ROOMS, getRoomBySlug, getFirstRoom } from "./rpg-rooms.js";
+import { ROOMS, getRoomBySlug, getFirstRoom, ROOM_ORDER } from "./rpg-rooms.js";
 
 const LS_ROOM = "blearn.rpg.room";
 const LS_X = "blearn.rpg.x";
@@ -14,76 +9,71 @@ const LS_FACING = "blearn.rpg.facing";
 
 function pickStartingRoom(gameState) {
   const saved = localStorage.getItem(LS_ROOM);
-  if (saved && gameState.rooms[saved]?.unlocked) return saved;
+  if (saved && ROOMS[saved] && gameState.rooms[saved]?.unlocked) return saved;
 
-  // First unlocked room that is not 100% complete
-  for (const [slug, info] of Object.entries(gameState.rooms)) {
-    if (info.unlocked && info.percent < 100) return slug;
+  for (const slug of ROOM_ORDER) {
+    const info = gameState.rooms[slug];
+    if (info && info.unlocked && info.percent < 100) return slug;
   }
-  // Fallback: first room definition
   return getFirstRoom().slug;
 }
 
 function restorePosition(roomSlug) {
-  const savedRoom = localStorage.getItem(LS_ROOM);
-  if (savedRoom !== roomSlug) return null;
-
+  if (localStorage.getItem(LS_ROOM) !== roomSlug) return null;
   const x = parseInt(localStorage.getItem(LS_X), 10);
   const y = parseInt(localStorage.getItem(LS_Y), 10);
   const facing = localStorage.getItem(LS_FACING) || "down";
-
-  if (Number.isFinite(x) && Number.isFinite(y)) {
-    return { x, y, facing };
-  }
+  if (Number.isFinite(x) && Number.isFinite(y)) return { x, y, facing };
   return null;
 }
 
-function savePosition(engine) {
-  const pos = engine.getPlayerPosition?.();
+function savePosition(engine, roomSlug) {
+  const pos = engine.getPlayerPosition();
   if (!pos) return;
+  localStorage.setItem(LS_ROOM, roomSlug);
   localStorage.setItem(LS_X, String(pos.x));
   localStorage.setItem(LS_Y, String(pos.y));
-  localStorage.setItem(LS_FACING, pos.facing || "down");
+  localStorage.setItem(LS_FACING, String(pos.facing));
 }
 
 function init() {
   const gameState = window.__BL_GAME_STATE;
   if (!gameState) {
-    console.error("[rpg-init] No game state found on window.__BL_GAME_STATE");
+    console.error("[rpg] No game state");
     return;
   }
 
   const canvas = document.getElementById("rpg-canvas");
   const dialogueEl = document.getElementById("rpg-dialogue");
-
-  const dialogue = new DialogueSystem(dialogueEl);
-
-  const startRoom = pickStartingRoom(gameState);
-  let currentRoom = startRoom;
-
-  const engine = new RPGEngine(canvas, gameState, ROOMS, dialogue);
-
-  // Restore player position if returning to the same room
-  const saved = restorePosition(startRoom);
-  if (saved) {
-    engine.setPlayerPosition(saved.x, saved.y, saved.facing);
+  if (!canvas || !dialogueEl) {
+    console.error("[rpg] Missing DOM elements");
+    return;
   }
 
-  // Load starting room and start loop
-  engine.loadRoom(startRoom);
+  const dialogue = new DialogueSystem(dialogueEl);
+  const engine = new RPGEngine(canvas, gameState, ROOMS, dialogue);
+  window.__RPG_ENGINE = engine;
+
+  let currentRoom = pickStartingRoom(gameState);
+
+  const saved = restorePosition(currentRoom);
+  if (saved) engine.setPlayerPosition(saved.x, saved.y, saved.facing);
+
+  engine.loadRoom(currentRoom);
   engine.start();
 
-  // Update HUD
+  // HUD
   const hudRoom = document.querySelector(".hud-room");
   const hudXp = document.querySelector(".hud-xp");
-  if (hudRoom) hudRoom.textContent = getRoomBySlug(startRoom)?.name || startRoom;
-  if (hudXp) hudXp.textContent = `XP: ${gameState.total_xp}`;
+  function updateHud(slug) {
+    if (hudRoom) hudRoom.textContent = (getRoomBySlug(slug)?.name || slug).toUpperCase();
+    if (hudXp) hudXp.textContent = `XP: ${gameState.total_xp || 0}`;
+  }
+  updateHud(currentRoom);
 
-  // --- Event handlers ---
-
+  // Events
   engine.onPuzzleTrigger(({ phaseSlug, levelSlug }) => {
-    savePosition(engine);
-    localStorage.setItem(LS_ROOM, currentRoom);
+    savePosition(engine, currentRoom);
     window.location.href = `/game/${phaseSlug}/${levelSlug}?from=world`;
   });
 
@@ -92,25 +82,17 @@ function init() {
     localStorage.setItem(LS_ROOM, targetSlug);
     localStorage.removeItem(LS_X);
     localStorage.removeItem(LS_Y);
-    localStorage.removeItem(LS_FACING);
     engine.loadRoom(targetSlug);
-
-    if (hudRoom) hudRoom.textContent = getRoomBySlug(targetSlug)?.name || targetSlug;
+    updateHud(targetSlug);
   });
 
   engine.onNPCChat(() => {
-    dialogue.show(
-      "Don Ramón",
-      "Don Ramón te mira esperando tu pregunta... [Usa el panel de chat en tu siguiente misión]"
-    );
+    // MVP: NPC chat is handled via dialogue system in the engine
   });
 
-  window.addEventListener("resize", () => {
-    renderer.resize();
-  });
+  window.addEventListener("resize", () => engine.renderer.resize());
 }
 
-// Run when DOM is ready
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", init);
 } else {
