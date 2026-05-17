@@ -8,9 +8,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from .logging_setup import configure_logging
-from .routers import chat, exercises, game, health, pages, progress, quizzes
+from .middleware.auth import RequireAuthMiddleware
+from .routers import game, health, pages
 from .routers import auth as auth_router
-from .routers.progress import checkpoint_router
 from .settings import settings
 
 
@@ -22,7 +22,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="bato-learning", lifespan=lifespan)
 
-# SessionMiddleware must be added before routers so request.session is available.
+# Middleware stack (LIFO: last added executes first in request path).
+# RequireAuthMiddleware needs session, so it must execute AFTER SessionMiddleware.
+# That means we add RequireAuthMiddleware FIRST, then SessionMiddleware.
+app.add_middleware(RequireAuthMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.session_secret_key,
@@ -37,9 +40,4 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(health.router)
 app.include_router(auth_router.router)
 app.include_router(pages.router)
-app.include_router(exercises.router)
-app.include_router(quizzes.router)
-app.include_router(chat.router)
-app.include_router(progress.router)
-app.include_router(checkpoint_router)
 app.include_router(game.router)

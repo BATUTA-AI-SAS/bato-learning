@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>bato-learning — Aprende a programar jugando</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0f0f0f;
+      color: #FAF3E8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* HERO */
+    .hero {
+      padding: 120px 0 100px;
+      text-align: center;
+      position: relative;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(ellipse at center, rgba(212,165,116,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      font-family: "Courier New", monospace;
+      font-size: 0.85rem;
+      color: #D4A574;
+      border: 1px solid rgba(212,165,116,0.3);
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin-bottom: 32px;
+      letter-spacing: 0.5px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 24px;
+      color: #fff;
+    }
+
+    .hero h1 span {
+      color: #D4A574;
+    }
+
+    .hero-sub {
+      font-size: 1.15rem;
+      color: rgba(250,243,232,0.7);
+      max-width: 560px;
+      margin: 0 auto 40px;
+    }
+
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      margin-bottom: 48px;
+      flex-wrap: wrap;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat strong {
+      display: block;
+      font-size: 1.6rem;
+      color: #D4A574;
+      font-weight: 700;
+    }
+
+    .hero-stat span {
+      font-size: 0.85rem;
+      color: rgba(250,243,232,0.5);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* BUTTONS */
+    .btn-primary {
+      display: inline-block;
+      background: linear-gradient(135deg, #D4A574, #b8884d);
+      color: #0f0f0f;
+      font-weight: 700;
+      font-size: 1.05rem;
+      padding: 16px 40px;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(212,165,116,0.2);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(212,165,116,0.35);
+    }
+
+    .btn-secondary {
+      display: inline-block;
+      color: #D4A574;
+      font-size: 0.9rem;
+      text-decoration: none;
+      margin-top: 16px;
+      border-bottom: 1px solid rgba(212,165,116,0.3);
+      padding-bottom: 2px;
+      transition: border-color 0.2s;
+    }
+
+    .btn-secondary:hover {
+      border-color: #D4A574;
+    }
+
+    /* SECTIONS */
+    section {
+      padding: 80px 0;
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+
+    .section-subtitle {
+      color: rgba(250,243,232,0.6);
+      margin-bottom: 48px;
+      font-size: 1.05rem;
+    }
+
+    /* HOW IT WORKS */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+    }
+
+    .step {
+      border: 1px solid rgba(212,165,116,0.15);
+      border-radius: 12px;
+      padding: 32px 24px;
+      position: relative;
+      background: rgba(212,165,116,0.02);
+      transition: border-color 0.3s;
+    }
+
+    .step:hover {
+      border-color: rgba(212,165,116,0.4);
+    }
+
+    .step-number {
+      font-family: "Courier New", monospace;
+      font-size: 0.8rem;
+      color: #4A7C59;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+
+    .step h3 {
+      font-size: 1.15rem;
+      margin-bottom: 8px;
+      color: #FAF3E8;
+    }
+
+    .step p {
+      font-size: 0.9rem;
+      color: rgba(250,243,232,0.6);
+    }
+
+    /* ROOMS */
+    .rooms {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .room {
+      border: 1px solid rgba(212,165,116,0.2);
+      border-radius: 12px;
+      padding: 28px 20px;
+      text-align: center;
+      background: linear-gradient(180deg, rgba(212,165,116,0.03) 0%, transparent 100%);
+      transition: transform 0.2s, border-color 0.3s;
+    }
+
+    .room:hover {
+      transform: translateY(-4px);
+      border-color: rgba(212,165,116,0.5);
+    }
+
+    .room-icon {
+      font-size: 2.2rem;
+      margin-bottom: 12px;
+    }
+
+    .room h3 {
+      font-size: 1rem;
+      margin-bottom: 6px;
+      color: #FAF3E8;
+    }
+
+    .room p {
+      font-size: 0.82rem;
+      color: rgba(250,243,232,0.55);
+      margin-bottom: 10px;
+    }
+
+    .room-missions {
+      font-family: "Courier New", monospace;
+      font-size: 0.75rem;
+      color: #4A7C59;
+      font-weight: 700;
+    }
+
+    /* MENTOR */
+    .mentor-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .mentor-info h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+
+    .mentor-info p {
+      color: rgba(250,243,232,0.65);
+      margin-bottom: 16px;
+      font-size: 0.95rem;
+    }
+
+    .mentor-dialogue {
+      border: 1px solid rgba(74,124,89,0.3);
+      border-radius: 12px;
+      padding: 24px;
+      background: rgba(74,124,89,0.05);
+      font-family: "Courier New", monospace;
+      font-size: 0.88rem;
+    }
+
+    .dialogue-line {
+      margin-bottom: 12px;
+      padding-left: 12px;
+      border-left: 2px solid transparent;
+    }
+
+    .dialogue-line:last-child {
+      margin-bottom: 0;
+    }
+
+    .dialogue-line.mentor {
+      border-left-color: #4A7C59;
+      color: rgba(250,243,232,0.8);
+    }
+
+    .dialogue-line.player {
+      border-left-color: #D4A574;
+      color: rgba(250,243,232,0.6);
+    }
+
+    .dialogue-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .dialogue-line.mentor .dialogue-label {
+      color: #4A7C59;
+    }
+
+    .dialogue-line.player .dialogue-label {
+      color: #D4A574;
+    }
+
+    /* SKILLS */
+    .skills-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+    }
+
+    .skill-tag {
+      border: 1px solid rgba(212,165,116,0.15);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: rgba(250,243,232,0.8);
+      transition: border-color 0.3s;
+    }
+
+    .skill-tag:hover {
+      border-color: rgba(212,165,116,0.4);
+    }
+
+    .skill-tag code {
+      display: block;
+      font-family: "Courier New", monospace;
+      font-size: 0.78rem;
+      color: #4A7C59;
+      margin-top: 6px;
+    }
+
+    /* FOOTER CTA */
+    .footer-cta {
+      text-align: center;
+      padding: 100px 0 80px;
+      border-top: 1px solid rgba(212,165,116,0.1);
+    }
+
+    .footer-cta h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+
+    .footer-cta p {
+      color: rgba(250,243,232,0.6);
+      margin-bottom: 32px;
+    }
+
+    .footer-links {
+      margin-top: 24px;
+    }
+
+    .footer-bottom {
+      text-align: center;
+      padding: 32px 0;
+      font-size: 0.8rem;
+      color: rgba(250,243,232,0.3);
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 640px) {
+      .hero {
+        padding: 80px 0 60px;
+      }
+
+      .hero-stats {
+        gap: 20px;
+      }
+
+      .mentor-section {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+
+      section {
+        padding: 60px 0;
+      }
+
+      .rooms {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .skills-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 420px) {
+      .rooms {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">// RPG + PROGRAMACION</div>
+      <h1>Deja de leer tutoriales.<br><span>Empieza a resolver.</span></h1>
+      <p class="hero-sub">Un juego RPG donde aprendes a programar resolviendo problemas reales de oficina. Sin videos. Sin teoría infinita. Solo tú, los puzzles y un mentor IA que te reta.</p>
+
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <strong>80</strong>
+          <span>Misiones</span>
+        </div>
+        <div class="hero-stat">
+          <strong>4</strong>
+          <span>Mundos</span>
+        </div>
+        <div class="hero-stat">
+          <strong>1</strong>
+          <span>Mentor IA</span>
+        </div>
+        <div class="hero-stat">
+          <strong>0</strong>
+          <span>Respuestas regaladas</span>
+        </div>
+      </div>
+
+      <a href="/register" class="btn-primary">Crear cuenta gratis</a>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section>
+    <div class="container">
+      <h2 class="section-title">Asi funciona</h2>
+      <p class="section-subtitle">Tres pasos. Cero configuracion. Empiezas a jugar en 30 segundos.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">01 — EXPLORA</div>
+          <h3>Entras a una sala</h3>
+          <p>Cada sala es un mundo con su propio contexto: una oficina, un taller, un laboratorio. Los puzzles son problemas del mundo real que ya conoces.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">02 — RESUELVE</div>
+          <h3>Atacas el puzzle</h3>
+          <p>Escribes codigo directamente en el navegador. Si te trabas, tu mentor te hace preguntas para que pienses. Nunca te da la respuesta.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">03 — DOMINAS</div>
+          <h3>Desbloqueas skills</h3>
+          <p>Cada puzzle resuelto te da experiencia real. Al final del juego, puedes automatizar tu trabajo de verdad.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE WORLD -->
+  <section>
+    <div class="container">
+      <h2 class="section-title">Cuatro mundos por explorar</h2>
+      <p class="section-subtitle">De lo que ya sabes (Excel) hacia lo que vas a dominar (agentes IA).</p>
+
+      <div class="rooms">
+        <div class="room">
+          <div class="room-icon">&#x1F3E2;</div>
+          <h3>La Oficina</h3>
+          <p>Variables, loops, funciones. Todo con datos que ya manejas en tu trabajo diario.</p>
+          <div class="room-missions">20 MISIONES</div>
+        </div>
+        <div class="room">
+          <div class="room-icon">&#x1F527;</div>
+          <h3>El Taller</h3>
+          <p>APIs, archivos, bases de datos. Conectas sistemas como un profesional.</p>
+          <div class="room-missions">20 MISIONES</div>
+        </div>
+        <div class="room">
+          <div class="room-icon">&#x1F52C;</div>
+          <h3>El Laboratorio</h3>
+          <p>Inteligencia artificial, prompts, modelos. Construyes tu primer agente.</p>
+          <div class="room-missions">20 MISIONES</div>
+        </div>
+        <div class="room">
+          <div class="room-icon">&#x1F3D9;</div>
+          <h3>La Ciudad</h3>
+          <p>Deploy, produccion, multi-tenant. Tu codigo sirve a clientes reales.</p>
+          <div class="room-missions">20 MISIONES</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MENTOR -->
+  <section>
+    <div class="container">
+      <div class="mentor-section">
+        <div class="mentor-info">
+          <h2>Don Ramon: tu mentor que nunca te da la respuesta</h2>
+          <p>Un tutor IA entrenado para hacerte pensar, no para resolverte la vida. Te guia con preguntas. Te reta cuando vas bien. Te frena cuando copias sin entender.</p>
+          <p>Como un buen maestro de verdad: duro pero justo.</p>
+        </div>
+        <div class="mentor-dialogue">
+          <div class="dialogue-line player">
+            <span class="dialogue-label">Tu</span>
+            Don Ramon, no me sale el loop. Dame la respuesta.
+          </div>
+          <div class="dialogue-line mentor">
+            <span class="dialogue-label">Don Ramon</span>
+            Que pasa cuando tu variable llega a 5? Ejecutalo en tu cabeza primero.
+          </div>
+          <div class="dialogue-line player">
+            <span class="dialogue-label">Tu</span>
+            Ah... se pasa del rango. Necesito un -1.
+          </div>
+          <div class="dialogue-line mentor">
+            <span class="dialogue-label">Don Ramon</span>
+            Ahi esta. Pruebalo.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SKILLS -->
+  <section>
+    <div class="container">
+      <h2 class="section-title">Lo que vas a dominar</h2>
+      <p class="section-subtitle">Skills reales que puedes usar el lunes en tu trabajo.</p>
+
+      <div class="skills-grid">
+        <div class="skill-tag">
+          Python
+          <code>fundamentals</code>
+        </div>
+        <div class="skill-tag">
+          APIs REST
+          <code>requests + auth</code>
+        </div>
+        <div class="skill-tag">
+          Bases de datos
+          <code>SQL + ORM</code>
+        </div>
+        <div class="skill-tag">
+          Automatizacion
+          <code>scripts + cron</code>
+        </div>
+        <div class="skill-tag">
+          Agentes IA
+          <code>prompts + tools</code>
+        </div>
+        <div class="skill-tag">
+          Deploy
+          <code>docker + cloud</code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER CTA -->
+  <section class="footer-cta">
+    <div class="container">
+      <h2>80 misiones. Cada una es un problema real de oficina.</h2>
+      <p>Si sabes usar Excel, ya tienes lo que necesitas para empezar.</p>
+      <a href="/register" class="btn-primary">Crear cuenta gratis</a>
+      <div class="footer-links">
+        <a href="/login" class="btn-secondary">Ya tienes cuenta? Inicia sesion</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer-bottom">
+    <div class="container">bato-learning &mdash; aprende a programar jugando</div>
+  </div>
+
+</body>
+</html>

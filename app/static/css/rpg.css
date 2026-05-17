@@ -1,0 +1,155 @@
+/* ==========================================================================
+   rpg.css — Full-screen tile-based RPG world page.
+   Dark theme consistent with game.css tokens.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Body & Canvas
+   -------------------------------------------------------------------------- */
+.rpg-body {
+  margin: 0;
+  overflow: hidden;
+  background: #0a0a0a;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#rpg-canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  -ms-interpolation-mode: nearest-neighbor;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* --------------------------------------------------------------------------
+   Dialogue overlay
+   -------------------------------------------------------------------------- */
+.rpg-dialogue {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(10, 10, 10, 0.95);
+  border-top: 2px solid #D4A574;
+  padding: 16px 24px;
+  max-height: 140px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  color: #FAF3E8;
+  animation: slideUp 0.2s ease-out;
+}
+
+.rpg-dialogue.hidden {
+  display: none;
+}
+
+.dialogue-speaker {
+  font-weight: 700;
+  color: #D4A574;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.dialogue-text {
+  line-height: 1.6;
+  min-height: 40px;
+}
+
+.dialogue-text.narrador {
+  font-style: italic;
+  color: #ccc;
+}
+
+.dialogue-text.typing::after {
+  content: '|';
+  animation: blink 0.8s infinite;
+}
+
+.dialogue-advance-hint {
+  position: absolute;
+  bottom: 12px;
+  right: 20px;
+  font-size: 11px;
+  color: #666;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.dialogue-advance-hint.visible {
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+   HUD
+   -------------------------------------------------------------------------- */
+.rpg-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.hud-room {
+  font-size: 12px;
+  font-weight: 600;
+  color: #D4A574;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hud-xp {
+  font-size: 12px;
+  font-weight: 700;
+  color: #E8C49A;
+}
+
+/* --------------------------------------------------------------------------
+   Animations
+   -------------------------------------------------------------------------- */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+  .rpg-dialogue {
+    padding: 12px 14px;
+    font-size: 12px;
+    max-height: 120px;
+  }
+
+  .dialogue-speaker {
+    font-size: 11px;
+  }
+
+  .dialogue-advance-hint {
+    right: 12px;
+    bottom: 8px;
+    font-size: 10px;
+  }
+}

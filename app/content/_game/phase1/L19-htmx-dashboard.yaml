@@ -10,21 +10,21 @@ scenario_md: |
   atributos HTML. Completa el botón y el div receptor correctamente.
 payload:
   code_template: |
-    <button ___="/api/facturas" ___="innerHTML:#tabla">
+    <button ___="/api/facturas" ___="#tabla">
       Actualizar facturas
     </button>
     <div id="tabla">
       <!-- aquí llega el HTML de la respuesta -->
     </div>
   blanks:
-    - label: "atributo HTMX que define la URL a llamar con GET"
+    - label: "atributo HTMX que dispara un GET a la URL"
       correct: ["hx-get"]
-    - label: "atributo HTMX que define dónde y cómo insertar la respuesta"
-      correct: ["hx-target", "hx-swap"]
-hint_md: "hx-get llama al endpoint. hx-target o hx-swap definen dónde va la respuesta."
+    - label: "atributo HTMX que indica el selector CSS del elemento destino"
+      correct: ["hx-target"]
+hint_md: "hx-get dispara la petición. hx-target apunta al selector CSS donde se inserta la respuesta."
 solution_md: |
   hx-get="/api/facturas" hace la petición GET al endpoint.
-  hx-swap="innerHTML:#tabla" reemplaza el contenido interno del div#tabla
-  con el HTML que devuelve el servidor. Sin JS adicional.
+  hx-target="#tabla" dice a HTMX que inserte la respuesta dentro del
+  elemento con id="tabla". Por defecto usa innerHTML como método de swap.
 xp: 15
 est_seconds: 90

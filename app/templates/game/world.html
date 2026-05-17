@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>bato-learning</title>
+  <link rel="stylesheet" href="/static/css/rpg.css">
+</head>
+<body class="rpg-body">
+  <canvas id="rpg-canvas"></canvas>
+
+  <!-- Dialogue overlay (Zelda-style, bottom of screen) -->
+  <div id="rpg-dialogue" class="rpg-dialogue hidden">
+    <div class="dialogue-speaker"></div>
+    <div class="dialogue-text"></div>
+    <div class="dialogue-advance-hint">Enter &#9654;</div>
+  </div>
+
+  <!-- HUD overlay (top bar) -->
+  <div id="rpg-hud" class="rpg-hud">
+    <div class="hud-room"></div>
+    <div class="hud-xp"></div>
+  </div>
+
+  <!-- Game state from server -->
+  <script>
+    window.__BL_GAME_STATE = {{ game_state_json | safe }};
+  </script>
+  <script type="module" src="/static/js/rpg/rpg-init.js"></script>
+</body>
+</html>

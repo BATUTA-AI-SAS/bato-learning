@@ -15,7 +15,7 @@ router = APIRouter(tags=["auth"])
 async def login_page(request: Request, session: SessionDep):
     current_user = await get_current_user(request, session)
     if current_user is not None:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/game/world", status_code=302)
     error = request.session.pop("flash_error", None)
     return templates.TemplateResponse(
         request, "auth/login.html", {"current_user": current_user, "error": error}
@@ -34,14 +34,14 @@ async def login_submit(
         request.session["flash_error"] = "Correo o contraseña incorrectos."
         return RedirectResponse("/login", status_code=303)
     login_user(request, user)
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/game/world", status_code=303)
 
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request, session: SessionDep):
     current_user = await get_current_user(request, session)
     if current_user is not None:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/game/world", status_code=302)
     error = request.session.pop("flash_error", None)
     return templates.TemplateResponse(
         request, "auth/register.html", {"current_user": current_user, "error": error}
@@ -62,7 +62,8 @@ async def register_submit(
         request.session["flash_error"] = exc.detail
         return RedirectResponse("/register", status_code=303)
     login_user(request, user)
-    return RedirectResponse("/", status_code=303)
+    request.session["is_new_user"] = True
+    return RedirectResponse("/game/world", status_code=303)
 
 
 @router.post("/logout")

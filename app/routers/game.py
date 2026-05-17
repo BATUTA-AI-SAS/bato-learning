@@ -19,37 +19,70 @@ router = APIRouter(tags=["game"])
 
 @router.get("/game", response_class=HTMLResponse)
 async def game_home(request: Request, session: SessionDep):
-    user = await progress_repo.get_current_or_default_user(request, session)
-    phases = await game_repo.list_phases(session)
-    phase_progress = [
-        await game_repo.user_phase_progress(session, user.id, p.id)
-        for p in phases
-    ]
-    # Current phase: first incomplete, or last if all done.
-    current_phase = None
-    for phase, prog in zip(phases, phase_progress):
-        if prog["percent"] < 100:
-            current_phase = phase
-            break
-    if current_phase is None and phases:
-        current_phase = phases[-1]
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/game/world", status_code=302)
 
-    phases_with_progress = [
-        {"phase": p, "progress": prog}
-        for p, prog in zip(phases, phase_progress)
-    ]
+
+@router.get("/game/world", response_class=HTMLResponse)
+async def game_world(request: Request, session: SessionDep):
+    """The RPG world view — canvas-based room navigation."""
+    import json as _json
+    from ..services.auth import require_user
+
+    user = await require_user(request, session)
+    phases = await game_repo.list_phases(session)
+
+    # Build game state for JS
+    rooms_state = {}
+    for phase in phases:
+        prog = await game_repo.user_phase_progress(session, user.id, phase.id)
+        levels = await game_repo.list_levels_for_phase(session, phase.id)
+
+        from sqlalchemy import select
+        from ..models.game import LevelAttempt
+        res = await session.execute(
+            select(LevelAttempt.level_id)
+            .where(
+                LevelAttempt.user_id == user.id,
+                LevelAttempt.level_id.in_([lv.id for lv in levels]),
+                LevelAttempt.passed == 1,
+            )
+            .distinct()
+        )
+        passed_ids = set(res.scalars().all())
+        passed_slugs = [lv.slug for lv in levels if lv.id in passed_ids]
+
+        # A room is unlocked if it's the first OR previous room has >= 70%
+        phase_idx = phases.index(phase)
+        unlocked = phase_idx == 0
+        if phase_idx > 0:
+            prev_prog = await game_repo.user_phase_progress(session, user.id, phases[phase_idx - 1].id)
+            unlocked = prev_prog["percent"] >= 70
+
+        rooms_state[phase.slug] = {
+            "unlocked": unlocked,
+            "levels_passed": passed_slugs,
+            "percent": prog["percent"],
+        }
+
+    # Total XP from passed levels
+    total_xp = 0
+    for phase in phases:
+        levels = await game_repo.list_levels_for_phase(session, phase.id)
+        for lv in levels:
+            if lv.slug in rooms_state[phase.slug]["levels_passed"]:
+                total_xp += lv.xp
+
+    game_state = {
+        "player_name": user.display_name or user.name or "Jugador",
+        "rooms": rooms_state,
+        "total_xp": total_xp,
+    }
 
     return templates.TemplateResponse(
         request,
-        "game/home.html",
-        {
-            "user": user,
-            "current_user": user,
-            "phases_with_progress": phases_with_progress,
-            "current_phase": current_phase,
-            "gam": None,
-            "current": None,
-        },
+        "game/world.html",
+        {"game_state_json": _json.dumps(game_state, ensure_ascii=False)},
     )
 
 
@@ -136,6 +169,13 @@ async def level_player(
         f"/game/{phase.slug}/{next_level.slug}" if next_level else f"/game/{phase.slug}"
     )
 
+    # Detect if coming from RPG world
+    from_world = request.query_params.get("from") == "world"
+
+    # If from world, return to world after completion instead of next level
+    if from_world:
+        next_level_url = "/game/world"
+
     return templates.TemplateResponse(
         request,
         "game/level_player.html",
@@ -148,6 +188,7 @@ async def level_player(
             "new_concepts_json": new_concepts_json,
             "next_level": next_level,
             "next_level_url": next_level_url,
+            "from_world": from_world,
             "gam": None,
             "current": None,
         },
@@ -312,12 +353,14 @@ async def get_game_progress(request: Request, session: SessionDep) -> dict:
 # Game mentor chat (SSE) — minimal system prompt, no module context needed
 # ---------------------------------------------------------------------------
 
-_GAME_TUTOR_SYSTEM = """Eres un mentor de programación Socrático para una app de aprendizaje.
-Tu rol es ayudar al alumno a pensar, no darle la respuesta directa.
-Haz preguntas que los guíen a descubrir la solución por sí mismos.
-Sé breve, directo y cálido. Responde siempre en español.
-Nunca reveles la solución completa ni el código final correcto.
-Máximo 3 oraciones por respuesta."""
+_GAME_TUTOR_SYSTEM = """Eres Don Ramón, un contador veterano de 60 años con 30 años en ACME Manufacturing.
+Llevas gafas gruesas y siempre tienes un café en la mano.
+Hablas con sabiduría práctica y humor seco mexicano.
+Tuteas al jugador. Lo llamas "mijo" o "chamaco" ocasionalmente.
+Comparas programación con contabilidad cuando aplica.
+NUNCA das la respuesta directa. Haces preguntas que guían al descubrimiento.
+Máximo 3 oraciones por respuesta. Siempre en español.
+Si el jugador se frustra, lo calmas con una anécdota breve."""
 
 
 class GameChatBody(BaseModel):

@@ -24,9 +24,15 @@
     {# Scenario card #}
     <div class="scenario-card">
       <div class="level-breadcrumb">
+        {% if from_world %}
+        <a href="/game/world">mapa</a> &rsaquo;
+        <a href="/game/world">{{ phase.title }}</a> &rsaquo;
+        Nivel {{ level.ord }}
+        {% else %}
         <a href="/game">arena</a> &rsaquo;
         <a href="/game/{{ phase.slug }}">{{ phase.title }}</a> &rsaquo;
         Nivel {{ level.ord }}
+        {% endif %}
       </div>
       <h1>{{ level.title }}</h1>
       <div class="level-stats">
@@ -86,5 +92,21 @@
   window.__BL_LEVEL_PAYLOAD = {{ level.payload | tojson }};
   window.__BL_NEXT_LEVEL_URL = {{ next_level_url | tojson }};
   window.__BL_CONCEPTS_TO_SHOW = {{ new_concepts_json | safe }};
+  window.__BL_FROM_WORLD = {{ from_world | tojson }};
+  window.__BL_NEXT_LABEL = {{ ("Volver al mapa" if from_world else "Siguiente nivel →") | tojson }};
 </script>
+{% if from_world %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const observer = new MutationObserver(() => {
+    document.querySelectorAll('.btn-next-level').forEach(el => {
+      if (el.textContent.includes('Siguiente')) {
+        el.textContent = '← Volver al mapa';
+      }
+    });
+  });
+  observer.observe(document.getElementById('level-widget'), {childList: true, subtree: true});
+});
+</script>
+{% endif %}
 {% endblock %}
